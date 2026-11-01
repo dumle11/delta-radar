@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0a0e12"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Delta Radar"
+            android:textColor="#4fd08a"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:layout_marginTop="20dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+                android:text="Android overlay for Delta Force"
+            android:textColor="#5c6b78"
+            android:textSize="14sp"
+            android:layout_marginBottom="24dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Status"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/txtRoot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Root: checking..."
+                android:textColor="#5c6b78"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/txtGame"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Delta Force: checking..."
+                android:textColor="#5c6b78"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/txtFeed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Overlay feed: stopped"
+                android:textColor="#5c6b78"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/txtEntities"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Entities: 0"
+                android:textColor="#5c6b78"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btnStart"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@drawable/btn_primary"
+            android:gravity="center"
+            android:text="Start Overlay"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Launches Delta Force and opens the local drawing overlay."
+            android:textColor="#5c6b78"
+            android:textSize="11sp"
+            android:gravity="center"
+            android:layout_marginTop="12dp" />
+    </LinearLayout>
+</ScrollView>

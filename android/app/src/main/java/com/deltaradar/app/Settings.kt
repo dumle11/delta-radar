@@ -1,0 +1,72 @@
+package com.deltaradar.app
+
+import android.content.Context
+import android.graphics.Color
+
+object Settings {
+    private const val PREFS = "delta_radar"
+    private const val LINES_KEY = "draw_enemy_lines"
+    private const val LABELS_KEY = "show_enemy_labels"
+    private const val SHOW_PLAYERS_KEY = "show_players"
+    private const val SHOW_TEAMMATES_KEY = "show_teammates"
+    private const val SHOW_LOOT_KEY = "show_loot"
+    private const val RENDER_DIST_KEY = "render_distance"
+    private const val PLAYER_COLOR_KEY = "player_color"
+    private const val BOT_COLOR_KEY = "bot_color"
+    private const val PLAYER_DRAW_MODE_KEY = "player_draw_mode"
+    private const val BOT_DRAW_MODE_KEY = "bot_draw_mode"
+    private const val TEAMMATE_COLOR_KEY = "teammate_color"
+    private const val TEAMMATE_DRAW_MODE_KEY = "teammate_draw_mode"
+    private const val LINE_THICKNESS_KEY = "line_thickness_percent"
+
+    const val DEFAULT_PLAYER_COLOR: Int = 0xFFE5534B.toInt()
+    const val DEFAULT_BOT_COLOR: Int = 0xFF46D9FF.toInt()
+    const val DEFAULT_TEAMMATE_COLOR: Int = 0xFF4FD08A.toInt()
+    const val LOOT_COLOR: Int = 0xFF4BCA81.toInt()
+
+    const val DRAW_MODE_OFF = -1
+    const val DRAW_MODE_LINES = 0
+    const val DRAW_MODE_BOXES = 1
+    const val DRAW_MODE_SKELETON = 2
+
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    fun drawEnemyLines(ctx: Context) = prefs(ctx).getBoolean(LINES_KEY, false)
+    fun setDrawEnemyLines(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(LINES_KEY, v).apply() }
+
+    fun showEnemyLabels(ctx: Context) = prefs(ctx).getBoolean(LABELS_KEY, false)
+    fun setShowEnemyLabels(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(LABELS_KEY, v).apply() }
+
+    fun showPlayers(ctx: Context) = prefs(ctx).getBoolean(SHOW_PLAYERS_KEY, true)
+    fun setShowPlayers(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(SHOW_PLAYERS_KEY, v).apply() }
+
+    fun showTeammates(ctx: Context) = prefs(ctx).getBoolean(SHOW_TEAMMATES_KEY, false)
+    fun setShowTeammates(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(SHOW_TEAMMATES_KEY, v).apply() }
+
+    fun showLoot(ctx: Context) = prefs(ctx).getBoolean(SHOW_LOOT_KEY, false)
+    fun setShowLoot(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(SHOW_LOOT_KEY, v).apply() }
+
+    fun renderDistance(ctx: Context) = prefs(ctx).getInt(RENDER_DIST_KEY, 500)
+    fun setRenderDistance(ctx: Context, v: Int) { prefs(ctx).edit().putInt(RENDER_DIST_KEY, v).apply() }
+
+    fun playerColor(ctx: Context): Int = prefs(ctx).getInt(PLAYER_COLOR_KEY, DEFAULT_PLAYER_COLOR) or 0xFF000000.toInt()
+    fun setPlayerColor(ctx: Context, color: Int) { prefs(ctx).edit().putInt(PLAYER_COLOR_KEY, color or 0xFF000000.toInt()).apply() }
+
+    fun botColor(ctx: Context): Int = prefs(ctx).getInt(BOT_COLOR_KEY, DEFAULT_BOT_COLOR) or 0xFF000000.toInt()
+    fun setBotColor(ctx: Context, color: Int) { prefs(ctx).edit().putInt(BOT_COLOR_KEY, color or 0xFF000000.toInt()).apply() }
+
+    fun playerDrawMode(ctx: Context) = prefs(ctx).getInt(PLAYER_DRAW_MODE_KEY, DRAW_MODE_BOXES)
+    fun setPlayerDrawMode(ctx: Context, v: Int) { prefs(ctx).edit().putInt(PLAYER_DRAW_MODE_KEY, v).apply() }
+
+    fun botDrawMode(ctx: Context) = prefs(ctx).getInt(BOT_DRAW_MODE_KEY, DRAW_MODE_BOXES)
+    fun setBotDrawMode(ctx: Context, v: Int) { prefs(ctx).edit().putInt(BOT_DRAW_MODE_KEY, v).apply() }
+
+    fun teammateColor(ctx: Context): Int = prefs(ctx).getInt(TEAMMATE_COLOR_KEY, DEFAULT_TEAMMATE_COLOR) or 0xFF000000.toInt()
+    fun setTeammateColor(ctx: Context, color: Int) { prefs(ctx).edit().putInt(TEAMMATE_COLOR_KEY, color or 0xFF000000.toInt()).apply() }
+
+    fun teammateDrawMode(ctx: Context) = prefs(ctx).getInt(TEAMMATE_DRAW_MODE_KEY, DRAW_MODE_BOXES)
+    fun setTeammateDrawMode(ctx: Context, v: Int) { prefs(ctx).edit().putInt(TEAMMATE_DRAW_MODE_KEY, v).apply() }
+
+    fun lineThicknessPercent(ctx: Context) = prefs(ctx).getInt(LINE_THICKNESS_KEY, 75).coerceIn(25, 300)
+    fun setLineThicknessPercent(ctx: Context, v: Int) { prefs(ctx).edit().putInt(LINE_THICKNESS_KEY, v.coerceIn(25, 300)).apply() }
+}
