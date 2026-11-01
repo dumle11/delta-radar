@@ -103,6 +103,10 @@ class EntityFeedService : Service() {
                 } finally {
                     try { client.close() } catch (_: Exception) {}
                     activeClient = null
+                    // A disconnected scanner cannot provide current camera or
+                    // actor state. Never leave its last match painted over a
+                    // loading screen, menu, or restarted game process.
+                    clearEntities()
                 }
             }
         } catch (e: Exception) {
@@ -125,7 +129,8 @@ class EntityFeedService : Service() {
             val id = raw.optString("id", "")
             if (id.isEmpty()) continue
             val health = raw.optDouble("health", 100.0)
-            val dead = raw.optBoolean("dead", false) || health <= 0.0
+            val healthKnown = raw.optBoolean("healthKnown", false)
+            val dead = raw.optBoolean("dead", false) || (healthKnown && health <= 0.01)
             val isSelf = id == nextSelf
             if (dead && !isSelf) {
                 entities.remove(id)
@@ -135,8 +140,8 @@ class EntityFeedService : Service() {
 
             val e = JSONObject()
             for (key in listOf(
-                "id", "kind", "name", "team", "x", "y", "z", "yaw", "pitch",
-                "health", "maxHealth", "halfHeight", "dead", "bones"
+                "id", "kind", "name", "team", "x", "y", "z", "yaw", "pitch", "fov",
+                "health", "maxHealth", "healthKnown", "halfHeight", "dead", "bones"
             )) if (raw.has(key) && !raw.isNull(key)) e.put(key, raw.get(key))
             if (!e.has("kind")) e.put("kind", "player")
             if (!e.has("team")) e.put("team", 0)
@@ -159,7 +164,7 @@ class EntityFeedService : Service() {
         entities.keys.toList().forEach { id ->
             if (id !in seen) {
                 val misses = (missingFrames[id] ?: 0) + 1
-                if (misses >= 60) {
+                if (misses >= 12) {
                     entities.remove(id)
                     missingFrames.remove(id)
                 } else missingFrames[id] = misses

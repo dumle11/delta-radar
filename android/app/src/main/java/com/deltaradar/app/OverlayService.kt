@@ -91,6 +91,10 @@ class OverlayService : Service() {
         refreshCount++
         val service = EntityFeedService.instance
         if (service == null) { if (refreshCount % 300 == 1L) android.util.Log.w("DeltaRadar", "refresh: no EntityFeedService instance"); return }
+        if (service.lastUpdateTs == 0L || System.currentTimeMillis() - service.lastUpdateTs > 750L) {
+            handler.post { enemyLinesView?.clear() }
+            return
+        }
         val selfId = service.selfId
         if (selfId.isNullOrEmpty()) {
             if (refreshCount % 300 == 1L) android.util.Log.w("DeltaRadar", "refresh: no selfId, entities=${service.entityCount}")
@@ -101,6 +105,7 @@ class OverlayService : Service() {
         val byId = HashMap<String, org.json.JSONObject>(entities.length())
 
         var mx = 0.0; var my = 0.0; var mz = 0.0; var myYaw = 0.0; var myPitch = 0.0
+        var cameraFov = 80.0
         var foundSelf = false
         for (i in 0 until entities.length()) {
             val e = entities.getJSONObject(i)
@@ -109,6 +114,7 @@ class OverlayService : Service() {
                 foundSelf = true
                 mx = e.optDouble("x"); my = e.optDouble("y"); mz = e.optDouble("z")
                 myYaw = e.optDouble("yaw"); myPitch = e.optDouble("pitch")
+                cameraFov = e.optDouble("fov", 80.0).coerceIn(5.0, 150.0)
             }
         }
         if (!foundSelf) {
@@ -116,7 +122,7 @@ class OverlayService : Service() {
             return
         }
 
-        val hfovDeg = 80.0
+        val hfovDeg = cameraFov
         val metrics = resources.displayMetrics
         val screenAspect = metrics.widthPixels.toDouble() / metrics.heightPixels.coerceAtLeast(1)
         // Tracer lines originate from the top-centre of the viewport. Entity
@@ -145,7 +151,10 @@ class OverlayService : Service() {
                 continue
             }
             val health = ent.optDouble("health", 100.0)
-            if (ent.optBoolean("dead", false) || health <= 0) { rejected.add("$id:dead"); continue }
+            val healthKnown = ent.optBoolean("healthKnown", false)
+            if (ent.optBoolean("dead", false) || (healthKnown && health <= 0.01)) {
+                rejected.add("$id:dead"); continue
+            }
             val isCombatEntity = kind == "player" || kind == "ai" || kind == "vehicle"
             if (isCombatEntity && team == 1 && !showTeammates) { rejected.add("$id:teammate"); continue }
             if (isCombatEntity && !showPlayers) { rejected.add("$id:players-off"); continue }
@@ -211,6 +220,7 @@ class OverlayService : Service() {
                 point.onScreen,
                 head.x, head.y, feet.x, feet.y,
                 health = health.toFloat(), maxHealth = ent.optDouble("maxHealth", 100.0).toFloat(),
+                healthKnown = healthKnown,
                 boneScreenX = boneScreenX, boneScreenY = boneScreenY,
                 team = team
             ))

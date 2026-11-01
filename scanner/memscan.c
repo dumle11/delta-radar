@@ -193,12 +193,12 @@ static int is_game_heap_ptr(uint64_t p) {
 #define OFF_PLAYER_STATE_NAME 0x388
 #define OFF_PLAYER_STATE_NAME_PRIVATE 0x470
 #define OFF_PLAYER_STATE_BOT_FLAGS 0x39e
-#define OFF_GP_PLAYER_STATE_TEAM_ID 0x644
+#define OFF_GP_PLAYER_STATE_TEAM_ID 0x66C
 #define OFF_CHARACTER_HEALTH_COMPONENT 0xEC8
 #define OFF_HEALTH_COMPONENT_SET 0x248
-#define OFF_HEALTH_SET_CURRENT 0x44
+#define OFF_HEALTH_SET_CURRENT 0x3C
 #define OFF_HEALTH_SET_MAX 0x54
-#define OFF_HEALTH_SET_IS_ALIVE 0xF4
+#define OFF_HEALTH_SET_IS_ALIVE 0x134
 #define OFF_CHARACTER_LAST_IS_DEAD 0xC81
 #define OFF_PLAYER_STATE_DEAD 0x4AC
 #define OFF_CHARACTER_CAPSULE_HALF_HEIGHT 0xCB0
@@ -757,10 +757,11 @@ static int find_object_field(uint64_t owner, int start, int end, const char *cla
 
 typedef struct {
     char id[32];
-    float x, y, z, yaw, pitch;
+    float x, y, z, yaw, pitch, fov;
     char name[64];
     char kind[16];
     float health, max_health, half_height;
+    int health_known;
     int dead;
     int team;
     int native_team;
@@ -992,6 +993,7 @@ static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root, int mesh
 #define OFF_PC_CAMERA_MANAGER 0x408
 #define OFF_CAMERA_CACHE_PRIVATE 0x37B0
 #define OFF_CAMERA_CACHE_POV 0x10
+#define OFF_GP_CAMERA_FPP_FOV 0x4C00
 #define OFF_POV_LOCATION 0x0
 #define OFF_POV_ROTATION 0x10
 #define OFF_POV_FOV 0x20
@@ -1033,8 +1035,6 @@ static int is_character_class(uint64_t cls, uint64_t local_class) {
 
 static uint64_t cached_local_class = 0;
 static float cached_self_pos[3] = {0};
-static int resolved_health_comp_off = -1;
-static int resolved_health_set_off = -1;
 
 /* Resolve version-sensitive UObject pointer fields by the pointed object's
  * reflected class name once per process. This avoids per-frame blind scans
@@ -1051,6 +1051,155 @@ static int find_object_field(uint64_t owner, int start, int end, const char *cla
         if (class_name[0] && strstr(class_name, class_fragment)) return off;
     }
     return -1;
+}
+
+/* FGPGameplayAttributeData stores BaseValue immediately before CurrentValue.
+ * Proxima 1.202's live Health/MaxHealth/IsAlive CurrentValue slots are
+ * 0x3C/0x54/0x134. Validate the complete tuple so an unrelated UObject is not
+ * accepted merely because it happens to contain one plausible float. */
+static int read_health_set(uint64_t health_set, float *health, float *max_health,
+                           float *is_alive) {
+    if (!is_game_heap_ptr(health_set)) return 0;
+    float hp_base = read_float(health_set + OFF_HEALTH_SET_CURRENT - 4);
+    float hp = read_float(health_set + OFF_HEALTH_SET_CURRENT);
+    float max_base = read_float(health_set + OFF_HEALTH_SET_MAX - 4);
+    float max_hp = read_float(health_set + OFF_HEALTH_SET_MAX);
+    float alive_base = read_float(health_set + OFF_HEALTH_SET_IS_ALIVE - 4);
+    float alive = read_float(health_set + OFF_HEALTH_SET_IS_ALIVE);
+    if (!isfinite(hp_base) || !isfinite(hp) || !isfinite(max_base) ||
+        !isfinite(max_hp) || !isfinite(alive_base) || !isfinite(alive)) return 0;
+    if (max_hp < 10.0f || max_hp > 100000.0f ||
+        max_base < 10.0f || max_base > 100000.0f) return 0;
+    if (hp < 0.0f || hp > max_hp * 1.5f ||
+        hp_base < 0.0f || hp_base > max_base * 1.5f) return 0;
+    if (alive < -0.01f || alive > 1.01f ||
+        alive_base < -0.01f || alive_base > 1.01f) return 0;
+    if (alive < 0.5f && hp > max_hp * 0.05f) return 0;
+    *health = hp;
+    *max_health = max_hp;
+    *is_alive = alive;
+    return 1;
+}
+
+/* Minor regional builds shift the large AGPCharacterBase layout. Resolve the
+ * two pointer fields once from the local pawn, then reuse them for every actor
+ * and frame. Reflection names are preferred, with a strict value-shape check
+ * as the fallback when this build's FName layout cannot decode component names. */
+static int discover_health_chain(uint64_t actor, int *component_off, int *set_off) {
+    int best_score = -1;
+    int best_component_off = -1, best_set_off = -1;
+    float best_hp = 0.0f, best_max_hp = 0.0f, best_alive = 0.0f;
+    int reflected_component = find_object_field(
+        actor, 0x700, 0x1800, "HealthDataComponent");
+    int component_start = reflected_component >= 0 ? reflected_component : 0x700;
+    int component_end = reflected_component >= 0 ? reflected_component + 8 : 0x1800;
+    for (int co = component_start; co < component_end; co += 8) {
+        uint64_t component = read_ptr(actor + (uint64_t)co);
+        if (!is_game_heap_ptr(component)) continue;
+
+        int reflected_set = find_object_field(
+            component, 0x100, 0x500, "AttributeSetHealth");
+        int set_start = reflected_set >= 0 ? reflected_set : 0x100;
+        int set_end = reflected_set >= 0 ? reflected_set + 8 : 0x500;
+        for (int so = set_start; so < set_end; so += 8) {
+            uint64_t set = read_ptr(component + (uint64_t)so);
+            float hp = 0.0f, max_hp = 0.0f, alive = 0.0f;
+            if (!read_health_set(set, &hp, &max_hp, &alive)) continue;
+            /* In UGPHealthDataComponent, HealthMAX is 0x28 bytes before the
+             * HealthSet pointer. This relationship survives the regional
+             * build's base-class size shift and rejects unrelated attribute-
+             * shaped objects that happen to contain plausible numbers. */
+            if (so < 0x28) continue;
+            float component_max = read_float(component + (uint64_t)(so - 0x28));
+            if (!isfinite(component_max) || component_max < 10.0f ||
+                fabsf(component_max - max_hp) > fmaxf(2.0f, max_hp * 0.05f)) continue;
+            int score = 0;
+            if (alive >= 0.5f) score += 100;
+            if (hp > 0.01f) score += 100;
+            if (score > best_score) {
+                best_score = score;
+                best_component_off = co;
+                best_set_off = so;
+                best_hp = hp;
+                best_max_hp = max_hp;
+                best_alive = alive;
+            }
+        }
+    }
+    if (best_component_off < 0) return 0;
+    *component_off = best_component_off;
+    *set_off = best_set_off;
+    fprintf(stderr,
+            "\n[+] Health chain actor+0x%x -> component+0x%x "
+            "(hp=%.1f/%.1f alive=%.0f score=%d)\n",
+            best_component_off, best_set_off, best_hp, best_max_hp,
+            best_alive, best_score);
+    if (best_score == 0) {
+        uint64_t component = read_ptr(actor + (uint64_t)best_component_off);
+        uint64_t set = read_ptr(component + (uint64_t)best_set_off);
+        fprintf(stderr, "[diag] health-set candidate floats:");
+        for (int off = 0x20; off <= 0x140; off += 4) {
+            float value = read_float(set + (uint64_t)off);
+            if (isfinite(value) && fabsf(value) >= 0.5f && fabsf(value) <= 100000.0f)
+                fprintf(stderr, " +%03x=%.2f", off, value);
+        }
+        fprintf(stderr, "\n");
+    }
+    return 1;
+}
+
+#define MAX_HEALTH_LAYOUTS 64
+typedef struct {
+    uint64_t actor_class;
+    int component_off;
+    int set_off;
+    int death_trusted;
+    unsigned long last_attempt;
+} HealthLayout;
+
+static HealthLayout health_layouts[MAX_HEALTH_LAYOUTS];
+static int health_layout_count = 0;
+static unsigned long health_layout_clock = 0;
+
+static HealthLayout *health_layout_for_actor(uint64_t actor) {
+    uint64_t actor_class = read_ptr(actor + OFF_UOBJECT_CLASS);
+    if (!is_game_heap_ptr(actor_class) && !is_any_ptr(actor_class)) return NULL;
+    health_layout_clock++;
+
+    HealthLayout *layout = NULL;
+    for (int i = 0; i < health_layout_count; i++) {
+        if (health_layouts[i].actor_class == actor_class) {
+            layout = &health_layouts[i];
+            break;
+        }
+    }
+    if (!layout) {
+        if (health_layout_count >= MAX_HEALTH_LAYOUTS) return NULL;
+        layout = &health_layouts[health_layout_count++];
+        memset(layout, 0, sizeof(*layout));
+        layout->actor_class = actor_class;
+        layout->component_off = -1;
+        layout->set_off = -1;
+    }
+
+    /* Retry a failed class occasionally: its first observed actor may still be
+     * constructing components. Successful layouts never scan again. */
+    if (layout->component_off < 0 &&
+        (layout->last_attempt == 0 || health_layout_clock - layout->last_attempt >= 3000)) {
+        layout->last_attempt = health_layout_clock;
+        int component_off = -1, set_off = -1;
+        if (discover_health_chain(actor, &component_off, &set_off)) {
+            layout->component_off = component_off;
+            layout->set_off = set_off;
+            uint64_t component = read_ptr(actor + (uint64_t)component_off);
+            uint64_t set = is_game_heap_ptr(component) ?
+                read_ptr(component + (uint64_t)set_off) : 0;
+            float hp = 0.0f, max_hp = 0.0f, alive = 0.0f;
+            layout->death_trusted = read_health_set(set, &hp, &max_hp, &alive) &&
+                hp > 0.01f && alive >= 0.5f;
+        }
+    }
+    return layout;
 }
 
 /* FName layouts differ in the current Proxima build, so reflection can fail
@@ -1141,6 +1290,8 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         match_was_verified = 0;
         last_camera_timestamp = -1.0f;
         stale_camera_frames = 0;
+        health_layout_count = 0;
+        health_layout_clock = 0;
     }
 
     uint64_t level = read_ptr(uworld + OFF_UWORLD_PERSISTENT_LEVEL);
@@ -1226,13 +1377,15 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             uint64_t pov = cache + OFF_CAMERA_CACHE_POV;
             fprintf(stderr,
                 "\n[diag] camera pc=0x%lx managerOff=0x%x manager=0x%lx "
-                "sdkCache(ts=%.3f loc=%.1f,%.1f,%.1f rot=%.1f,%.1f fov=%.1f)\n",
+                "sdkCache(ts=%.3f loc=%.1f,%.1f,%.1f rot=%.1f,%.1f fov=%.1f) "
+                "fppFov=%.1f\n",
                 (unsigned long)local_pc, camera_manager_off,
                 (unsigned long)camera_manager, read_float(cache),
                 read_float(pov), read_float(pov + 4), read_float(pov + 8),
                 read_float(pov + OFF_POV_ROTATION),
                 read_float(pov + OFF_POV_ROTATION + 4),
-                read_float(pov + OFF_POV_FOV));
+                read_float(pov + OFF_POV_FOV),
+                read_float(camera_manager + OFF_GP_CAMERA_FPP_FOV));
             camera_diag_logged = 1;
         }
         if (is_game_heap_ptr(camera_manager)) {
@@ -1255,10 +1408,16 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             camera_pitch = read_float(pov + OFF_POV_ROTATION);
             camera_yaw = read_float(pov + OFF_POV_ROTATION + 4);
             camera_fov = read_float(pov + OFF_POV_FOV);
+            /* Delta Force applies weapon ADS through its derived camera
+             * manager and can leave FMinimalViewInfo::FOV at the base 90°.
+             * FPPCameraFOV is the effective first-person projection angle. */
+            float fpp_camera_fov = read_float(camera_manager + OFF_GP_CAMERA_FPP_FOV);
+            if (fpp_camera_fov >= 5.0f && fpp_camera_fov <= 180.0f)
+                camera_fov = fpp_camera_fov;
             camera_valid = camera_x == camera_x && camera_y == camera_y && camera_z == camera_z &&
                 camera_pitch == camera_pitch && camera_yaw == camera_yaw &&
                 fabsf(camera_x) < 100000.0f && fabsf(camera_y) < 100000.0f &&
-                fabsf(camera_z) < 100000.0f && camera_fov >= 20.0f && camera_fov <= 180.0f;
+                fabsf(camera_z) < 100000.0f && camera_fov >= 5.0f && camera_fov <= 180.0f;
             if (camera_valid) {
                 if (timestamp == last_camera_timestamp) stale_camera_frames++;
                 else { last_camera_timestamp = timestamp; stale_camera_frames = 0; }
@@ -1497,48 +1656,38 @@ camera_done:
         /* Matching SDK chain:
          * AGPCharacterBase::HealthComp -> UGPHealthDataComponent::HealthSet ->
          * FGPGameplayAttributeData::{Health,MaxHealth}.CurrentValue. */
-        e->health = 100.0f;
-        e->max_health = 100.0f;
-        if (is_self_pawn && resolved_health_comp_off < 0) {
-            resolved_health_comp_off = find_object_field(
-                actor_ptrs[i], 0x800, 0x1400, "HealthDataComponent");
-            if (resolved_health_comp_off >= 0)
-                fprintf(stderr, "\n[+] Reflected HealthDataComponent at actor+0x%x\n",
-                        resolved_health_comp_off);
-        }
-        int health_comp_off = resolved_health_comp_off >= 0 ?
-            resolved_health_comp_off : OFF_CHARACTER_HEALTH_COMPONENT;
+        e->health = 0.0f;
+        e->max_health = 0.0f;
+        e->health_known = 0;
+        HealthLayout *health_layout = health_layout_for_actor(actor_ptrs[i]);
+        int health_comp_off = health_layout && health_layout->component_off >= 0 ?
+            health_layout->component_off : OFF_CHARACTER_HEALTH_COMPONENT;
         uint64_t health_comp = read_ptr(actor_ptrs[i] + (uint64_t)health_comp_off);
-        if (is_self_pawn && is_game_heap_ptr(health_comp) && resolved_health_set_off < 0) {
-            resolved_health_set_off = find_object_field(
-                health_comp, 0x100, 0x400, "AttributeSetHealth");
-            if (resolved_health_set_off >= 0)
-                fprintf(stderr, "[+] Reflected AttributeSetHealth at component+0x%x\n",
-                        resolved_health_set_off);
-        }
-        int health_set_off = resolved_health_set_off >= 0 ?
-            resolved_health_set_off : OFF_HEALTH_COMPONENT_SET;
+        int health_set_off = health_layout && health_layout->set_off >= 0 ?
+            health_layout->set_off : OFF_HEALTH_COMPONENT_SET;
         uint64_t health_set = is_game_heap_ptr(health_comp) ?
             read_ptr(health_comp + (uint64_t)health_set_off) : 0;
         float is_alive = 1.0f;
-        if (is_game_heap_ptr(health_set)) {
-            float hp = read_float(health_set + OFF_HEALTH_SET_CURRENT);
-            float max_hp = read_float(health_set + OFF_HEALTH_SET_MAX);
-            float alive = read_float(health_set + OFF_HEALTH_SET_IS_ALIVE);
-            if (hp == hp && max_hp == max_hp && max_hp > 0.0f && max_hp < 100000.0f &&
-                hp >= 0.0f && hp <= max_hp * 1.5f) {
+        {
+            float hp = 0.0f, max_hp = 0.0f, alive = 1.0f;
+            if (read_health_set(health_set, &hp, &max_hp, &alive)) {
                 e->health = hp;
                 e->max_health = max_hp;
+                e->health_known = 1;
+                is_alive = alive;
             }
-            if (alive == alive && alive >= 0.0f && alive <= 1.0f) is_alive = alive;
         }
 
         uint8_t character_dead = 0;
         uint8_t player_dead = 0;
         read_mem(actor_ptrs[i] + OFF_CHARACTER_LAST_IS_DEAD, &character_dead, 1);
         if (has_playerstate) read_mem(player_state + OFF_PLAYER_STATE_DEAD, &player_dead, 1);
+        /* Replicated actor/PlayerState death bits are authoritative. A health
+         * chain is accepted for drawing only; a bad regional-layout candidate
+         * must never hide a visibly alive pawn. */
         e->dead = (character_dead & 1) != 0 || (player_dead & 1) != 0 ||
-            e->health <= 0.0f || is_alive <= 0.0f;
+            (health_layout && health_layout->death_trusted && e->health_known &&
+             is_alive < 0.5f && e->health <= 0.01f);
 
         /* RootComponent is the character capsule. Prefer the engine capsule's
          * actual scaled geometry; the mirrored character copy is version-sensitive. */
@@ -1595,6 +1744,7 @@ camera_done:
             if (camera_valid) {
                 e->x = camera_x; e->y = camera_y; e->z = camera_z;
                 e->yaw = camera_yaw; e->pitch = camera_pitch;
+                e->fov = camera_fov;
             } else if (local_pc) {
                 float cam_yaw = read_float(local_pc + OFF_PC_CONTROL_YAW);
                 float cam_pitch = read_float(local_pc + OFF_PC_CONTROL_PITCH);
@@ -1636,12 +1786,14 @@ camera_done:
         if ((diag_tick2++ % 90) == 0 && num_entities > 0) {
             fprintf(stderr, "\n[diag] self=(%.1f,%.1f,%.1f) entities=%d\n",
                     cached_self_pos[0], cached_self_pos[1], cached_self_pos[2], num_entities);
-            for (int i = 0; i < num_entities && i < 6; i++) {
+            for (int i = 0; i < num_entities && i < 16; i++) {
                 Entity *e = &entities[i];
                 fprintf(stderr,
-                        "  [%s] kind=%s pos=(%.1f,%.1f,%.1f) hp=%.0f/%.0f hh=%.2f dead=%d name=%s\n",
+                        "  [%s] kind=%s pos=(%.1f,%.1f,%.1f) hp=%.0f/%.0f hh=%.2f "
+                        "dead=%d team=%d native=%d fov=%.1f name=%s\n",
                         e->id, e->kind, e->x, e->y, e->z, e->health,
-                        e->max_health, e->half_height, e->dead, e->name);
+                        e->max_health, e->half_height, e->dead, e->team,
+                        e->native_team, e->fov, e->name);
             }
         }
     }
@@ -1684,6 +1836,7 @@ camera_done:
             self->team = 1;
             self->x = camera_x; self->y = camera_y; self->z = camera_z;
             self->yaw = camera_yaw; self->pitch = camera_pitch;
+            self->fov = camera_fov;
             self_verified = 1;
             match_was_verified = 1;
         }
@@ -1712,10 +1865,12 @@ camera_done:
         strncpy(e->kind, "player", sizeof(e->kind) - 1);
         e->team = 1;
         e->native_team = -1;
-        e->health = 100.0f;
-        e->max_health = 100.0f;
+        e->health = 0.0f;
+        e->max_health = 0.0f;
+        e->health_known = 0;
         e->half_height = 1.05f;
         e->dead = 0;
+        e->fov = camera_valid ? camera_fov : 80.0f;
         strncpy(self_entity_id, e->id, sizeof(self_entity_id) - 1);
 
         float cam_yaw = camera_valid ? camera_yaw : read_float(local_pc + OFF_PC_CONTROL_YAW);
@@ -1793,12 +1948,14 @@ static int post_to_radar(void) {
         json_escape(entities[i].name, escaped_name, sizeof(escaped_name));
         off += snprintf(body + off, sizeof(body) - off,
             "{\"id\":\"%s\",\"kind\":\"%s\",\"x\":%.1f,\"y\":%.1f,\"z\":%.1f,"
-            "\"yaw\":%.1f,\"pitch\":%.1f,\"name\":\"%s\",\"health\":%.1f,\"maxHealth\":%.1f,"
+            "\"yaw\":%.1f,\"pitch\":%.1f,\"fov\":%.1f,\"name\":\"%s\",\"health\":%.1f,\"maxHealth\":%.1f,"
+            "\"healthKnown\":%s,"
             "\"halfHeight\":%.2f,\"dead\":%s,\"team\":%d,\"lastSeen\":%lld",
             entities[i].id, entities[i].kind[0] ? entities[i].kind : "player",
             entities[i].x, entities[i].y, entities[i].z,
-            entities[i].yaw, entities[i].pitch, escaped_name, entities[i].health,
-            entities[i].max_health, entities[i].half_height, entities[i].dead ? "true" : "false",
+            entities[i].yaw, entities[i].pitch, entities[i].fov, escaped_name, entities[i].health,
+            entities[i].max_health, entities[i].health_known ? "true" : "false",
+            entities[i].half_height, entities[i].dead ? "true" : "false",
             entities[i].team, now_ms);
         if (entities[i].has_bones) {
             off += snprintf(body + off, sizeof(body) - off, ",\"bones\":[");
@@ -2365,7 +2522,39 @@ int main(int argc, char **argv) {
         int zero_entity_frames = 0;
         int last_reported_count = -1;
         unsigned report_tick = 0;
+        unsigned pid_tick = 0;
+        int game_missing = 0;
         while (running) {
+            if ((pid_tick++ % 30) == 0) {
+                int active_pid = find_game_pid();
+                if (active_pid > 0 && active_pid != game_pid) {
+                    fprintf(stderr, "\n[+] Game PID changed %d -> %d; reattaching\n",
+                            game_pid, active_pid);
+                    num_entities = 0;
+                    self_entity_id[0] = 0;
+                    post_to_radar();
+                    if (maps_file) { fclose(maps_file); maps_file = NULL; }
+                    if (mem_fd >= 0) { close(mem_fd); mem_fd = -1; }
+                    execv(argv[0], argv);
+                    fprintf(stderr, "[-] Scanner reattach exec failed: %s\n", strerror(errno));
+                    break;
+                }
+                if (active_pid <= 0 && !game_missing) {
+                    /* Immediately remove the previous match from the Android
+                     * overlay while the game is closed or restarting. */
+                    int saved_count = num_entities;
+                    char saved_self[sizeof(self_entity_id)];
+                    memcpy(saved_self, self_entity_id, sizeof(saved_self));
+                    num_entities = 0;
+                    self_entity_id[0] = 0;
+                    post_to_radar();
+                    num_entities = saved_count;
+                    memcpy(self_entity_id, saved_self, sizeof(self_entity_id));
+                    game_missing = 1;
+                } else if (active_pid == game_pid) {
+                    game_missing = 0;
+                }
+            }
             int n = read_entities_sdk(use_gworld, use_actor_src,
                                       use_root_off, use_pos_off, use_ctw);
             if (n >= 0) {
@@ -2401,6 +2590,19 @@ int main(int argc, char **argv) {
             int need_rescan = consecutive_failures > 10 ||
                               zero_entity_frames > 150; /* ~5s of 0 entities */
             if (need_rescan) {
+                int active_pid = find_game_pid();
+                if (active_pid > 0 && active_pid != game_pid) {
+                    fprintf(stderr, "\n[+] Game PID changed %d -> %d before rescan; reattaching\n",
+                            game_pid, active_pid);
+                    num_entities = 0;
+                    self_entity_id[0] = 0;
+                    post_to_radar();
+                    if (maps_file) { fclose(maps_file); maps_file = NULL; }
+                    if (mem_fd >= 0) { close(mem_fd); mem_fd = -1; }
+                    execv(argv[0], argv);
+                    fprintf(stderr, "[-] Scanner reattach exec failed: %s\n", strerror(errno));
+                    break;
+                }
                 fprintf(stderr, "\n[!] Re-scanning (failures=%d zero=%d)...\n",
                         consecutive_failures, zero_entity_frames);
                 parse_maps();

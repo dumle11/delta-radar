@@ -27,6 +27,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         val feetY: Float = screenY,
         val health: Float = 100f,
         val maxHealth: Float = 100f,
+        val healthKnown: Boolean = false,
         val boneScreenX: FloatArray? = null,
         val boneScreenY: FloatArray? = null,
         val team: Int = 2
@@ -227,17 +228,19 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                         canvas.drawRect(boxRect, boxShadowPaint)
                         canvas.drawRect(boxRect, boxPaint)
 
-                        val hpFrac = (enemy.health / enemy.maxHealth.coerceAtLeast(1f)).coerceIn(0f, 1f)
-                        val barW = 1.5f * density
-                        val barGap = 2f * density
-                        val barLeft = left - barW - barGap
-                        val barRect = RectF(barLeft, top, barLeft + barW, bottom)
-                        canvas.drawRect(barRect, healthBgPaint)
-                        val fillTop = top + (bottom - top) * (1f - hpFrac)
-                        val r = ((1f - hpFrac) * 255).toInt().coerceIn(0, 255)
-                        val g = (hpFrac * 255).toInt().coerceIn(0, 255)
-                        healthFillPaint.color = Color.argb(220, r, g, 0)
-                        canvas.drawRect(RectF(barLeft, fillTop, barLeft + barW, bottom), healthFillPaint)
+                        if (enemy.healthKnown && enemy.maxHealth > 0f) {
+                            val hpFrac = (enemy.health / enemy.maxHealth).coerceIn(0f, 1f)
+                            val barW = 1.5f * density
+                            val barGap = 2f * density
+                            val barLeft = left - barW - barGap
+                            val barRect = RectF(barLeft, top, barLeft + barW, bottom)
+                            canvas.drawRect(barRect, healthBgPaint)
+                            val fillTop = top + (bottom - top) * (1f - hpFrac)
+                            val r = ((1f - hpFrac) * 255).toInt().coerceIn(0, 255)
+                            val g = (hpFrac * 255).toInt().coerceIn(0, 255)
+                            healthFillPaint.color = Color.argb(220, r, g, 0)
+                            canvas.drawRect(RectF(barLeft, fillTop, barLeft + barW, bottom), healthFillPaint)
+                        }
                     }
                 }
             }

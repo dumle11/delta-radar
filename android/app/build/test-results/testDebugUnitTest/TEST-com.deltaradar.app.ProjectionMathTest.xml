@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.deltaradar.app.ProjectionMathTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-01T20:33:01" hostname="Adams-MacBook-Pro-2.local" time="0.005">
+<testsuite name="com.deltaradar.app.ProjectionMathTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-01T21:25:59" hostname="Adams-MacBook-Pro-2.local" time="0.01">
   <properties/>
-  <testcase name="yAxisIsForwardAtZeroYaw" classname="com.deltaradar.app.ProjectionMathTest" time="0.003"/>
-  <testcase name="behindTargetNotInFront" classname="com.deltaradar.app.ProjectionMathTest" time="0.001"/>
+  <testcase name="yAxisIsForwardAtZeroYaw" classname="com.deltaradar.app.ProjectionMathTest" time="0.008"/>
+  <testcase name="behindTargetNotInFront" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
   <testcase name="lookingUpMovesAWorldAnchoredTargetDownTheScreen" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
   <testcase name="offscreenClampsToEdge" classname="com.deltaradar.app.ProjectionMathTest" time="0.001"/>
   <testcase name="xAxisMovesUp" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
