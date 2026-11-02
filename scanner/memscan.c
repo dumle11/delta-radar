@@ -2,7 +2,7 @@
  * Delta Force memory scanner - finds UE4 structures via process_vm_readv
  * SDK dump offsets from github.com/eikarna/deltaforce-dump (Garena v1.203)
  *
- * Build: aarch64-linux-android26-clang -O2 -lm -o memscan memscan.c
+ * Reproducible ARM64/API-31 build: scanner/tools/build_scanner.py --ndk PATH
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,27 +24,59 @@
 #include <sys/syscall.h>
 #include <time.h>
 
+#ifndef DELTA_SOURCE_REVISION
+#define DELTA_SOURCE_REVISION "unrecorded"
+#endif
+#ifndef DELTA_SOURCE_SHA256
+#define DELTA_SOURCE_SHA256 "unrecorded"
+#endif
+
+static volatile sig_atomic_t running = 1;
+static const char *session_file = NULL;
+static pid_t session_owner_pid = 0;
+
+/* A cancelled app session cannot turn a delayed root command into a live read.
+ * This checks only our app's lease file; it does not alter the game process. */
+static int session_active(void) {
+    if (!running) return 0;
+    if (!session_file) return 1;
+    static long long checked_at = -1;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    long long now = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    if (checked_at >= 0 && now - checked_at < 50) return running;
+    checked_at = now;
+    if (session_owner_pid <= 1 || kill(session_owner_pid, 0) != 0) {
+        running = 0;
+        return 0;
+    }
+    FILE *f = fopen(session_file, "r");
+    char lease[16] = {0};
+    int valid = f && fgets(lease, sizeof(lease), f) && strcmp(lease, "active\n") == 0;
+    if (f) fclose(f);
+    if (!valid) running = 0;
+    return running;
+}
+
 #define GAME_PKG "com.proxima.dfm"
 #define RADAR_SOCKET_NAME "delta_radar_feed"
 #define MAX_ACTORS 512
 #define READ_BUF_SIZE (4 * 1024 * 1024)
 #define MAX_REGIONS 16384
 
-/* SDK dump offsets (Garena v1.203, close to Proxima v1.202) */
-#define OFF_UWORLD_PERSISTENT_LEVEL   0xF8
+/* Live-probed offsets (Proxima v1.202, match_probe2 on OnePlus 7T, 2026-11) */
+#define OFF_UWORLD_PERSISTENT_LEVEL   0x430
 #define OFF_UWORLD_GAME_STATE         0x140
 #define OFF_UWORLD_LEVELS             0x158
 #define OFF_ULEVEL_ACTOR_CLUSTER      0xC8
 #define OFF_ACTOR_CONTAINER_ACTORS    0x28
-#define OFF_AACTOR_ROOT_COMPONENT     0x180
+#define OFF_AACTOR_ROOT_COMPONENT     0x108
 #define OFF_AACTOR_CHILDREN           0x170
-#define OFF_USCENE_RELATIVE_LOCATION  0x164
+#define OFF_USCENE_RELATIVE_LOCATION  0x150
 #define OFF_USCENE_COMPONENT_TO_WORLD 0x1C0
 #define OFF_TRANSFORM_TRANSLATION      0x10
 #define OFF_USCENE_WORLD_LOCATION      (OFF_USCENE_COMPONENT_TO_WORLD + OFF_TRANSFORM_TRANSLATION)
-/* Proxima 1.202 live root transform. Verified against CameraCachePrivate: the
- * local operator root at +0x148 tracks the camera in the same UE world space. */
-#define OFF_PROXIMA_ROOT_WORLD_LOCATION 0x148
+#define OFF_PROXIMA_ROOT_WORLD_LOCATION 0x150
 #define OFF_UOBJECT_CLASS             0x8
 #define OFF_UOBJECT_NAME              0x1C
 #define OFF_UOBJECT_OUTER             0x10
@@ -57,11 +89,11 @@
 #define OFF_GWORLD_FROM_UE4_BASE      0x20AA87A0
 #define OFF_FNAME_POOL_BLOCKS         0x38
 
-/* Standard UE4 ULevel::Actors offsets (hidden in pad area) */
-static const int ULEVEL_ACTOR_OFFSETS[] = {
-    0x98, 0xA0, 0xA8, 0xB0
-};
-#define NUM_ULEVEL_ACTOR_OFFSETS (sizeof(ULEVEL_ACTOR_OFFSETS)/sizeof(ULEVEL_ACTOR_OFFSETS[0]))
+/* Proxima v1.202: actor arrays move within ULevel between matches.
+ * Scan a range of the level object for TArray patterns instead. */
+#define ULEVEL_SCAN_START 0x800
+#define ULEVEL_SCAN_END   0x2000
+#define ULEVEL_SCAN_STEP  8
 
 typedef struct {
     uint64_t start, end;
@@ -77,6 +109,203 @@ static int num_regions = 0;
 static uint8_t *read_buf = NULL;
 static int use_vm_readv = 0;
 static FILE *maps_file = NULL;
+
+/* Observational discovery diagnostics: fixed storage, no additional game reads.
+ * Counters count events, not unique objects; pointer aliases may repeat. */
+enum DiagCheck {
+    DC_WORLD_OUTSIDE_MODULE, DC_LEVEL_POINTER, DC_LEVEL_OUTSIDE_MODULE,
+    DC_CLUSTER_POINTER, DC_CLUSTER_OUTSIDE_MODULE,
+    DC_COUNT_MIN, DC_COUNT_MAX, DC_CAPACITY_MIN, DC_CAPACITY_MAX, DC_ARRAY_POINTER,
+    DC_ARRAY_READ, DC_SCORE_IMPROVES, DC_THREE_POINTERS, DC_BEST_LIST,
+    DC_SAMPLE_NONEMPTY, DC_SAMPLE_READ, DC_SAMPLE_ACTOR_POINTER,
+    DC_LOCAL_CLASS, DC_CHARACTER_CLASS, DC_ROOT_POINTER,
+    DC_X_FINITE, DC_Y_FINITE, DC_Z_FINITE, DC_X_BOUND, DC_Y_BOUND, DC_Z_BOUND,
+    DC_NONZERO_POSITION, DC_BACKREF_MATCH, DC_PC_GAME_HEAP, DC_PAWN_GAME_HEAP, DC_HAS_PLAUSIBLE, DC_SCORE_THRESHOLD, DC_CHECK_COUNT
+};
+static const char *const diag_check_names[] = {
+    "world_outside_module", "level_pointer_valid", "level_outside_module",
+    "cluster_pointer_valid", "cluster_outside_module",
+    "count_ge_5", "count_le_50000", "capacity_ge_count", "capacity_le_100000", "array_pointer_valid",
+    "array_read_complete", "score_improves_best", "valid_pointer_count_ge_3", "best_list_score_gt_0",
+    "sample_nonempty", "sample_read_complete", "sample_actor_pointer_valid",
+    "local_class_pointer_valid", "actor_matches_character_class", "root_pointer_valid",
+    "x_not_nan", "y_not_nan", "z_not_nan", "abs_x_le_10000000", "abs_y_le_10000000", "abs_z_le_10000000",
+    "position_nonzero", "owning_world_matches", "controller_in_game_heap", "pawn_in_game_heap", "plausible_players_gt_0", "score_ge_70"
+};
+enum DiagStage { DS_BULK, DS_LEVEL, DS_BACKREF, DS_CLUSTER, DS_ARRAY_FIELDS,
+    DS_ARRAY_CONTENTS, DS_LOCAL_CHAIN, DS_PLAYER_SAMPLE, DS_CLASS_ROOT, DS_POSITION, DS_COUNT };
+static const char *const diag_stage_names[] = {
+    "scan_mapping", "persistent_level", "owning_world", "actor_cluster", "array_fields",
+    "array_contents", "local_player_chain", "player_sample", "class_and_root", "position"
+};
+enum DiagMapReason { DM_SELECTED, DM_NOT_RW, DM_EXECUTABLE, DM_NAMED_OTHER,
+    DM_ANON_OUTSIDE, DM_SIZE, DM_COUNT };
+static const char *const diag_map_names[] = {
+    "selected", "not_read_write", "executable", "named_not_ue4", "anonymous_outside_neighbourhood", "size_outside_limits"
+};
+typedef struct { uint64_t calls, complete, partial, failed, requested, returned; } DiagReads;
+typedef struct {
+    int region, reason;
+    uint64_t start, end, read_bytes, slots;
+    char perms[8], label[48];
+} DiagMapping;
+typedef struct {
+    uint64_t key, ordinal, failed_checks;
+    int score, raw_score, reached, read_failures, partial_reads;
+    int path_score[5], path_valid[5], path_checked[5];
+    uint64_t path_failed[5];
+} DiagCandidate;
+typedef struct {
+    int active, read_stage, path, mapping_detail;
+    uint64_t pass, started_ms, slots, potential, validation_calls;
+    uint64_t level_valid, lists_valid, lists_read, lists_selected, worlds_with_list;
+    uint64_t sample_actors, plausible_players, backref_match, backref_mismatch;
+    uint64_t local_pointer_valid[6], score_ge70, score_ge70_with_players;
+    uint64_t passed[DC_CHECK_COUNT], rejected[DC_CHECK_COUNT], path_rejected[5][DC_CHECK_COUNT];
+    uint64_t map_count[DM_COUNT], map_bytes[DM_COUNT], maps_visited;
+    uint64_t errno_counts[256], errno_other;
+    DiagReads reads[DS_COUNT];
+    DiagMapping mappings[56];
+    int mapping_count, selected_details, excluded_details[DM_COUNT];
+    int max_score, max_raw_score;
+    DiagCandidate current, top[3];
+    int top_count;
+} DiscoveryDiagnostics;
+static DiscoveryDiagnostics discovery_diag;
+static uint64_t discovery_passes, diag_last_emit_ms, diag_suppressed_passes;
+static int diag_maps_rows, diag_maps_truncated, diag_maps_malformed, diag_maps_errno;
+static uint64_t diag_now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000 + (uint64_t)ts.tv_nsec / 1000000;
+}
+static void diag_begin(void) {
+    memset(&discovery_diag, 0, sizeof(discovery_diag));
+    discovery_diag.active = 1;
+    discovery_diag.path = -1; discovery_diag.mapping_detail = -1;
+    discovery_diag.pass = ++discovery_passes;
+    discovery_diag.started_ms = diag_now_ms();
+}
+static void diag_stage(int stage) { if (discovery_diag.active) discovery_diag.read_stage = stage; }
+static void diag_path(int path) { if (discovery_diag.active) discovery_diag.path = path; }
+static int diag_check(int ok, int check) {
+    if (ok && discovery_diag.active) discovery_diag.passed[check]++;
+    if (!ok && discovery_diag.active) {
+        discovery_diag.rejected[check]++;
+        discovery_diag.current.failed_checks |= UINT64_C(1) << check;
+        int path = discovery_diag.path;
+        if (path >= 0 && path < 5) {
+            discovery_diag.path_rejected[path][check]++;
+            discovery_diag.current.path_failed[path] |= UINT64_C(1) << check;
+        }
+    }
+    return ok;
+}
+#define D_CHECK(check, expression) diag_check((expression), (check))
+#define D_COUNT(field) do { if (discovery_diag.active) discovery_diag.field++; } while (0)
+static void diag_read(size_t requested, ssize_t result, int error) {
+    if (!discovery_diag.active) return;
+    DiagReads *r = &discovery_diag.reads[discovery_diag.read_stage];
+    r->calls++; r->requested += requested;
+    if (result >= 0) r->returned += (uint64_t)result;
+    if (result == (ssize_t)requested) r->complete++;
+    else if (result >= 0) { r->partial++; discovery_diag.current.partial_reads++; }
+    else {
+        r->failed++; discovery_diag.current.read_failures++;
+        if (error > 0 && error < 256) discovery_diag.errno_counts[error]++;
+        else discovery_diag.errno_other++;
+    }
+}
+static void diag_mapping(int region, int reason) {
+    if (!discovery_diag.active) return;
+    MemRegion *r = &regions[region];
+    discovery_diag.maps_visited++;
+    discovery_diag.map_count[reason]++;
+    discovery_diag.map_bytes[reason] += r->end - r->start;
+    discovery_diag.mapping_detail = -1;
+    /* 32 selected mappings + 4 samples for each exclusion reason, max 52. */
+    if ((reason == DM_SELECTED && discovery_diag.selected_details >= 32) ||
+        (reason != DM_SELECTED && discovery_diag.excluded_details[reason] >= 4)) return;
+    int slot = discovery_diag.mapping_count++;
+    DiagMapping *m = &discovery_diag.mappings[slot];
+    m->region = region; m->reason = reason; m->start = r->start; m->end = r->end;
+    memcpy(m->perms, r->perms, sizeof(m->perms));
+    const char *label = strrchr(r->name, '/');
+    label = label ? label + 1 : r->name;
+    if (!*label) label = "anonymous";
+    /* Basename only, printable conservative alphabet; no full app paths. */
+    for (int i = 0; i < 47 && label[i]; i++) {
+        char c = label[i];
+        m->label[i] = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-' || c == '[' || c == ']' ? c : '_';
+    }
+    if (reason == DM_SELECTED) {
+        discovery_diag.selected_details++; discovery_diag.mapping_detail = slot;
+    } else discovery_diag.excluded_details[reason]++;
+}
+static void diag_candidate_begin(uint64_t key) {
+    if (!discovery_diag.active) return;
+    memset(&discovery_diag.current, 0, sizeof(discovery_diag.current));
+    discovery_diag.current.key = key;
+    discovery_diag.current.ordinal = ++discovery_diag.validation_calls;
+    discovery_diag.path = -1;
+}
+static void diag_reached(int stage) {
+    if (discovery_diag.active && stage > discovery_diag.current.reached)
+        discovery_diag.current.reached = stage;
+}
+static void diag_path_score(int score, int valid, int checked) {
+    if (!discovery_diag.active) return;
+    int path = discovery_diag.path;
+    if (path >= 0 && path < 5) {
+        discovery_diag.current.path_score[path] = score;
+        discovery_diag.current.path_valid[path] = valid;
+        discovery_diag.current.path_checked[path] = checked;
+    }
+    if (score > discovery_diag.current.raw_score) discovery_diag.current.raw_score = score;
+    if (score > discovery_diag.max_raw_score) discovery_diag.max_raw_score = score;
+}
+static int diag_better(const DiagCandidate *a, const DiagCandidate *b) {
+    if (a->score != b->score) return a->score > b->score;
+    if (a->raw_score != b->raw_score) return a->raw_score > b->raw_score;
+    return a->reached > b->reached;
+}
+static void diag_candidate_finish(int score, int players) {
+    if (!discovery_diag.active) return;
+    DiagCandidate *c = &discovery_diag.current;
+    c->score = score;
+    if (score > discovery_diag.max_score) discovery_diag.max_score = score;
+    if (score >= 70) { discovery_diag.score_ge70++; if (players > 0) discovery_diag.score_ge70_with_players++; }
+    /* De-duplicate only the bounded diagnostic sample; never the search. */
+    for (int i = 0; i < discovery_diag.top_count; i++) {
+        if (discovery_diag.top[i].key == c->key) {
+            if (!diag_better(c, &discovery_diag.top[i])) return;
+            discovery_diag.top[i] = *c;
+            while (i > 0 && diag_better(&discovery_diag.top[i], &discovery_diag.top[i-1])) {
+                DiagCandidate swap = discovery_diag.top[i-1];
+                discovery_diag.top[i-1] = discovery_diag.top[i]; discovery_diag.top[i] = swap; i--;
+            }
+            return;
+        }
+    }
+    int index = discovery_diag.top_count;
+    if (index < 3) discovery_diag.top_count++;
+    else { index = 2; if (!diag_better(c, &discovery_diag.top[index])) return; }
+    discovery_diag.top[index] = *c;
+    while (index > 0 && diag_better(&discovery_diag.top[index], &discovery_diag.top[index-1])) {
+        DiagCandidate swap = discovery_diag.top[index-1];
+        discovery_diag.top[index-1] = discovery_diag.top[index]; discovery_diag.top[index] = swap; index--;
+    }
+}
+static void diag_print_failed(FILE *f, uint64_t mask) {
+    int comma = 0;
+    fputc('[', f);
+    for (int i = 0; i < DC_CHECK_COUNT; i++) if (mask & (UINT64_C(1) << i)) {
+        fprintf(f, "%s\"%s\"", comma++ ? "," : "", diag_check_names[i]);
+    }
+    fputc(']', f);
+}
+static int diag_report(FILE *f);
 
 static int find_game_pid(void) {
     DIR *proc = opendir("/proc");
@@ -106,7 +335,8 @@ static int parse_maps(void) {
      * libUE4 loads never sees later mappings after rewind. Reopen each time. */
     if (maps_file) { fclose(maps_file); maps_file = NULL; }
     maps_file = fopen(path, "r");
-    if (!maps_file) return -1;
+    if (!maps_file) { diag_maps_errno = errno; return -1; }
+    diag_maps_errno = 0; diag_maps_rows = 0; diag_maps_truncated = 0; diag_maps_malformed = 0;
     clearerr(maps_file);
     rewind(maps_file);
     FILE *f = maps_file;
@@ -117,7 +347,8 @@ static int parse_maps(void) {
         uint64_t start, end;
         char perms[8] = {0}, name[256] = {0};
         if (sscanf(line, "%lx-%lx %4s %*s %*s %*s %255[^\n]", &start, &end, perms, name) < 3)
-            continue;
+            { diag_maps_malformed++; continue; }
+        diag_maps_rows++;
         char *n = name;
         while (*n == ' ') n++;
         if (strstr(n, "libUE4.so")) {
@@ -130,7 +361,7 @@ static int parse_maps(void) {
             strncpy(regions[num_regions].perms, perms, 7);
             strncpy(regions[num_regions].name, n, 255);
             num_regions++;
-        }
+        } else diag_maps_truncated++;
     }
     return 0;
 }
@@ -138,7 +369,7 @@ static int parse_maps(void) {
 static int parse_maps_with_retry(void) {
     /* Cold starts after Android's debugger gate can take several seconds to
      * map libUE4 on older devices. Keep the early-authorized proc fd alive. */
-    for (int attempt = 0; attempt < 600; attempt++) {
+    for (int attempt = 0; attempt < 600 && session_active(); attempt++) {
         if (parse_maps() == 0 && num_regions > 0 && ue4_base != 0) return 0;
         usleep(100000);
     }
@@ -146,14 +377,19 @@ static int parse_maps_with_retry(void) {
 }
 
 static ssize_t read_mem(uint64_t addr, void *buf, size_t len) {
-    if (use_vm_readv) {
+    ssize_t result;
+    if (!session_active()) { errno = ECANCELED; result = -1; }
+    else if (use_vm_readv) {
         struct iovec local = { .iov_base = buf, .iov_len = len };
         struct iovec remote = { .iov_base = (void *)addr, .iov_len = len };
-        return syscall(__NR_process_vm_readv, game_pid, &local, 1, &remote, 1, 0);
-    }
-    if (mem_fd < 0) return -1;
-    if (lseek64(mem_fd, (off64_t)addr, SEEK_SET) == (off64_t)-1) return -1;
-    return read(mem_fd, buf, len);
+        result = syscall(__NR_process_vm_readv, game_pid, &local, 1, &remote, 1, 0);
+    } else if (mem_fd < 0) result = -1;
+    else if (lseek64(mem_fd, (off64_t)addr, SEEK_SET) == (off64_t)-1) result = -1;
+    else result = read(mem_fd, buf, len);
+    int saved_errno = errno;
+    diag_read(len, result, !use_vm_readv && mem_fd < 0 && running ? -1 : saved_errno);
+    errno = saved_errno;
+    return result;
 }
 
 static uint64_t read_ptr(uint64_t addr) {
@@ -285,6 +521,73 @@ typedef struct {
 static GWorldCandidate candidates[64];
 static int num_candidates = 0;
 
+static int diag_report(FILE *f) {
+    DiscoveryDiagnostics *d = &discovery_diag;
+    d->active = 0; /* Reporting performs no reads and is never counted as discovery. */
+    uint64_t now = diag_now_ms();
+    if (diag_last_emit_ms && now - diag_last_emit_ms < 5000) { diag_suppressed_passes++; return 0; }
+    diag_last_emit_ms = now;
+    const char *outcome = !d->slots ? "no_pointer_slots_examined" : !d->validation_calls ?
+        "no_potential_world_pointers" : !d->score_ge70 ? "examined_and_rejected" : "score_qualified_candidates";
+    fprintf(f, "[discovery] {\"schema\":1,\"pass\":%llu,\"elapsedMs\":%llu,\"suppressedPasses\":%llu,\"outcome\":\"%s\",",
+        (unsigned long long)d->pass, (unsigned long long)(now-d->started_ms),
+        (unsigned long long)diag_suppressed_passes, outcome);
+    fprintf(f, "\"maps\":{\"parsedRows\":%d,\"retained\":%d,\"truncated\":%d,\"malformedRows\":%d,\"parseErrno\":%d,\"visited\":%llu,\"notVisited\":%llu,\"groups\":{",
+        diag_maps_rows, num_regions, diag_maps_truncated, diag_maps_malformed, diag_maps_errno,
+        (unsigned long long)d->maps_visited, (unsigned long long)((uint64_t)num_regions-d->maps_visited));
+    for (int i=0;i<DM_COUNT;i++) fprintf(f, "%s\"%s\":{\"mappings\":%llu,\"bytes\":%llu}", i?",":"",diag_map_names[i],
+        (unsigned long long)d->map_count[i],(unsigned long long)d->map_bytes[i]);
+    fprintf(f, "},\"detailLimit\":{\"selected\":32,\"perExclusion\":4},\"details\":[");
+    for (int i=0;i<d->mapping_count;i++) {
+        DiagMapping *m=&d->mappings[i];
+        fprintf(f, "%s{\"region\":%d,\"start\":\"%llx\",\"end\":\"%llx\",\"perms\":\"%.4s\",\"label\":\"%s\",\"decision\":\"%s\",\"readBytes\":%llu,\"examinedSlots\":%llu}",
+            i?",":"",m->region,(unsigned long long)m->start,(unsigned long long)m->end,m->perms,m->label,diag_map_names[m->reason],
+            (unsigned long long)m->read_bytes,(unsigned long long)m->slots);
+    }
+    fprintf(f, "]},\"readsByStage\":{");
+    for (int i=0;i<DS_COUNT;i++) {
+        DiagReads *r=&d->reads[i];
+        fprintf(f, "%s\"%s\":{\"calls\":%llu,\"complete\":%llu,\"partial\":%llu,\"failed\":%llu,\"requestedBytes\":%llu,\"returnedBytes\":%llu}",i?",":"",diag_stage_names[i],
+            (unsigned long long)r->calls,(unsigned long long)r->complete,(unsigned long long)r->partial,
+            (unsigned long long)r->failed,(unsigned long long)r->requested,(unsigned long long)r->returned);
+    }
+    fprintf(f,"},\"readErrors\":{"); int comma=0;
+    for(int i=1;i<256;i++) if(d->errno_counts[i]) fprintf(f,"%s\"%d\":%llu",comma++?",":"",i,(unsigned long long)d->errno_counts[i]);
+    fprintf(f,"},\"otherReadErrors\":%llu,\"stages\":{\"pointerSlots\":%llu,\"examinedBytes\":%llu,\"potentialPointers\":%llu,\"validationCalls\":%llu,\"validLevels\":%llu,\"validArrays\":%llu,\"arraysRead\":%llu,\"listsSelected\":%llu,\"worldsWithList\":%llu,\"sampleActors\":%llu,\"plausiblePlayers\":%llu,\"scoreGe70\":%llu,\"scoreGe70WithPlayers\":%llu,\"backrefMatch\":%llu,\"backrefMismatch\":%llu},",
+        (unsigned long long)d->errno_other,(unsigned long long)d->slots,(unsigned long long)(d->slots*8),
+        (unsigned long long)d->potential,(unsigned long long)d->validation_calls,(unsigned long long)d->level_valid,
+        (unsigned long long)d->lists_valid,(unsigned long long)d->lists_read,(unsigned long long)d->lists_selected,
+        (unsigned long long)d->worlds_with_list,(unsigned long long)d->sample_actors,(unsigned long long)d->plausible_players,
+        (unsigned long long)d->score_ge70,(unsigned long long)d->score_ge70_with_players,
+        (unsigned long long)d->backref_match,(unsigned long long)d->backref_mismatch);
+    fprintf(f,"\"localChainPointerValid\":[");
+    for(int i=0;i<6;i++) fprintf(f,"%s%llu",i?",":"",(unsigned long long)d->local_pointer_valid[i]);
+    fprintf(f,"],\"failedChecks\":{");
+    for(int i=0;i<DC_CHECK_COUNT;i++) fprintf(f,"%s\"%s\":%llu",i?",":"",diag_check_names[i],(unsigned long long)d->rejected[i]);
+    fprintf(f,"},\"passedChecks\":{");
+    for(int i=0;i<DC_CHECK_COUNT;i++) fprintf(f,"%s\"%s\":%llu",i?",":"",diag_check_names[i],(unsigned long long)d->passed[i]);
+    fprintf(f,"},\"arrayPathFailedChecks\":[");
+    for(int p=0;p<5;p++) {
+        fprintf(f,"%s{\"path\":%d,\"failed\":{",p?",":"",p); int path_comma=0;
+        for(int i=0;i<DC_CHECK_COUNT;i++) if(d->path_rejected[p][i]) fprintf(f,"%s\"%s\":%llu",path_comma++?",":"",diag_check_names[i],(unsigned long long)d->path_rejected[p][i]);
+        fprintf(f,"}}");
+    }
+    fprintf(f,"],\"maxScore\":%d,\"maxRawArrayScore\":%d,\"candidateCapReached\":%s,\"highestCandidates\":[",d->max_score,d->max_raw_score,num_candidates>=64?"true":"false");
+    for(int i=0;i<d->top_count;i++) {
+        DiagCandidate *c=&d->top[i];
+        fprintf(f,"%s{\"ordinal\":%llu,\"score\":%d,\"rawArrayScore\":%d,\"stage\":%d,\"failedReads\":%d,\"partialReads\":%d,\"failedChecks\":",i?",":"",(unsigned long long)c->ordinal,c->score,c->raw_score,c->reached,c->read_failures,c->partial_reads);
+        diag_print_failed(f,c->failed_checks); fprintf(f,",\"paths\":[");
+        for(int p=0;p<5;p++) {
+            fprintf(f,"%s{\"path\":%d,\"score\":%d,\"valid\":%d,\"checked\":%d,\"failedChecks\":",p?",":"",p,c->path_score[p],c->path_valid[p],c->path_checked[p]);
+            diag_print_failed(f,c->path_failed[p]); fprintf(f,"}");
+        }
+        fprintf(f,"]}");
+    }
+    fprintf(f,"]}\n");
+    diag_suppressed_passes=0;
+    return 1;
+}
+
 /* Preview/lobby UWorlds are structurally valid but have no real PlayerStates.
  * Keep them out of continuous mode so the scanner sleeps instead of repeatedly
  * walking hundreds of megabytes while no match is active. */
@@ -309,34 +612,56 @@ static int fname_entry_hdr_size = 2; /* bytes before the ASCII string in FNameEn
  * Path 2 (standard UE4): UWorld+0xF8 -> ULevel, ULevel+0x98/0xA0 -> TArray directly (hidden in pad)
  */
 static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
-    if (is_in_ue4(uworld_ptr)) return 0;
+    if (!D_CHECK(DC_WORLD_OUTSIDE_MODULE, !is_in_ue4(uworld_ptr))) return 0;
+    diag_reached(1);
+    diag_stage(DS_LEVEL);
 
     uint64_t level = read_ptr(uworld_ptr + OFF_UWORLD_PERSISTENT_LEVEL);
-    if (!is_heap_ptr(level) || is_in_ue4(level)) return 0;
+    if (!D_CHECK(DC_LEVEL_POINTER, is_heap_ptr(level)) ||
+        !D_CHECK(DC_LEVEL_OUTSIDE_MODULE, !is_in_ue4(level))) return 0;
+    D_COUNT(level_valid); diag_reached(2);
+    diag_stage(DS_BACKREF);
 
-    /* Sanity: check ULevel->OwningWorld (0xA8) points back roughly to uworld_ptr */
-    uint64_t owning_world = read_ptr(level + 0xA8);
+    /* Sanity: check ULevel->OwningWorld points back to uworld_ptr.
+     * Lobby probe found backref at +0x1E0; SDK dump had +0xA8. Try both. */
+    uint64_t owning_world = read_ptr(level + 0x1E0);
     int has_backref = (owning_world == uworld_ptr);
+    if (!has_backref) {
+        owning_world = read_ptr(level + 0xA8);
+        has_backref = (owning_world == uworld_ptr);
+    }
+    (void)D_CHECK(DC_BACKREF_MATCH, has_backref);
+    if (has_backref) D_COUNT(backref_match); else D_COUNT(backref_mismatch);
 
     int best_score = 0;
 
     /* Path 1: ActorCluster indirect */
+    diag_path(0); diag_stage(DS_CLUSTER);
     uint64_t cluster = read_ptr(level + OFF_ULEVEL_ACTOR_CLUSTER);
-    if (is_heap_ptr(cluster) && !is_in_ue4(cluster)) {
+    if (D_CHECK(DC_CLUSTER_POINTER, is_heap_ptr(cluster)) &&
+        D_CHECK(DC_CLUSTER_OUTSIDE_MODULE, !is_in_ue4(cluster))) {
+        diag_stage(DS_ARRAY_FIELDS);
         uint64_t actor_data = read_ptr(cluster + OFF_ACTOR_CONTAINER_ACTORS);
         int32_t count = read_i32(cluster + OFF_ACTOR_CONTAINER_ACTORS + 8);
         int32_t max = read_i32(cluster + OFF_ACTOR_CONTAINER_ACTORS + 12);
 
-        if (count >= 5 && count <= 50000 && max >= count && max <= 100000 && is_heap_ptr(actor_data)) {
+        if (D_CHECK(DC_COUNT_MIN, count >= 5) && D_CHECK(DC_COUNT_MAX, count <= 50000) &&
+            D_CHECK(DC_CAPACITY_MIN, max >= count) && D_CHECK(DC_CAPACITY_MAX, max <= 100000) &&
+            D_CHECK(DC_ARRAY_POINTER, is_heap_ptr(actor_data))) {
+            D_COUNT(lists_valid); diag_reached(3);
             int check = count < 20 ? count : 20;
             uint64_t ptrs[20];
-            if (read_mem(actor_data, ptrs, check * 8) == check * 8) {
+            diag_stage(DS_ARRAY_CONTENTS);
+            if (D_CHECK(DC_ARRAY_READ, read_mem(actor_data, ptrs, check * 8) == check * 8)) {
+                D_COUNT(lists_read); diag_reached(4);
                 int valid = 0;
                 for (int k = 0; k < check; k++)
                     if (is_heap_ptr(ptrs[k])) valid++;
                 int score = valid * 100 / check;
                 if (has_backref) score += 10;
-                if (score > best_score && valid >= 3) {
+                diag_path_score(score, valid, check);
+                if (D_CHECK(DC_SCORE_IMPROVES, score > best_score) && D_CHECK(DC_THREE_POINTERS, valid >= 3)) {
+                    D_COUNT(lists_selected); diag_reached(5);
                     best_score = score;
                     out->level = level;
                     out->actor_data = actor_data;
@@ -349,37 +674,56 @@ static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
         }
     }
 
-    /* Path 2: direct TArray in ULevel pad area */
-    for (int i = 0; i < (int)NUM_ULEVEL_ACTOR_OFFSETS; i++) {
-        int off = ULEVEL_ACTOR_OFFSETS[i];
-        uint64_t actor_data = read_ptr(level + off);
-        int32_t count = read_i32(level + off + 8);
-        int32_t max = read_i32(level + off + 12);
+    /* Path 2: scan ULevel for TArray patterns (offset moves between matches) */
+    {
+        uint8_t lbuf[ULEVEL_SCAN_END];
+        ssize_t lread = read_mem(level, lbuf, sizeof(lbuf));
+        if (lread >= (ssize_t)(ULEVEL_SCAN_START + 16)) {
+            int scan_path = 0;
+            for (int off = ULEVEL_SCAN_START; off + 16 <= lread; off += ULEVEL_SCAN_STEP) {
+                if (scan_path < 4) diag_path(scan_path + 1);
+                diag_stage(DS_ARRAY_FIELDS);
+                uint64_t actor_data;
+                int32_t count, max;
+                memcpy(&actor_data, lbuf + off, 8);
+                memcpy(&count, lbuf + off + 8, 4);
+                memcpy(&max, lbuf + off + 12, 4);
 
-        if (count < 5 || count > 50000 || max < count || max > 100000) continue;
-        if (!is_heap_ptr(actor_data)) continue;
+                if (!D_CHECK(DC_COUNT_MIN, count >= 5) || !D_CHECK(DC_COUNT_MAX, count <= 50000) ||
+                    !D_CHECK(DC_CAPACITY_MIN, max >= count) || !D_CHECK(DC_CAPACITY_MAX, max <= 100000)) continue;
+                if (!D_CHECK(DC_ARRAY_POINTER, is_heap_ptr(actor_data))) continue;
+                D_COUNT(lists_valid); diag_reached(3);
 
-        int check = count < 20 ? count : 20;
-        uint64_t ptrs[20];
-        if (read_mem(actor_data, ptrs, check * 8) != check * 8) continue;
+                int check = count < 20 ? count : 20;
+                uint64_t ptrs[20];
+                diag_stage(DS_ARRAY_CONTENTS);
+                if (!D_CHECK(DC_ARRAY_READ, read_mem(actor_data, ptrs, check * 8) == check * 8)) continue;
+                D_COUNT(lists_read); diag_reached(4);
 
-        int valid = 0;
-        for (int k = 0; k < check; k++)
-            if (is_heap_ptr(ptrs[k])) valid++;
-        int score = valid * 100 / check;
-        if (has_backref) score += 10;
-        if (score > best_score && valid >= 3) {
-            best_score = score;
-            out->level = level;
-            out->actor_data = actor_data;
-            out->actor_count = count;
-            out->level_offset = OFF_UWORLD_PERSISTENT_LEVEL;
-            out->actor_source = 1 + i;
-            out->score = score;
+                int valid = 0;
+                for (int k = 0; k < check; k++)
+                    if (is_heap_ptr(ptrs[k])) valid++;
+                int score = valid * 100 / check;
+                if (has_backref) score += 10;
+                if (scan_path < 4) diag_path_score(score, valid, check);
+                if (D_CHECK(DC_SCORE_IMPROVES, score > best_score) && D_CHECK(DC_THREE_POINTERS, valid >= 3)) {
+                    D_COUNT(lists_selected); diag_reached(5);
+                    best_score = score;
+                    out->level = level;
+                    out->actor_data = actor_data;
+                    out->actor_count = count;
+                    out->level_offset = OFF_UWORLD_PERSISTENT_LEVEL;
+                    out->actor_source = off;
+                    out->score = score;
+                }
+                scan_path++;
+            }
         }
     }
 
-    if (best_score > 0) {
+    diag_path(-1);
+    if (D_CHECK(DC_BEST_LIST, best_score > 0)) {
+        D_COUNT(worlds_with_list); diag_reached(6); diag_stage(DS_LOCAL_CHAIN);
         uint64_t game_instance = read_ptr(uworld_ptr + 0x190);
         uint64_t local_players = is_any_ptr(game_instance) ? read_ptr(game_instance + 0x38) : 0;
         uint64_t local_player = is_any_ptr(local_players) ? read_ptr(local_players) : 0;
@@ -388,40 +732,57 @@ static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
             read_ptr(player_controller + OFF_PLAYER_CONTROLLER_ACKNOWLEDGED_PAWN) : 0;
         uint64_t local_class = is_any_ptr(pawn) ? read_ptr(pawn + OFF_UOBJECT_CLASS) : 0;
 
+        if (discovery_diag.active) {
+            uint64_t chain[] = {game_instance, local_players, local_player, player_controller, pawn, local_class};
+            for (int i=0;i<6;i++) if (is_any_ptr(chain[i])) discovery_diag.local_pointer_valid[i]++;
+        }
+        diag_reached(7);
         /* Actor-pointer validity alone also scores preview/menu worlds highly.
          * Sample the selected list for the concrete pawn layout used by the
          * entity reader so an active gameplay world wins deterministically. */
         int sample_count = out->actor_count < 256 ? out->actor_count : 256;
         uint64_t sample_ptrs[256];
         int plausible_players = 0;
-        if (sample_count > 0 &&
-            read_mem(out->actor_data, sample_ptrs, (size_t)sample_count * 8) ==
-                (ssize_t)((size_t)sample_count * 8)) {
+        diag_stage(DS_PLAYER_SAMPLE);
+        if (D_CHECK(DC_SAMPLE_NONEMPTY, sample_count > 0) &&
+            D_CHECK(DC_SAMPLE_READ, read_mem(out->actor_data, sample_ptrs, (size_t)sample_count * 8) ==
+                (ssize_t)((size_t)sample_count * 8))) {
+            diag_reached(8);
             for (int i = 0; i < sample_count; i++) {
+                D_COUNT(sample_actors);
                 uint64_t actor = sample_ptrs[i];
-                if (!is_any_ptr(actor)) continue;
+                if (!D_CHECK(DC_SAMPLE_ACTOR_POINTER, is_any_ptr(actor))) continue;
+                diag_stage(DS_CLASS_ROOT);
                 uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
                 uint64_t root = read_ptr(actor + OFF_AACTOR_ROOT_COMPONENT);
-                if ((!is_any_ptr(local_class) ||
-                     (actor != pawn && !is_character_class(cls, local_class))) || !is_any_ptr(root)) continue;
+                if (!D_CHECK(DC_ROOT_POINTER, is_any_ptr(root))) continue;
+                if (is_any_ptr(local_class)) {
+                    D_CHECK(DC_LOCAL_CLASS, 1);
+                    if (actor != pawn &&
+                        !D_CHECK(DC_CHARACTER_CLASS, is_character_class(cls, local_class)))
+                        continue;
+                }
+                diag_stage(DS_POSITION);
                 float x = read_float(root + OFF_USCENE_RELATIVE_LOCATION);
                 float y = read_float(root + OFF_USCENE_RELATIVE_LOCATION + 4);
                 float z = read_float(root + OFF_USCENE_RELATIVE_LOCATION + 8);
-                if (x != x || y != y || z != z ||
-                    fabsf(x) > 10000000 || fabsf(y) > 10000000 || fabsf(z) > 10000000 ||
-                    (x == 0 && y == 0 && z == 0)) continue;
+                if (!D_CHECK(DC_X_FINITE, x == x) || !D_CHECK(DC_Y_FINITE, y == y) || !D_CHECK(DC_Z_FINITE, z == z) ||
+                    !D_CHECK(DC_X_BOUND, fabsf(x) <= 10000000) || !D_CHECK(DC_Y_BOUND, fabsf(y) <= 10000000) ||
+                    !D_CHECK(DC_Z_BOUND, fabsf(z) <= 10000000) ||
+                    !D_CHECK(DC_NONZERO_POSITION, !(x == 0 && y == 0 && z == 0))) continue;
+                D_COUNT(plausible_players); diag_reached(9);
                 plausible_players++;
             }
         }
         out->plausible_players = plausible_players;
-        if (plausible_players > 0) {
+        if (D_CHECK(DC_HAS_PLAUSIBLE, plausible_players > 0)) {
             int player_bonus = plausible_players * 20;
             best_score += player_bonus < 60 ? player_bonus : 60;
         }
 
         /* Prefer the active gameplay world over streaming/preview UWorlds. */
-        if (is_game_heap_ptr(player_controller)) best_score += 30;
-        if (is_game_heap_ptr(pawn)) best_score += 30;
+        if (D_CHECK(DC_PC_GAME_HEAP, is_game_heap_ptr(player_controller))) best_score += 30;
+        if (D_CHECK(DC_PAWN_GAME_HEAP, is_game_heap_ptr(pawn))) best_score += 30;
         out->score = best_score;
     }
     return best_score;
@@ -435,6 +796,7 @@ static void scan_for_gworld(void) {
             (unsigned long)((ue4_end - ue4_base) / (1024*1024)));
 
     num_candidates = 0;
+    diag_begin();
 
     /* The live SDK dump supplies the actual static GWorld slot.  Checking it
      * is constant-time and avoids walking hundreds of megabytes every 15
@@ -478,15 +840,16 @@ static void scan_for_gworld(void) {
     fprintf(stderr, "[!] Static GWorld did not validate; running compatibility fallback scan\n");
 
     for (int i = 0; i < num_regions && num_candidates < 64; i++) {
-        if (regions[i].perms[0] != 'r' || regions[i].perms[1] != 'w') continue;
-        if (regions[i].perms[2] == 'x') continue;
+        if (regions[i].perms[0] != 'r' || regions[i].perms[1] != 'w') { diag_mapping(i, DM_NOT_RW); continue; }
+        if (regions[i].perms[2] == 'x') { diag_mapping(i, DM_EXECUTABLE); continue; }
         /* Scan libUE4.so rw sections and anonymous regions near UE4 */
-        if (!strstr(regions[i].name, "libUE4.so") && regions[i].name[0] != '\0') continue;
+        if (!strstr(regions[i].name, "libUE4.so") && regions[i].name[0] != '\0') { diag_mapping(i, DM_NAMED_OTHER); continue; }
         if (regions[i].name[0] == '\0' &&
-            (regions[i].start < ue4_base || regions[i].start > ue4_end + 0x10000000)) continue;
+            (regions[i].start < ue4_base || regions[i].start > ue4_end + 0x10000000)) { diag_mapping(i, DM_ANON_OUTSIDE); continue; }
 
         uint64_t size = regions[i].end - regions[i].start;
-        if (size < 4096 || size > 200 * 1024 * 1024) continue;
+        if (size < 4096 || size > 200 * 1024 * 1024) { diag_mapping(i, DM_SIZE); continue; }
+        diag_mapping(i, DM_SELECTED);
 
         fprintf(stderr, "[*] Scanning rw 0x%lx (%lu MB) %s\n",
                 (unsigned long)regions[i].start, (unsigned long)(size / (1024*1024)),
@@ -497,25 +860,35 @@ static void scan_for_gworld(void) {
             size_t chunk = regions[i].end - addr;
             if (chunk > READ_BUF_SIZE) chunk = READ_BUF_SIZE;
 
+            diag_stage(DS_BULK);
             ssize_t n = read_mem(addr, read_buf, chunk);
+            if (n > 0 && discovery_diag.mapping_detail >= 0)
+                discovery_diag.mappings[discovery_diag.mapping_detail].read_bytes += (uint64_t)n;
             if (n <= 0) { addr += chunk; continue; }
 
             uint64_t *ptrs = (uint64_t *)read_buf;
             size_t num_ptrs = n / 8;
             for (size_t j = 0; j < num_ptrs && num_candidates < 64; j++) {
+                D_COUNT(slots);
+                if (discovery_diag.mapping_detail >= 0) discovery_diag.mappings[discovery_diag.mapping_detail].slots++;
                 uint64_t val = ptrs[j];
                 if (!is_heap_ptr(val)) continue;
+                D_COUNT(potential);
+                diag_candidate_begin(val);
 
                 GWorldCandidate cand = {0};
                 int score = try_validate_uworld(val, &cand);
-                if (score >= 70) {
+                int qualifies = D_CHECK(DC_SCORE_THRESHOLD, score >= 40);
+                diag_candidate_finish(score, cand.plausible_players);
+                if (qualifies) {
                     cand.gworld_addr = addr + j * 8;
                     cand.uworld = val;
                     candidates[num_candidates++] = cand;
 
-                    const char *src = cand.actor_source == 0 ?
-                        "ActorCluster(0xC8->0x28)" :
-                        "DirectULevel";
+                    char src_desc[64];
+                    if (cand.actor_source == 0) snprintf(src_desc, sizeof(src_desc), "ActorCluster(0xC8->0x28)");
+                    else snprintf(src_desc, sizeof(src_desc), "DirectLevel+0x%x", cand.actor_source);
+                    const char *src = src_desc;
                     fprintf(stderr, "[+] Candidate #%d: GWorld@0x%lx -> UWorld=0x%lx "
                            "Level=0x%lx actors=%d players=%d score=%d%% src=%s\n",
                            num_candidates, (unsigned long)cand.gworld_addr,
@@ -526,6 +899,7 @@ static void scan_for_gworld(void) {
             addr += n;
         }
     }
+    diag_report(stderr);
 }
 
 /* GWorld is referenced by several UE globals and subsystem mirrors in this
@@ -597,9 +971,8 @@ static void probe_positions(GWorldCandidate *cand) {
         actor_data = read_ptr(cluster + OFF_ACTOR_CONTAINER_ACTORS);
         actor_count = read_i32(cluster + OFF_ACTOR_CONTAINER_ACTORS + 8);
     } else {
-        int off = ULEVEL_ACTOR_OFFSETS[cand->actor_source - 1];
-        actor_data = read_ptr(level + off);
-        actor_count = read_i32(level + off + 8);
+        actor_data = read_ptr(level + cand->actor_source);
+        actor_count = read_i32(level + cand->actor_source + 8);
     }
 
     if (actor_count < check) check = actor_count;
@@ -670,8 +1043,8 @@ static void probe_positions(GWorldCandidate *cand) {
         fprintf(stderr, "\n[*] SDK offsets mostly zero, trying brute-force offset scan...\n");
         int best_nonzero = 0, best_root = 0, best_pos = 0, best_valid = 0;
 
-        /* Scan root component offsets near 0x180 and position offsets near 0x164 */
-        for (int roff = 0x160; roff <= 0x1A0; roff += 8) {
+        /* Scan root component offsets in a wide range covering both old (0x180) and new (0x108) */
+        for (int roff = 0x100; roff <= 0x1A0; roff += 8) {
             for (int poff = 0x100; poff <= 0x300; poff += 4) {
                 int valid = 0, nonzero = 0;
                 for (int a = 0; a < check; a++) {
@@ -1716,9 +2089,8 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         actor_data = read_ptr(cluster + OFF_ACTOR_CONTAINER_ACTORS);
         actor_count = read_i32(cluster + OFF_ACTOR_CONTAINER_ACTORS + 8);
     } else {
-        int off = ULEVEL_ACTOR_OFFSETS[actor_source - 1];
-        actor_data = read_ptr(level + off);
-        actor_count = read_i32(level + off + 8);
+        actor_data = read_ptr(level + actor_source);
+        actor_count = read_i32(level + actor_source + 8);
     }
 
     if (!is_any_ptr(actor_data) || actor_count <= 0 || actor_count > 50000) return -1;
@@ -1917,9 +2289,8 @@ camera_done:
                 level_actor_data = read_ptr(cluster + OFF_ACTOR_CONTAINER_ACTORS);
                 level_actor_count = read_i32(cluster + OFF_ACTOR_CONTAINER_ACTORS + 8);
             } else {
-                int off = ULEVEL_ACTOR_OFFSETS[actor_source - 1];
-                level_actor_data = read_ptr(levels[li] + off);
-                level_actor_count = read_i32(levels[li] + off + 8);
+                level_actor_data = read_ptr(levels[li] + actor_source);
+                level_actor_count = read_i32(levels[li] + actor_source + 8);
             }
             if (!is_any_ptr(level_actor_data) || level_actor_count <= 0 || level_actor_count > 50000)
                 continue;
@@ -2617,10 +2988,9 @@ static int post_to_radar(void) {
     return 0;
 }
 
-static volatile int running = 1;
 static void sig_handler(int sig) { (void)sig; running = 0; }
 
-#define WORLD_CACHE_PATH "/data/local/tmp/delta-world.cache"
+#define WORLD_CACHE_PATH "/data/local/tmp/delta-radar/world-api31.cache"
 
 static int load_world_cache(int pid, uint64_t *gworld, int *actor_source) {
     FILE *f = fopen(WORLD_CACHE_PATH, "r");
@@ -2647,6 +3017,18 @@ static void save_world_cache(int pid, uint64_t gworld, int actor_source) {
 }
 
 int main(int argc, char **argv) {
+    if (argc == 2 && strcmp(argv[1], "--identity") == 0) {
+        printf("{\"project\":\"delta-radar\",\"api\":%d,\"revision\":\"%s\",\"sourceSha256\":\"%s\"}\n",
+               __ANDROID_API__, DELTA_SOURCE_REVISION, DELTA_SOURCE_SHA256);
+        return 0;
+    }
+    for (int i = 1; i < argc; i++) {
+        if (strncmp(argv[i], "session=", 8) == 0) session_file = argv[i] + 8;
+        else if (strncmp(argv[i], "owner=", 6) == 0) session_owner_pid = (pid_t)strtol(argv[i] + 6, NULL, 10);
+    }
+    if (!session_active()) { fprintf(stderr, "Session cancelled before startup\n"); return 125; }
+    fprintf(stderr, "DeltaRadar scanner API=%d revision=%s source=%s\n",
+            __ANDROID_API__, DELTA_SOURCE_REVISION, DELTA_SOURCE_SHA256);
     int mode_scan = 0, mode_run = 0, mode_regions = 0, mode_dump = 0;
     int use_root_off = OFF_AACTOR_ROOT_COMPONENT;
     int use_pos_off = OFF_PROXIMA_ROOT_WORLD_LOCATION;
@@ -3158,7 +3540,7 @@ int main(int argc, char **argv) {
         unsigned report_tick = 0;
         unsigned pid_tick = 0;
         int game_missing = 0;
-        while (running) {
+        while (session_active()) {
             if ((pid_tick++ % 30) == 0) {
                 int active_pid = find_game_pid();
                 if (active_pid > 0 && active_pid != game_pid) {
@@ -3199,21 +3581,27 @@ int main(int argc, char **argv) {
                 uint64_t current_level = is_any_ptr(current_world) ?
                     read_ptr(current_world + OFF_UWORLD_PERSISTENT_LEVEL) : 0;
                 if (is_any_ptr(current_world) && is_any_ptr(current_level)) {
-                    int source_count = (int)(sizeof(ULEVEL_ACTOR_OFFSETS) /
-                                             sizeof(ULEVEL_ACTOR_OFFSETS[0]));
-                    for (int candidate_source = 0;
-                         candidate_source <= source_count && n < 0;
-                         candidate_source++) {
-                        if (candidate_source == use_actor_src) continue;
-                        int candidate_n = read_entities_sdk(use_gworld, candidate_source,
-                            use_root_off, use_pos_off, use_ctw);
-                        if (candidate_n >= 0) {
-                            use_actor_src = candidate_source;
-                            save_world_cache(game_pid, use_gworld, use_actor_src);
-                            fprintf(stderr,
-                                "\n[+] Recovered actor container source=%d without world scan\n",
-                                use_actor_src);
-                            n = candidate_n;
+                    uint8_t lvl_buf[ULEVEL_SCAN_END];
+                    if (read_mem(current_level, lvl_buf, sizeof(lvl_buf)) == (ssize_t)sizeof(lvl_buf)) {
+                        for (int off = ULEVEL_SCAN_START;
+                             off < ULEVEL_SCAN_END && n < 0;
+                             off += ULEVEL_SCAN_STEP) {
+                            if (off == use_actor_src) continue;
+                            uint64_t aptr; int32_t acnt, acap;
+                            memcpy(&aptr, lvl_buf + off, 8);
+                            memcpy(&acnt, lvl_buf + off + 8, 4);
+                            memcpy(&acap, lvl_buf + off + 12, 4);
+                            if (!is_any_ptr(aptr) || acnt < 5 || acnt > 50000 || acap < acnt) continue;
+                            int candidate_n = read_entities_sdk(use_gworld, off,
+                                use_root_off, use_pos_off, use_ctw);
+                            if (candidate_n >= 0) {
+                                use_actor_src = off;
+                                save_world_cache(game_pid, use_gworld, use_actor_src);
+                                fprintf(stderr,
+                                    "\n[+] Recovered actor array at level+0x%x without world scan\n",
+                                    off);
+                                n = candidate_n;
+                            }
                         }
                     }
                 }

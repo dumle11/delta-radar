@@ -1,2 +1,7 @@
 *.apk
 *.apk
+
+# Local evidence may contain screenshots/player identities. Never commit it.
+/evidence/local/
+# Reproducible native outputs are local artifacts.
+/scanner/build/
