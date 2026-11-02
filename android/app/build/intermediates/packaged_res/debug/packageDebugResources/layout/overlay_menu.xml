@@ -321,6 +321,11 @@
                         android:letterSpacing="0.1" android:paddingLeft="4dp"
                         android:layout_marginBottom="6dp" />
 
+                    <LinearLayout android:id="@+id/playerFeatureContainer"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="6dp" />
+
                     <!-- Player draw mode -->
                     <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"
                         android:orientation="horizontal" android:paddingLeft="4dp"
@@ -396,6 +401,11 @@
                         android:letterSpacing="0.1" android:paddingLeft="4dp"
                         android:layout_marginBottom="6dp" />
 
+                    <LinearLayout android:id="@+id/teammateFeatureContainer"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="6dp" />
+
                     <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"
                         android:orientation="horizontal" android:paddingLeft="4dp"
                         android:paddingRight="4dp" android:layout_marginBottom="6dp">
@@ -452,6 +462,11 @@
                         android:textSize="10sp" android:textStyle="bold"
                         android:letterSpacing="0.1" android:paddingLeft="4dp"
                         android:layout_marginBottom="6dp" />
+
+                    <LinearLayout android:id="@+id/botFeatureContainer"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="6dp" />
 
                     <!-- Bot draw mode -->
                     <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"

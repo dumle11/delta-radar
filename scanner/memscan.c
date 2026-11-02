@@ -193,7 +193,8 @@ static int is_game_heap_ptr(uint64_t p) {
 #define OFF_PLAYER_STATE_NAME 0x388
 #define OFF_PLAYER_STATE_NAME_PRIVATE 0x470
 #define OFF_PLAYER_STATE_BOT_FLAGS 0x39e
-#define OFF_GP_PLAYER_STATE_TEAM_ID 0x66C
+#define OFF_PLAYER_STATE_PAWN_PRIVATE 0x3F8
+#define OFF_GP_PLAYER_STATE_TEAM_ID 0x664
 #define OFF_CHARACTER_HEALTH_COMPONENT 0xEC8
 #define OFF_HEALTH_COMPONENT_SET 0x248
 #define OFF_HEALTH_SET_CURRENT 0x3C
@@ -484,6 +485,52 @@ static void scan_for_gworld(void) {
     }
 }
 
+/* GWorld is referenced by several UE globals and subsystem mirrors in this
+ * build. A discovered mirror can be cleared while the verified UWorld remains
+ * active. Find another nearby reference to that exact world rather than
+ * rescanning every writable mapping (which stalls the overlay for seconds). */
+static int recover_nearby_world_alias(uint64_t old_addr, uint64_t expected_world,
+                                      uint64_t *new_addr, int *new_actor_source) {
+    if (!is_any_ptr(expected_world) || !is_any_ptr(read_ptr(
+            expected_world + OFF_UWORLD_PERSISTENT_LEVEL))) return 0;
+
+    for (int ri = 0; ri < num_regions; ri++) {
+        if (old_addr < regions[ri].start || old_addr >= regions[ri].end) continue;
+        uint64_t radius = 0x200000; /* bounded 4 MiB window */
+        uint64_t start = old_addr > radius ? old_addr - radius : regions[ri].start;
+        if (start < regions[ri].start) start = regions[ri].start;
+        start &= ~7ULL;
+        uint64_t end = old_addr + radius;
+        if (end > regions[ri].end) end = regions[ri].end;
+
+        for (uint64_t addr = start; addr < end;) {
+            size_t chunk = (size_t)(end - addr);
+            if (chunk > READ_BUF_SIZE) chunk = READ_BUF_SIZE;
+            ssize_t nread = read_mem(addr, read_buf, chunk);
+            if (nread <= 0) { addr += chunk; continue; }
+            uint64_t *values = (uint64_t *)read_buf;
+            size_t count = (size_t)nread / sizeof(uint64_t);
+            for (size_t i = 0; i < count; i++) {
+                if (values[i] != expected_world) continue;
+                uint64_t candidate_addr = addr + i * sizeof(uint64_t);
+                /* The failed mirror may become readable again for one sample,
+                 * but selecting it just repeats the same outage. Fail over to
+                 * a genuinely different reference. */
+                if (candidate_addr == old_addr) continue;
+                GWorldCandidate candidate = {0};
+                if (try_validate_uworld(expected_world, &candidate) < 70 ||
+                    candidate.plausible_players <= 0) continue;
+                *new_addr = candidate_addr;
+                *new_actor_source = candidate.actor_source;
+                return 1;
+            }
+            addr += chunk;
+        }
+        break;
+    }
+    return 0;
+}
+
 /* ========== Position extraction using SDK offsets ========== */
 
 static void probe_positions(GWorldCandidate *cand) {
@@ -742,6 +789,10 @@ static int resolve_fname(int32_t idx, char *out, int out_size) {
     if (len <= 0 || len >= out_size) { out[0] = 0; return 0; }
 
     if (read_mem(block_ptr + entry_off + hdr_sz, out, len) != len) { out[0] = 0; return 0; }
+    for (int i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)out[i];
+        if (c < 0x20 || c > 0x7e) { out[0] = 0; return 0; }
+    }
     out[len] = 0;
     return len;
 }
@@ -765,12 +816,89 @@ typedef struct {
     int dead;
     int team;
     int native_team;
+    uint64_t player_state;
     float bone_pos[NUM_SKELETON_BONES][3]; /* world-space bone positions in meters */
     int has_bones;
 } Entity;
 
 static Entity entities[MAX_ACTORS];
 static int num_entities = 0;
+/* Verified live on the current mobile build. Dynamic resolution below is only
+ * a version-drift fallback, not part of the normal frame/launch path. */
+static int resolved_team_off = OFF_GP_PLAYER_STATE_TEAM_ID;
+static unsigned team_resolve_retry = 0;
+
+/* PlayerState moves between regional/mobile builds. Resolve the squad/team
+ * field from the live roster rather than silently treating a stale zero-valued
+ * SDK offset as "everyone is friendly". A real squad field groups the local
+ * player with a small party and does not put most of the lobby in one bucket. */
+static int resolve_team_field(const char *self_id) {
+    int human[MAX_ACTORS];
+    int human_count = 0;
+    int self_human = -1;
+    for (int i = 0; i < num_entities; i++) {
+        if (strcmp(entities[i].kind, "player") != 0 ||
+            !is_game_heap_ptr(entities[i].player_state)) continue;
+        human[human_count] = i;
+        if (strcmp(entities[i].id, self_id) == 0) self_human = human_count;
+        human_count++;
+    }
+    if (self_human < 0 || human_count < 3) return -1;
+
+    int best_off = -1;
+    int best_score = -100000;
+    int best_self_count = 0;
+    int best_distinct = 0;
+    int best_value = -1;
+    for (int off = 0x300; off <= 0xA00; off += 4) {
+        int values[MAX_ACTORS];
+        int valid = 1;
+        for (int h = 0; h < human_count; h++) {
+            values[h] = read_i32(entities[human[h]].player_state + (uint64_t)off);
+            if (values[h] < 0 || values[h] > 1000000000) { valid = 0; break; }
+        }
+        if (!valid) continue;
+
+        int distinct = 0;
+        int max_group = 0;
+        int self_count = 0;
+        for (int h = 0; h < human_count; h++) {
+            int first = 1;
+            int group = 0;
+            for (int k = 0; k < human_count; k++) {
+                if (values[k] == values[h]) group++;
+                if (k < h && values[k] == values[h]) first = 0;
+            }
+            if (first) distinct++;
+            if (group > max_group) max_group = group;
+            if (values[h] == values[self_human]) self_count++;
+        }
+        if (distinct < 2 || max_group > 4 || self_count > 4) continue;
+
+        int score = self_count == 3 ? 240 :
+                    self_count == 2 ? 190 :
+                    self_count == 4 ? 145 : 25;
+        score += max_group == self_count ? 12 : 0;
+        int sdk_delta = abs(off - OFF_GP_PLAYER_STATE_TEAM_ID);
+        score -= sdk_delta / 32;
+        if (score > best_score) {
+            best_score = score;
+            best_off = off;
+            best_self_count = self_count;
+            best_distinct = distinct;
+            best_value = values[self_human];
+        }
+    }
+
+    /* A unique per-player identifier is not a team field. */
+    if (best_off >= 0 && best_self_count >= 2) {
+        fprintf(stderr,
+                "\n[+] Resolved PlayerState team field +0x%x self=%d same=%d distinct=%d score=%d\n",
+                best_off, best_value, best_self_count, best_distinct, best_score);
+        return best_off;
+    }
+    return -1;
+}
 
 /* ========== SKELETON / BONE READING ========== */
 static int resolved_mesh_off = -2;  /* -2 = not searched, -1 = not found */
@@ -1033,6 +1161,239 @@ static int is_character_class(uint64_t cls, uint64_t local_class) {
     return 0;
 }
 
+/* Cache the reflected inheritance result per UClass. Loot actors are not
+ * character-shaped, so they must be admitted explicitly from the level actor
+ * arrays. Matching the parent chain also covers map-specific Blueprint classes
+ * such as bird nests and stashes. */
+typedef struct { uint64_t cls; int is_loot; } LootClassCache;
+static LootClassCache loot_class_cache[256];
+static int loot_class_cache_count = 0;
+
+static int is_loot_class(uint64_t cls) {
+    if (!is_any_ptr(cls) || !fname_pool_addr) return 0;
+    for (int i = 0; i < loot_class_cache_count; i++)
+        if (loot_class_cache[i].cls == cls) return loot_class_cache[i].is_loot;
+
+    uint64_t original = cls;
+    int result = 0;
+    for (int depth = 0; depth < 16 && is_any_ptr(cls); depth++) {
+        char name[96] = {0};
+        resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name));
+        if (strstr(name, "InventoryPickup") || strstr(name, "PickupBase") ||
+            strstr(name, "SingleItemContainer") || strstr(name, "ChangeableContainer") ||
+            strstr(name, "PlunderPickup")) {
+            result = 1;
+            break;
+        }
+        uint64_t next = read_ptr(cls + 0x40); /* UStruct::SuperStruct */
+        if (next == cls) break;
+        cls = next;
+    }
+    if (loot_class_cache_count < (int)(sizeof(loot_class_cache) / sizeof(loot_class_cache[0]))) {
+        loot_class_cache[loot_class_cache_count].cls = original;
+        loot_class_cache[loot_class_cache_count].is_loot = result;
+        loot_class_cache_count++;
+    }
+    return result;
+}
+
+static int sane_tarray(uint64_t owner, int off, int max_count) {
+    uint64_t data = read_ptr(owner + (uint64_t)off);
+    int count = read_i32(owner + (uint64_t)off + 8);
+    int capacity = read_i32(owner + (uint64_t)off + 12);
+    if (count < 0 || count > max_count || capacity < count || capacity > max_count * 4) return 0;
+    return count == 0 || is_game_heap_ptr(data);
+}
+
+/* UGPBattleFieldSystem is a UWorldSubsystem. Its shipped layout provides the
+ * authoritative client character arrays, plus exact local controller/pawn
+ * back-references at +0x88/+0x90. Resolve it from the world's embedded
+ * subsystem collection without relying on the broken regional FNamePool. */
+static int is_battlefield_system(uint64_t object, uint64_t local_pc,
+                                 uint64_t local_pawn) {
+    if (!is_game_heap_ptr(object) || read_ptr(object + 0x88) != local_pc ||
+        read_ptr(object + 0x90) != local_pawn || !sane_tarray(object, 0x110, 512))
+        return 0;
+    uint64_t data = read_ptr(object + 0x110);
+    int count = read_i32(object + 0x118);
+    if (!is_game_heap_ptr(data) || count <= 0) return 0;
+    uint64_t members[512];
+    if (read_mem(data, members, (size_t)count * sizeof(uint64_t)) !=
+        (ssize_t)((size_t)count * sizeof(uint64_t))) return 0;
+    for (int i = 0; i < count; i++)
+        if (members[i] == local_pawn) return 1;
+    return 0;
+}
+
+static uint64_t find_battlefield_system(uint64_t uworld, uint64_t local_pc,
+                                        uint64_t local_pawn) {
+    if (!is_any_ptr(uworld) || !is_game_heap_ptr(local_pc) ||
+        !is_game_heap_ptr(local_pawn)) return 0;
+
+    uint64_t world_fields[0x810 / 8] = {0};
+    if (read_mem(uworld, world_fields, sizeof(world_fields)) !=
+        (ssize_t)sizeof(world_fields)) return 0;
+
+    /* First test direct world fields, then allocations referenced by the
+     * padded subsystem-collection portion of UWorld. */
+    for (int pass = 0; pass < 2; pass++) {
+        int first = pass == 0 ? 0 : 0x228 / 8;
+        int last = pass == 0 ? (int)(sizeof(world_fields) / sizeof(world_fields[0])) : 0x660 / 8;
+        for (int wi = first; wi < last; wi++) {
+            uint64_t root = world_fields[wi];
+            if (!is_game_heap_ptr(root)) continue;
+            if (is_battlefield_system(root, local_pc, local_pawn)) return root;
+            if (pass == 0) continue;
+
+            uint64_t referenced[0x1000 / 8] = {0};
+            ssize_t got = read_mem(root, referenced, sizeof(referenced));
+            if (got <= 0) continue;
+            int count = (int)((size_t)got / sizeof(uint64_t));
+            for (int ri = 0; ri < count; ri++) {
+                uint64_t candidate = referenced[ri];
+                if (!is_game_heap_ptr(candidate)) continue;
+                if (is_battlefield_system(candidate, local_pc, local_pawn)) return candidate;
+            }
+        }
+    }
+    return 0;
+}
+
+/* Fallback for builds where the subsystem collection's private map is not
+ * represented in the SDK dump. Search for the exact adjacent
+ * LocalPlayerController/LocalPlayerPawn pair; this is performed once per world
+ * and stops at the first structurally verified roster. */
+static uint64_t scan_battlefield_system(uint64_t local_pc, uint64_t local_pawn) {
+    for (int pass = 0; pass < 2; pass++) {
+        for (int ri = 0; ri < num_regions; ri++) {
+            if (regions[ri].perms[0] != 'r' || regions[ri].perms[1] != 'w' ||
+                regions[ri].perms[2] == 'x') continue;
+            uint64_t size = regions[ri].end - regions[ri].start;
+            if (size < 4096 || size > 256ULL * 1024 * 1024) continue;
+            int near_player_heap = (local_pc >= regions[ri].start -
+                (regions[ri].start > 0x20000000 ? 0x20000000 : regions[ri].start) &&
+                local_pc < regions[ri].end + 0x20000000) ||
+                (local_pawn >= regions[ri].start -
+                (regions[ri].start > 0x20000000 ? 0x20000000 : regions[ri].start) &&
+                local_pawn < regions[ri].end + 0x20000000);
+            if ((pass == 0) != near_player_heap) continue;
+
+            for (uint64_t addr = regions[ri].start; addr < regions[ri].end;) {
+                size_t chunk = (size_t)(regions[ri].end - addr);
+                if (chunk > READ_BUF_SIZE) chunk = READ_BUF_SIZE;
+                ssize_t got = read_mem(addr, read_buf, chunk);
+                if (got <= 0) { addr += chunk; continue; }
+                uint64_t *values = (uint64_t *)read_buf;
+                size_t count = (size_t)got / sizeof(uint64_t);
+                for (size_t i = 0; i + 1 < count; i++) {
+                    if (values[i] != local_pc || values[i + 1] != local_pawn) continue;
+                    uint64_t pair_addr = addr + i * sizeof(uint64_t);
+                    if (pair_addr < 0x88) continue;
+                    uint64_t candidate = pair_addr - 0x88;
+                    if (is_battlefield_system(candidate, local_pc, local_pawn))
+                        return candidate;
+                }
+                addr += chunk;
+            }
+        }
+    }
+    return 0;
+}
+
+static int read_authoritative_characters(uint64_t system, uint64_t local_pawn,
+                                          uint64_t *out, int capacity) {
+    if (!is_game_heap_ptr(system) || capacity <= 0) return 0;
+    uint64_t data = read_ptr(system + 0x110);
+    int count = read_i32(system + 0x118);
+    int max = read_i32(system + 0x11C);
+    if (!is_game_heap_ptr(data) || count <= 0 || count > capacity ||
+        max < count || max > 2048) return 0;
+    if (read_mem(data, out, (size_t)count * sizeof(uint64_t)) !=
+        (ssize_t)((size_t)count * sizeof(uint64_t))) return 0;
+    int valid = 0, has_local = 0;
+    for (int i = 0; i < count; i++) {
+        if (!is_game_heap_ptr(out[i])) continue;
+        valid++;
+        if (out[i] == local_pawn) has_local = 1;
+    }
+    return has_local && valid >= 1 ? count : 0;
+}
+
+/* Regional FNamePool encoding currently prevents dependable Blueprint class
+ * strings. These signatures come from the shipped class layouts and require
+ * several independent fields, avoiding a broad scan for arbitrary AActors. */
+/* 0=not loot, 1=item, 2=container, 3=single-item stash/interactable,
+ * 4=death box. */
+static int classify_loot_actor(uint64_t actor) {
+    /* Dead-body containers are not guaranteed to retain a populated
+     * APickupBase inventory descriptor (AI boxes commonly do not). Test the
+     * derived-class fields independently of the generic pickup score. */
+    char dead_player_name[64] = {0};
+    read_fstring(actor + 0x1D10, dead_player_name, sizeof(dead_player_name));
+    uint64_t dead_mesh = read_ptr(actor + 0x1D60);
+    uint64_t looting_owner = read_ptr(actor + 0x1DA8);
+    int camp_id = read_i32(actor + 0x1D48);
+    float dead_currency = read_float(actor + 0x1D50);
+    uint8_t dead_flags[2] = {0};
+    read_mem(actor + 0x1DA0, &dead_flags[0], 1); /* bIsAI */
+    read_mem(actor + 0x1DB0, &dead_flags[1], 1); /* bLooted */
+    int deadbox_score = 0;
+    if (dead_player_name[0]) deadbox_score += 3;
+    if (is_game_heap_ptr(dead_mesh)) deadbox_score += 3;
+    if (is_game_heap_ptr(looting_owner)) deadbox_score += 2;
+    if (camp_id >= -1 && camp_id <= 32) deadbox_score++;
+    if (isfinite(dead_currency) && dead_currency >= 0.0f &&
+        dead_currency <= 1000000000.0f) deadbox_score++;
+    if ((dead_flags[0] & 0xfe) == 0 && (dead_flags[1] & 0xfe) == 0)
+        deadbox_score++;
+    if (deadbox_score >= 7) return 4;
+
+    int pickup_score = 0;
+    uint64_t gid = read_ptr(actor + 0xBC8);       /* APickupBase::InventoryGID */
+    uint64_t inventory_type = read_ptr(actor + 0xBE8);
+    int stack_count = read_i32(actor + 0xBF0);
+    float draw_distance = read_float(actor + 0xBDC);
+    float unit_scale = read_float(actor + 0xC0C);
+    int priority = read_i32(actor + 0xC10);
+    uint64_t sphere = read_ptr(actor + 0x1660);   /* AInventoryPickup::Sphere */
+    uint8_t pickup_container = 0;
+    read_mem(actor + 0x16B8, &pickup_container, 1);
+    if (gid > 0 && gid < 0x7fffffffffffffffULL) pickup_score += 3;
+    if (is_game_heap_ptr(inventory_type)) pickup_score += 2;
+    if (stack_count >= 0 && stack_count <= 100000) pickup_score++;
+    if (isfinite(draw_distance) && draw_distance >= 0.0f && draw_distance <= 10000000.0f) pickup_score++;
+    if (isfinite(unit_scale) && unit_scale >= 0.01f && unit_scale <= 100.0f) pickup_score++;
+    if (priority >= -10 && priority <= 10000) pickup_score++;
+    if (is_game_heap_ptr(sphere)) pickup_score += 2;
+    if (pickup_container & 1) pickup_score += 2;
+    if (pickup_score >= 8) {
+        if (dead_player_name[0] &&
+            (is_game_heap_ptr(dead_mesh) ||
+             (camp_id >= -1 && camp_id <= 32 && isfinite(dead_currency) &&
+              dead_currency >= 0.0f && dead_currency <= 1000000000.0f))) return 4;
+        if (pickup_container & 1) return 2;
+        return 1;
+    }
+
+    int container_score = 0;
+    int box_id = read_i32(actor + 0xCB8);         /* Interactor_SingleItemContainer */
+    uint64_t mesh = read_ptr(actor + 0xCC0);
+    uint64_t open_close = read_ptr(actor + 0xCC8);
+    uint64_t switcher = read_ptr(actor + 0xCD0);
+    uint64_t open_box = read_ptr(actor + 0xD70);
+    uint8_t container_type = 0;
+    read_mem(actor + 0xD28, &container_type, 1);
+    if (box_id > 0) container_score++;
+    if (is_game_heap_ptr(mesh)) container_score += 2;
+    if (is_game_heap_ptr(open_close)) container_score += 2;
+    if (is_game_heap_ptr(switcher)) container_score += 2;
+    if (is_game_heap_ptr(open_box)) container_score += 2;
+    if (sane_tarray(actor, 0xD08, 128)) container_score++;
+    if (sane_tarray(actor, 0xD18, 128)) container_score++;
+    if (container_type < 32) container_score++;
+    return container_score >= 7 ? 3 : 0;
+}
+
 static uint64_t cached_local_class = 0;
 static float cached_self_pos[3] = {0};
 
@@ -1292,6 +1653,9 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         stale_camera_frames = 0;
         health_layout_count = 0;
         health_layout_clock = 0;
+        /* The field layout belongs to this game process/build, not to one
+         * transient UWorld. Keep a successful resolution across loading-world
+         * swaps; the scanner itself restarts when the game PID changes. */
     }
 
     uint64_t level = read_ptr(uworld + OFF_UWORLD_PERSISTENT_LEVEL);
@@ -1440,8 +1804,27 @@ camera_done:
     static uint64_t cached_uworld = 0;
     static uint64_t cached_actor_data = 0;
     static uint64_t cached_actor_ptrs[MAX_ACTORS];
+    static uint8_t cached_actor_kinds[MAX_ACTORS]; /* 0=combat pawn, 1=loot/interactable */
+    static uint8_t cached_actor_authoritative[MAX_ACTORS];
     static int cached_actor_count = 0;
     static unsigned cache_age = 0;
+    static uint64_t battlefield_system = 0;
+    static uint64_t battlefield_world = 0;
+    static unsigned battlefield_attempt_tick = 0;
+    if (battlefield_world != uworld) {
+        battlefield_world = uworld;
+        battlefield_system = 0;
+        battlefield_attempt_tick = 0;
+    }
+    if (!is_game_heap_ptr(battlefield_system) && is_game_heap_ptr(local_pawn) &&
+        (battlefield_attempt_tick++ % 300) == 0) {
+        battlefield_system = find_battlefield_system(uworld, local_pc, local_pawn);
+        if (!is_game_heap_ptr(battlefield_system))
+            battlefield_system = scan_battlefield_system(local_pc, local_pawn);
+        if (is_game_heap_ptr(battlefield_system))
+            fprintf(stderr, "\n[+] GPBattleFieldSystem=0x%lx (authoritative roster)\n",
+                    (unsigned long)battlefield_system);
+    }
     int refresh_cache = cached_uworld != uworld || cached_actor_data != actor_data ||
                         cached_actor_count == 0 || cache_age >= 20;
     if (refresh_cache) {
@@ -1469,7 +1852,16 @@ camera_done:
         }
 
         uint64_t *all_actor_ptrs = (uint64_t *)(read_buf + READ_BUF_SIZE / 2);
+        uint64_t loot_actor_ptrs[MAX_ACTORS];
+        uint8_t loot_actor_kinds[MAX_ACTORS];
+        int loot_actor_count = 0;
+        int death_box_count = 0;
+        int scanned_actor_count = 0;
+        uint64_t authoritative_characters[MAX_ACTORS] = {0};
+        int authoritative_count = read_authoritative_characters(
+            battlefield_system, local_pawn, authoritative_characters, MAX_ACTORS);
         cached_actor_count = 0;
+        memset(cached_actor_authoritative, 0, sizeof(cached_actor_authoritative));
         for (int li = 0; li < level_count && cached_actor_count < MAX_ACTORS; li++) {
             uint64_t level_actor_data = 0;
             int32_t level_actor_count = 0;
@@ -1492,13 +1884,26 @@ camera_done:
             for (int i = 0; i < scan_count && cached_actor_count < MAX_ACTORS; i++) {
                 uint64_t actor = all_actor_ptrs[i];
                 if (!is_any_ptr(actor)) continue;
+                scanned_actor_count++;
                 int already_cached = 0;
                 for (int ci = 0; ci < cached_actor_count; ci++)
                     if (cached_actor_ptrs[ci] == actor) { already_cached = 1; break; }
                 if (already_cached) continue;
 
                 uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
-                int is_character = actor == local_pawn || is_character_class(cls, local_class);
+                int is_character = 0;
+                if (authoritative_count > 0) {
+                    for (int ai = 0; ai < authoritative_count; ai++)
+                        if (authoritative_characters[ai] == actor) {
+                            is_character = 1;
+                            break;
+                        }
+                } else {
+                    is_character = actor == local_pawn || is_character_class(cls, local_class);
+                }
+                int loot_kind = !is_character ? classify_loot_actor(actor) : 0;
+                if (!loot_kind && !is_character && is_loot_class(cls)) loot_kind = 1;
+                int is_loot = loot_kind != 0;
 
                 /* Human operators do not always share the local pawn's concrete
                  * class hierarchy (different operator/skin blueprints). A named
@@ -1506,7 +1911,7 @@ camera_done:
                  * like a real pawn (has a CapsuleComponent root). Without
                  * this check, APlayerState actors pass the name test and
                  * produce ghost boxes at wrong positions. */
-                if (!is_character) {
+                if (authoritative_count == 0 && !is_character && !is_loot) {
                     /* Structural pawn check: a real character pawn has a
                      * root component with a valid capsule half-height at
                      * the known offset (0.5-2.5m). APlayerState and other
@@ -1529,10 +1934,74 @@ camera_done:
                     }
                 }
 
-                if (is_character)
-                    cached_actor_ptrs[cached_actor_count++] = actor;
+                if (is_character) {
+                    cached_actor_ptrs[cached_actor_count] = actor;
+                    cached_actor_kinds[cached_actor_count] = 0;
+                    cached_actor_authoritative[cached_actor_count] = authoritative_count > 0;
+                    cached_actor_count++;
+
+                    /* The health component owns the authoritative spawned
+                     * death-box pointer. Following it catches AI boxes whose
+                     * inherited pickup metadata is empty. */
+                    HealthLayout *layout = health_layout_for_actor(actor);
+                    int health_off = layout && layout->component_off >= 0 ?
+                        layout->component_off : OFF_CHARACTER_HEALTH_COMPONENT;
+                    uint64_t health_comp = read_ptr(actor + (uint64_t)health_off);
+                    uint64_t death_box = is_game_heap_ptr(health_comp) ?
+                        read_ptr(health_comp + 0x7E8) : 0;
+                    if (is_game_heap_ptr(death_box) && loot_actor_count < MAX_ACTORS) {
+                        int duplicate_box = 0;
+                        for (int li2 = 0; li2 < loot_actor_count; li2++)
+                            if (loot_actor_ptrs[li2] == death_box) { duplicate_box = 1; break; }
+                        if (!duplicate_box) {
+                            loot_actor_ptrs[loot_actor_count] = death_box;
+                            loot_actor_kinds[loot_actor_count++] = 4;
+                            death_box_count++;
+                        }
+                    }
+                } else if (is_loot && loot_actor_count < MAX_ACTORS) {
+                    int duplicate_loot = 0;
+                    for (int li2 = 0; li2 < loot_actor_count; li2++)
+                        if (loot_actor_ptrs[li2] == actor) { duplicate_loot = 1; break; }
+                    if (!duplicate_loot) {
+                        loot_actor_ptrs[loot_actor_count] = actor;
+                        loot_actor_kinds[loot_actor_count++] = (uint8_t)loot_kind;
+                        if (loot_kind == 4) death_box_count++;
+                    }
+                }
             }
         }
+        /* A streamed character may be registered by the battlefield system
+         * before its owning level's actor array is visible. Keep the game
+         * roster complete even across that streaming window. */
+        for (int ai = 0; ai < authoritative_count && cached_actor_count < MAX_ACTORS; ai++) {
+            uint64_t actor = authoritative_characters[ai];
+            if (!is_game_heap_ptr(actor)) continue;
+            int duplicate = 0;
+            for (int ci = 0; ci < cached_actor_count; ci++)
+                if (cached_actor_ptrs[ci] == actor) { duplicate = 1; break; }
+            if (!duplicate) {
+                cached_actor_ptrs[cached_actor_count] = actor;
+                cached_actor_kinds[cached_actor_count] = 0;
+                cached_actor_authoritative[cached_actor_count] = 1;
+                cached_actor_count++;
+            }
+        }
+        /* Character pawns are latency-sensitive and take priority. Fill the
+         * remainder with verified loot/interactable actors. */
+        for (int i = 0; i < loot_actor_count && cached_actor_count < MAX_ACTORS; i++) {
+            cached_actor_ptrs[cached_actor_count] = loot_actor_ptrs[i];
+            int loot_kind = loot_actor_kinds[i] > 0 ? loot_actor_kinds[i] :
+                classify_loot_actor(loot_actor_ptrs[i]);
+            cached_actor_kinds[cached_actor_count] = loot_kind > 0 ? (uint8_t)loot_kind : 1;
+            cached_actor_authoritative[cached_actor_count] = 0;
+            cached_actor_count++;
+        }
+        static unsigned cache_diag_tick = 0;
+        if ((cache_diag_tick++ % 30) == 0)
+            fprintf(stderr, "\n[cache] scanned=%d authoritative=%d loot=%d deathBoxes=%d cached=%d levels=%d\n",
+                    scanned_actor_count, authoritative_count, loot_actor_count, death_box_count,
+                    cached_actor_count, level_count);
         cached_uworld = uworld;
         cached_actor_data = actor_data;
         cache_age = 0;
@@ -1558,6 +2027,8 @@ camera_done:
     for (int i = 0; i < to_read && num_entities < MAX_ACTORS; i++) {
         if (!is_any_ptr(actor_ptrs[i])) continue;
         diag_actor_ptr++;
+        int loot_kind = cached_actor_kinds[i];
+        int is_loot_actor = loot_kind != 0;
 
         int is_self_pawn = (local_pawn != 0 && actor_ptrs[i] == local_pawn);
         diag_controller++;
@@ -1565,8 +2036,16 @@ camera_done:
         /* APawn::PlayerState is explicit in the matching UE4 SDK layout. The old
          * heuristic searched unrelated fields and mislabeled real pawns as loot. */
         uint64_t player_state = read_ptr(actor_ptrs[i] + OFF_APAWN_PLAYER_STATE);
-        int has_playerstate = is_game_heap_ptr(player_state);
+        int has_playerstate = !is_loot_actor && is_game_heap_ptr(player_state);
         diag_player_state++;
+
+        /* PlayerState::PawnPrivate is the authoritative currently possessed
+         * pawn. Old respawn/streaming pawn objects can remain in ULevel for
+         * minutes with plausible health and transforms far below the map. */
+        if (has_playerstate && !cached_actor_authoritative[i]) {
+            uint64_t active_pawn = read_ptr(player_state + OFF_PLAYER_STATE_PAWN_PRIVATE);
+            if (is_game_heap_ptr(active_pawn) && active_pawn != actor_ptrs[i]) continue;
+        }
 
         uint64_t root = read_ptr(actor_ptrs[i] + root_off);
         if (!is_any_ptr(root)) continue;
@@ -1633,7 +2112,20 @@ camera_done:
                 read_fstring(player_state + OFF_PLAYER_STATE_NAME_PRIVATE, player_name, sizeof(player_name));
             read_mem(player_state + OFF_PLAYER_STATE_BOT_FLAGS, &bot_flags, 1);
         }
-        if (player_name[0]) {
+        if (is_loot_actor) {
+            if (loot_kind == 4) {
+                char owner_name[48] = {0};
+                read_fstring(actor_ptrs[i] + 0x1D10, owner_name, sizeof(owner_name));
+                snprintf(e->name, sizeof(e->name), "%s%s%s", "Death Box",
+                         owner_name[0] ? ": " : "", owner_name);
+            } else if (loot_kind == 3) {
+                strncpy(e->name, "Stash / Interactable", sizeof(e->name) - 1);
+            } else if (loot_kind == 2) {
+                strncpy(e->name, "Loot Container", sizeof(e->name) - 1);
+            } else {
+                strncpy(e->name, "Loot Item", sizeof(e->name) - 1);
+            }
+        } else if (player_name[0]) {
             strncpy(e->name, player_name, sizeof(e->name) - 1);
         } else if (has_playerstate) {
             player_num++;
@@ -1645,8 +2137,10 @@ camera_done:
             snprintf(e->name, sizeof(e->name), "Bot %d", player_num);
         }
 
-        strncpy(e->kind, has_playerstate && !(bot_flags & 0x8) ? "player" : "ai", sizeof(e->kind) - 1);
-        e->native_team = has_playerstate ? read_i32(player_state + OFF_GP_PLAYER_STATE_TEAM_ID) : -1;
+        strncpy(e->kind, is_loot_actor ? "loot" :
+            (has_playerstate && !(bot_flags & 0x8) ? "player" : "ai"), sizeof(e->kind) - 1);
+        e->player_state = has_playerstate ? player_state : 0;
+        e->native_team = -1;
 
         e->x = mx;
         e->y = my;
@@ -1659,6 +2153,14 @@ camera_done:
         e->health = 0.0f;
         e->max_health = 0.0f;
         e->health_known = 0;
+        if (is_loot_actor) {
+            e->dead = 0;
+            e->half_height = 0.35f;
+            e->team = 2;
+            e->has_bones = 0;
+            num_entities++;
+            continue;
+        }
         HealthLayout *health_layout = health_layout_for_actor(actor_ptrs[i]);
         int health_comp_off = health_layout && health_layout->component_off >= 0 ?
             health_layout->component_off : OFF_CHARACTER_HEALTH_COMPONENT;
@@ -1763,19 +2265,8 @@ camera_done:
             }
         }
 
-        /* Team: use native_team from PlayerState for real team membership.
-         * Self is always team=1. Same native_team as self = teammate (1).
-         * Different native_team or no PlayerState = enemy (2). */
-        static int self_native_team = -1;
-        if (is_self_pawn) {
-            self_native_team = e->native_team;
-            e->team = 1;
-        } else if (e->native_team >= 0 && self_native_team >= 0 &&
-                   e->native_team == self_native_team) {
-            e->team = 1; /* teammate */
-        } else {
-            e->team = 2; /* enemy */
-        }
+        /* Team normalization happens after the complete live roster is known. */
+        e->team = is_self_pawn ? 1 : 2;
 
         num_entities++;
     }
@@ -1794,6 +2285,30 @@ camera_done:
                         e->id, e->kind, e->x, e->y, e->z, e->health,
                         e->max_health, e->half_height, e->dead, e->team,
                         e->native_team, e->fov, e->name);
+            }
+            static int transform_diag_done = 0;
+            if (!transform_diag_done) {
+                transform_diag_done = 1;
+                fprintf(stderr, "[diag] authoritative root transforms:\n");
+                for (int ci = 0; ci < to_read && ci < 24; ci++) {
+                    if (cached_actor_kinds[ci] != 0 || !cached_actor_authoritative[ci]) continue;
+                    uint64_t actor = actor_ptrs[ci];
+                    uint64_t root = read_ptr(actor + root_off);
+                    if (!is_game_heap_ptr(root)) continue;
+                    fprintf(stderr,
+                        "  actor=0x%lx parent=0x%lx p148=(%.1f,%.1f,%.1f) "
+                        "rel164=(%.1f,%.1f,%.1f) ctw1d0=(%.1f,%.1f,%.1f)\n",
+                        (unsigned long)actor, (unsigned long)read_ptr(root + 0x108),
+                        read_float(root + 0x148) / 100.0f,
+                        read_float(root + 0x14C) / 100.0f,
+                        read_float(root + 0x150) / 100.0f,
+                        read_float(root + 0x164) / 100.0f,
+                        read_float(root + 0x168) / 100.0f,
+                        read_float(root + 0x16C) / 100.0f,
+                        read_float(root + 0x1D0) / 100.0f,
+                        read_float(root + 0x1D4) / 100.0f,
+                        read_float(root + 0x1D8) / 100.0f);
+                }
             }
         }
     }
@@ -1842,12 +2357,37 @@ camera_done:
         }
     }
 
-    /* Normalize native team IDs to the API's stable 1=self / 2=other model. */
+    /* Resolve and normalize native team IDs to the API's stable
+     * 1=self-or-squad / 2=other model. Unknown players deliberately fail open
+     * as opponents so a stale offset can never make distant humans disappear. */
+    if (resolved_team_off < 0 && (team_resolve_retry++ % 90) == 0)
+        resolved_team_off = resolve_team_field(self_entity_id);
     int self_native_team = -1;
     for (int i = 0; i < num_entities; i++) {
+        entities[i].native_team = resolved_team_off >= 0 &&
+            is_game_heap_ptr(entities[i].player_state) ?
+            read_i32(entities[i].player_state + (uint64_t)resolved_team_off) : -1;
         if (strcmp(entities[i].id, self_entity_id) == 0) {
             self_native_team = entities[i].native_team;
-            break;
+        }
+    }
+    if (resolved_team_off >= 0) {
+        int human_count = 0;
+        int invalid_count = 0;
+        for (int i = 0; i < num_entities; i++) {
+            if (strcmp(entities[i].kind, "player") != 0) continue;
+            human_count++;
+            if (entities[i].native_team < 0 || entities[i].native_team > 1000000000)
+                invalid_count++;
+        }
+        if (human_count >= 3 && invalid_count * 2 >= human_count) {
+            fprintf(stderr,
+                    "\n[!] Rejected unstable PlayerState team field +0x%x (%d/%d invalid)\n",
+                    resolved_team_off, invalid_count, human_count);
+            resolved_team_off = -1;
+            team_resolve_retry = 0;
+            self_native_team = -1;
+            for (int i = 0; i < num_entities; i++) entities[i].native_team = -1;
         }
     }
     for (int i = 0; i < num_entities; i++) {
@@ -1855,6 +2395,19 @@ camera_done:
         else if (self_native_team >= 0 && entities[i].native_team >= 0)
             entities[i].team = entities[i].native_team == self_native_team ? 1 : 2;
         else entities[i].team = 2;
+    }
+    {
+        static unsigned team_diag_tick = 0;
+        if ((team_diag_tick++ % 90) == 0) {
+            fprintf(stderr, "\n[team] field=%s0x%x self=%d\n",
+                    resolved_team_off >= 0 ? "+" : "", resolved_team_off,
+                    self_native_team);
+            for (int i = 0; i < num_entities; i++) {
+                if (strcmp(entities[i].kind, "player") == 0)
+                    fprintf(stderr, "  team=%d native=%d name=%s\n",
+                            entities[i].team, entities[i].native_team, entities[i].name);
+            }
+        }
     }
 
     /* Fallback self: if pawn not matched, create synthetic self from PC data */
@@ -1865,6 +2418,7 @@ camera_done:
         strncpy(e->kind, "player", sizeof(e->kind) - 1);
         e->team = 1;
         e->native_team = -1;
+        e->player_state = 0;
         e->health = 0.0f;
         e->max_health = 0.0f;
         e->health_known = 0;
@@ -2557,6 +3111,33 @@ int main(int argc, char **argv) {
             }
             int n = read_entities_sdk(use_gworld, use_actor_src,
                                       use_root_off, use_pos_off, use_ctw);
+            /* A ULevel can briefly rebuild its actor array during streaming.
+             * Recover through another known container instead of blocking the
+             * feed on a process-wide GWorld scan. */
+            if (n < 0) {
+                uint64_t current_world = read_ptr(use_gworld);
+                uint64_t current_level = is_any_ptr(current_world) ?
+                    read_ptr(current_world + OFF_UWORLD_PERSISTENT_LEVEL) : 0;
+                if (is_any_ptr(current_world) && is_any_ptr(current_level)) {
+                    int source_count = (int)(sizeof(ULEVEL_ACTOR_OFFSETS) /
+                                             sizeof(ULEVEL_ACTOR_OFFSETS[0]));
+                    for (int candidate_source = 0;
+                         candidate_source <= source_count && n < 0;
+                         candidate_source++) {
+                        if (candidate_source == use_actor_src) continue;
+                        int candidate_n = read_entities_sdk(use_gworld, candidate_source,
+                            use_root_off, use_pos_off, use_ctw);
+                        if (candidate_n >= 0) {
+                            use_actor_src = candidate_source;
+                            save_world_cache(game_pid, use_gworld, use_actor_src);
+                            fprintf(stderr,
+                                "\n[+] Recovered actor container source=%d without world scan\n",
+                                use_actor_src);
+                            n = candidate_n;
+                        }
+                    }
+                }
+            }
             if (n >= 0) {
                 int publish_count = self_verified ? n : 0;
                 if (publish_count > 0) {
@@ -2586,9 +3167,44 @@ int main(int argc, char **argv) {
                 consecutive_failures = 0;
             } else {
                 consecutive_failures++;
+                /* Preserve the last verified snapshot across short streaming
+                 * gaps so Android does not time out and clear every line. */
+                if (self_verified && num_entities > 0 && consecutive_failures <= 45)
+                    post_to_radar();
             }
-            int need_rescan = consecutive_failures > 10 ||
-                              zero_entity_frames > 150; /* ~5s of 0 entities */
+            uint64_t selected_world = read_ptr(use_gworld);
+            uint64_t selected_level = is_any_ptr(selected_world) ?
+                read_ptr(selected_world + OFF_UWORLD_PERSISTENT_LEVEL) : 0;
+            int selected_world_invalid = !is_any_ptr(selected_world) ||
+                                         !is_any_ptr(selected_level);
+            if (selected_world_invalid && is_any_ptr(verified_uworld)) {
+                /* process_vm_readv can transiently miss one word while UE is
+                 * updating mappings. A cheap second read avoids even the
+                 * bounded alias search in that common case. */
+                uint64_t retry_world = read_ptr(use_gworld);
+                uint64_t retry_level = is_any_ptr(retry_world) ?
+                    read_ptr(retry_world + OFF_UWORLD_PERSISTENT_LEVEL) : 0;
+                if (is_any_ptr(retry_world) && is_any_ptr(retry_level))
+                    selected_world_invalid = 0;
+            }
+            if (selected_world_invalid && is_any_ptr(verified_uworld)) {
+                uint64_t recovered_addr = 0;
+                int recovered_source = use_actor_src;
+                if (recover_nearby_world_alias(use_gworld, verified_uworld,
+                                               &recovered_addr, &recovered_source)) {
+                    fprintf(stderr,
+                        "\n[+] Failed over GWorld alias 0x%lx -> 0x%lx without full scan\n",
+                        (unsigned long)use_gworld, (unsigned long)recovered_addr);
+                    use_gworld = recovered_addr;
+                    use_actor_src = recovered_source;
+                    save_world_cache(game_pid, use_gworld, use_actor_src);
+                    selected_world_invalid = 0;
+                    consecutive_failures = 0;
+                }
+            }
+            /* Empty/loading worlds update through the same global pointer.
+             * Rediscover only after the selected world itself is invalid. */
+            int need_rescan = selected_world_invalid && consecutive_failures > 45;
             if (need_rescan) {
                 int active_pid = find_game_pid();
                 if (active_pid > 0 && active_pid != game_pid) {

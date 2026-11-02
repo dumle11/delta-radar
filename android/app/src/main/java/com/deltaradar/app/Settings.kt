@@ -17,7 +17,13 @@ object Settings {
     private const val BOT_DRAW_MODE_KEY = "bot_draw_mode"
     private const val TEAMMATE_COLOR_KEY = "teammate_color"
     private const val TEAMMATE_DRAW_MODE_KEY = "teammate_draw_mode"
+    private const val LOOT_COLOR_KEY = "loot_color"
+    private const val LOOT_DRAW_MODE_KEY = "loot_draw_mode"
     private const val LINE_THICKNESS_KEY = "line_thickness_percent"
+    private const val PLAYER_FEATURES_KEY = "player_features_v4"
+    private const val BOT_FEATURES_KEY = "bot_features_v4"
+    private const val TEAMMATE_FEATURES_KEY = "teammate_features_v4"
+    private const val LOOT_FEATURES_KEY = "loot_features_v4"
 
     const val DEFAULT_PLAYER_COLOR: Int = 0xFFE5534B.toInt()
     const val DEFAULT_BOT_COLOR: Int = 0xFF46D9FF.toInt()
@@ -28,6 +34,17 @@ object Settings {
     const val DRAW_MODE_LINES = 0
     const val DRAW_MODE_BOXES = 1
     const val DRAW_MODE_SKELETON = 2
+
+    const val FEATURE_ENABLED = 1
+    const val FEATURE_LINES = 1 shl 1
+    const val FEATURE_NAMES = 1 shl 2
+    const val FEATURE_DISTANCE = 1 shl 3
+    const val FEATURE_HEALTH = 1 shl 4
+    const val FEATURE_BODY = 1 shl 5
+    const val ALL_FEATURES = FEATURE_ENABLED or FEATURE_LINES or FEATURE_NAMES or
+        FEATURE_DISTANCE or FEATURE_HEALTH or FEATURE_BODY
+
+    enum class EntityType { PLAYER, BOT, TEAMMATE, LOOT }
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -67,6 +84,77 @@ object Settings {
     fun teammateDrawMode(ctx: Context) = prefs(ctx).getInt(TEAMMATE_DRAW_MODE_KEY, DRAW_MODE_BOXES)
     fun setTeammateDrawMode(ctx: Context, v: Int) { prefs(ctx).edit().putInt(TEAMMATE_DRAW_MODE_KEY, v).apply() }
 
+    fun lootColor(ctx: Context): Int = prefs(ctx).getInt(LOOT_COLOR_KEY, LOOT_COLOR) or 0xFF000000.toInt()
+    fun setLootColor(ctx: Context, color: Int) { prefs(ctx).edit().putInt(LOOT_COLOR_KEY, color or 0xFF000000.toInt()).apply() }
+
+    fun lootDrawMode(ctx: Context) = prefs(ctx).getInt(LOOT_DRAW_MODE_KEY, DRAW_MODE_BOXES)
+    fun setLootDrawMode(ctx: Context, v: Int) { prefs(ctx).edit().putInt(LOOT_DRAW_MODE_KEY, v).apply() }
+
     fun lineThicknessPercent(ctx: Context) = prefs(ctx).getInt(LINE_THICKNESS_KEY, 75).coerceIn(25, 300)
     fun setLineThicknessPercent(ctx: Context, v: Int) { prefs(ctx).edit().putInt(LINE_THICKNESS_KEY, v.coerceIn(25, 300)).apply() }
+
+    private fun featureKey(type: EntityType) = when (type) {
+        EntityType.PLAYER -> PLAYER_FEATURES_KEY
+        EntityType.BOT -> BOT_FEATURES_KEY
+        EntityType.TEAMMATE -> TEAMMATE_FEATURES_KEY
+        EntityType.LOOT -> LOOT_FEATURES_KEY
+    }
+
+    private fun legacyFeatureKey(type: EntityType, version: Int) = when (type) {
+        EntityType.PLAYER -> "player_features_v$version"
+        EntityType.BOT -> "bot_features_v$version"
+        EntityType.TEAMMATE -> "teammate_features_v$version"
+        EntityType.LOOT -> "loot_features_v$version"
+    }
+
+    private fun drawMode(ctx: Context, type: EntityType) = when (type) {
+        EntityType.PLAYER -> playerDrawMode(ctx)
+        EntityType.BOT -> botDrawMode(ctx)
+        EntityType.TEAMMATE -> teammateDrawMode(ctx)
+        EntityType.LOOT -> lootDrawMode(ctx)
+    }
+
+    fun entityFeatures(ctx: Context, type: EntityType): Int {
+        val p = prefs(ctx)
+        val key = featureKey(type)
+        if (p.contains(key)) return p.getInt(key, 0)
+        for (version in 3 downTo 2) {
+            val legacyKey = legacyFeatureKey(type, version)
+            if (p.contains(legacyKey)) {
+                var migrated = p.getInt(legacyKey, 0) and FEATURE_BODY.inv()
+                if (drawMode(ctx, type) > DRAW_MODE_LINES) migrated = migrated or FEATURE_BODY
+                p.edit().putInt(key, migrated).apply()
+                return migrated
+            }
+        }
+        // Migrate the previous global switches without surprising existing
+        // users. Names and distance used to share one label switch.
+        var mask = 0
+        val enabled = when (type) {
+            EntityType.TEAMMATE -> showTeammates(ctx)
+            EntityType.LOOT -> showLoot(ctx)
+            else -> showPlayers(ctx)
+        }
+        if (enabled) mask = mask or FEATURE_ENABLED
+        if (drawEnemyLines(ctx)) mask = mask or FEATURE_LINES
+        if (showEnemyLabels(ctx)) mask = mask or FEATURE_NAMES or FEATURE_DISTANCE
+        if (type != EntityType.LOOT) mask = mask or FEATURE_HEALTH
+        if (drawMode(ctx, type) > DRAW_MODE_LINES) mask = mask or FEATURE_BODY
+        p.edit().putInt(key, mask).apply()
+        return mask
+    }
+
+    fun setEntityFeatures(ctx: Context, type: EntityType, mask: Int) {
+        prefs(ctx).edit().putInt(featureKey(type), mask and ALL_FEATURES).apply()
+        if (type == EntityType.LOOT)
+            setShowLoot(ctx, mask and FEATURE_ENABLED != 0)
+    }
+
+    fun entityFeature(ctx: Context, type: EntityType, feature: Int) =
+        entityFeatures(ctx, type) and feature != 0
+
+    fun setEntityFeature(ctx: Context, type: EntityType, feature: Int, enabled: Boolean) {
+        val old = entityFeatures(ctx, type)
+        setEntityFeatures(ctx, type, if (enabled) old or feature else old and feature.inv())
+    }
 }

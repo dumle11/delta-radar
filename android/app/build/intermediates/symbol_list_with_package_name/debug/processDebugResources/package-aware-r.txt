@@ -3083,6 +3083,7 @@ id botColorGreen
 id botColorOrange
 id botColorRed
 id botColorYellow
+id botFeatureContainer
 id botModeBoxes
 id botModeLines
 id botModeOff
@@ -3331,6 +3332,7 @@ id playerColorPurple
 id playerColorRed
 id playerColorWhite
 id playerColorYellow
+id playerFeatureContainer
 id playerModeBoxes
 id playerModeLines
 id playerModeOff
@@ -3432,6 +3434,7 @@ id teammateColorGreen
 id teammateColorPurple
 id teammateColorWhite
 id teammateColorYellow
+id teammateFeatureContainer
 id teammateModeBoxes
 id teammateModeLines
 id teammateModeOff

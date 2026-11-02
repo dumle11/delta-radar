@@ -38,14 +38,18 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     private var receivedAt = 0L
     private var transitionStartedAt = 0L
     private var previousById = emptyMap<String, Enemy>()
-    private var drawLines = false
-    private var drawLabels = false
+    private var playerFeatures = 0
+    private var botFeatures = 0
+    private var teammateFeatures = 0
+    private var lootFeatures = 0
     private var playerColor = Settings.DEFAULT_PLAYER_COLOR
     private var botColor = Settings.DEFAULT_BOT_COLOR
     private var teammateColor = Settings.DEFAULT_TEAMMATE_COLOR
+    private var lootColor = Settings.LOOT_COLOR
     private var playerDrawMode = Settings.DRAW_MODE_BOXES
     private var botDrawMode = Settings.DRAW_MODE_BOXES
     private var teammateDrawMode = Settings.DRAW_MODE_BOXES
+    private var lootDrawMode = Settings.DRAW_MODE_BOXES
     private var thicknessScale = 0.75f
     private val density = resources.displayMetrics.density
 
@@ -78,18 +82,21 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         isClickable = false; isFocusable = false
     }
 
-    fun setStyle(lines: Boolean, labels: Boolean,
-                 pColor: Int, bColor: Int, tColor: Int,
-                 pMode: Int, bMode: Int, tMode: Int, thickness: Float) {
-        if (drawLines == lines && drawLabels == labels &&
-            playerColor == pColor && botColor == bColor && teammateColor == tColor &&
+    fun setStyle(pFeatures: Int, bFeatures: Int, tFeatures: Int, lFeatures: Int,
+                 pColor: Int, bColor: Int, tColor: Int, lColor: Int,
+                 pMode: Int, bMode: Int, tMode: Int, lMode: Int, thickness: Float) {
+        if (playerFeatures == pFeatures && botFeatures == bFeatures && teammateFeatures == tFeatures &&
+            lootFeatures == lFeatures && playerColor == pColor && botColor == bColor &&
+            teammateColor == tColor && lootColor == lColor &&
             playerDrawMode == pMode && botDrawMode == bMode && teammateDrawMode == tMode &&
+            lootDrawMode == lMode &&
             thicknessScale == thickness) return
-        drawLines = lines; drawLabels = labels
-        playerColor = pColor; botColor = bColor; teammateColor = tColor
-        playerDrawMode = pMode; botDrawMode = bMode; teammateDrawMode = tMode
+        playerFeatures = pFeatures; botFeatures = bFeatures; teammateFeatures = tFeatures; lootFeatures = lFeatures
+        playerColor = pColor; botColor = bColor; teammateColor = tColor; lootColor = lColor
+        playerDrawMode = pMode; botDrawMode = bMode; teammateDrawMode = tMode; lootDrawMode = lMode
         thicknessScale = thickness.coerceIn(0.25f, 3f)
-        if (!lines && !labels) clear() else if (frame != null) invalidate()
+        if (pFeatures == 0 && bFeatures == 0 && tFeatures == 0 && lFeatures == 0) clear()
+        else if (frame != null) invalidate()
     }
 
     fun submit(value: Frame, receivedAtMs: Long) {
@@ -112,7 +119,6 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val data = frame ?: return
-        if (!drawLines && !drawLabels) return
         if (SystemClock.elapsedRealtime() - receivedAt >= FRESHNESS_MS || width <= 0 || height <= 0) {
             post(expire); return
         }
@@ -131,22 +137,35 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
             val isLoot = enemy.kind == "loot" || enemy.kind == "objective"
             val isPlayer = enemy.kind == "player"
             val entityColor = when {
-                isLoot -> Settings.LOOT_COLOR
+                isLoot -> lootColor
                 enemy.team == 1 -> teammateColor
                 isPlayer -> playerColor
                 else -> botColor
             }
             val entityMode = when {
-                isLoot -> Settings.DRAW_MODE_BOXES
+                isLoot -> lootDrawMode
                 enemy.team == 1 -> teammateDrawMode
                 isPlayer -> playerDrawMode
                 else -> botDrawMode
             }
-            if (entityMode == Settings.DRAW_MODE_OFF && !drawLabels) continue
+            val features = when {
+                isLoot -> lootFeatures
+                enemy.team == 1 -> teammateFeatures
+                isPlayer -> playerFeatures
+                else -> botFeatures
+            }
+            if (features and Settings.FEATURE_ENABLED == 0) continue
+            val drawTracer = features and Settings.FEATURE_LINES != 0
+            val drawName = features and Settings.FEATURE_NAMES != 0
+            val drawDistance = features and Settings.FEATURE_DISTANCE != 0
+            val drawHealth = features and Settings.FEATURE_HEALTH != 0
+            val drawBody = features and Settings.FEATURE_BODY != 0 &&
+                entityMode > Settings.DRAW_MODE_LINES
+            if (!drawBody && !drawTracer && !drawName && !drawDistance && !drawHealth) continue
             var labelCenterX = ex
             var labelTopY = ey
 
-            if (drawLines && entityMode != Settings.DRAW_MODE_OFF) {
+            if (drawTracer) {
                 linePaint.color = 0xD5090D16.toInt()
                 linePaint.strokeWidth = 3f * density * thicknessScale
                 canvas.drawLine(mx, my, ex, ey, linePaint)
@@ -156,7 +175,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
             }
 
             var boxHeightForLabel = 48f * density
-            if (enemy.onScreen && entityMode > Settings.DRAW_MODE_LINES) {
+            if (enemy.onScreen && (drawBody || drawHealth)) {
                 val headX = lerp(previous?.headX ?: enemy.headX, enemy.headX) * width
                 val headY = lerp(previous?.headY ?: enemy.headY, enemy.headY) * height
                 val feetX = lerp(previous?.feetX ?: enemy.feetX, enemy.feetX) * width
@@ -172,7 +191,13 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                 boxPaint.color = entityColor
                 boxPaint.strokeWidth = density * thicknessScale
                 boxShadowPaint.strokeWidth = 2.5f * density * thicknessScale
-                when (entityMode) {
+                val healthBoxW = boxH * when (enemy.kind) {
+                    "vehicle" -> 0.9f
+                    "loot" -> 0.65f
+                    else -> 0.45f
+                }
+                val healthLeft = centerX - healthBoxW * 0.5f
+                when (if (drawBody) entityMode else Settings.DRAW_MODE_OFF) {
                     Settings.DRAW_MODE_SKELETON -> {
                         val bx = enemy.boneScreenX
                         val by = enemy.boneScreenY
@@ -227,25 +252,23 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                         val boxRect = RectF(left, top, right, bottom)
                         canvas.drawRect(boxRect, boxShadowPaint)
                         canvas.drawRect(boxRect, boxPaint)
-
-                        if (enemy.healthKnown && enemy.maxHealth > 0f) {
-                            val hpFrac = (enemy.health / enemy.maxHealth).coerceIn(0f, 1f)
-                            val barW = 1.5f * density
-                            val barGap = 2f * density
-                            val barLeft = left - barW - barGap
-                            val barRect = RectF(barLeft, top, barLeft + barW, bottom)
-                            canvas.drawRect(barRect, healthBgPaint)
-                            val fillTop = top + (bottom - top) * (1f - hpFrac)
-                            val r = ((1f - hpFrac) * 255).toInt().coerceIn(0, 255)
-                            val g = (hpFrac * 255).toInt().coerceIn(0, 255)
-                            healthFillPaint.color = Color.argb(220, r, g, 0)
-                            canvas.drawRect(RectF(barLeft, fillTop, barLeft + barW, bottom), healthFillPaint)
-                        }
                     }
+                }
+                if (drawHealth && enemy.healthKnown && enemy.maxHealth > 0f) {
+                    val hpFrac = (enemy.health / enemy.maxHealth).coerceIn(0f, 1f)
+                    val barW = 1.5f * density
+                    val barGap = 2f * density
+                    val barLeft = healthLeft - barW - barGap
+                    canvas.drawRect(RectF(barLeft, top, barLeft + barW, bottom), healthBgPaint)
+                    val fillTop = top + (bottom - top) * (1f - hpFrac)
+                    val r = ((1f - hpFrac) * 255).toInt().coerceIn(0, 255)
+                    val g = (hpFrac * 255).toInt().coerceIn(0, 255)
+                    healthFillPaint.color = Color.argb(220, r, g, 0)
+                    canvas.drawRect(RectF(barLeft, fillTop, barLeft + barW, bottom), healthFillPaint)
                 }
             }
 
-            if (drawLabels) {
+            if (drawName || drawDistance) {
                 val labelScale = if (enemy.onScreen)
                     (boxHeightForLabel / (72f * density)).coerceIn(0.45f, 1f)
                 else 0.6f
@@ -258,9 +281,9 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                     String.format(Locale.US, "%.0fm", enemy.distanceMeters)
                 else "${enemy.distanceMeters.roundToInt()}m"
                 val name = enemy.name.ifBlank { "Unknown" }
-                val nameWidth = textPaint.measureText(name) + 2 * scaledPadding
-                val distanceWidth = textPaint.measureText(distance) + 2 * scaledPadding
-                val gap = 2 * density * labelScale
+                val nameWidth = if (drawName) textPaint.measureText(name) + 2 * scaledPadding else 0f
+                val distanceWidth = if (drawDistance) textPaint.measureText(distance) + 2 * scaledPadding else 0f
+                val gap = if (drawName && drawDistance) 2 * density * labelScale else 0f
                 val rowWidth = nameWidth + gap + distanceWidth
 
                 var lx = labelCenterX - rowWidth / 2
@@ -277,18 +300,19 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
 
                 val occupiedRect = RectF(lx, ly, lx + rowWidth, ly + labelHeight)
                 occupied.add(occupiedRect)
-                val nameRect = RectF(lx, ly, lx + nameWidth, ly + labelHeight)
-                rounded.set(nameRect)
-                canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelBgPaint)
-                canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelOutline)
-                canvas.drawText(name, lx + scaledPadding, ly + scaledPadding - metrics.ascent, textPaint)
-
-                val distanceLeft = lx + nameWidth + gap
-                val distanceRect = RectF(distanceLeft, ly, distanceLeft + distanceWidth, ly + labelHeight)
-                rounded.set(distanceRect)
-                canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelBgPaint)
-                canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelOutline)
-                canvas.drawText(distance, distanceLeft + scaledPadding, ly + scaledPadding - metrics.ascent, textPaint)
+                if (drawName) {
+                    rounded.set(RectF(lx, ly, lx + nameWidth, ly + labelHeight))
+                    canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelBgPaint)
+                    canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelOutline)
+                    canvas.drawText(name, lx + scaledPadding, ly + scaledPadding - metrics.ascent, textPaint)
+                }
+                if (drawDistance) {
+                    val distanceLeft = lx + nameWidth + gap
+                    rounded.set(RectF(distanceLeft, ly, distanceLeft + distanceWidth, ly + labelHeight))
+                    canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelBgPaint)
+                    canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelOutline)
+                    canvas.drawText(distance, distanceLeft + scaledPadding, ly + scaledPadding - metrics.ascent, textPaint)
+                }
             }
         }
         if (blend < 1f) postInvalidateOnAnimation()

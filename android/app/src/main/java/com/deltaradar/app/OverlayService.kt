@@ -129,9 +129,10 @@ class OverlayService : Service() {
         // boxes and labels continue to use their projected world positions.
         val meScreen = Pair(0.5f, 0.02f)
 
-        val showPlayers = com.deltaradar.app.Settings.showPlayers(this)
-        val showTeammates = com.deltaradar.app.Settings.showTeammates(this)
-        val showLoot = com.deltaradar.app.Settings.showLoot(this)
+        val playerFeatures = Settings.entityFeatures(this, Settings.EntityType.PLAYER)
+        val botFeatures = Settings.entityFeatures(this, Settings.EntityType.BOT)
+        val teammateFeatures = Settings.entityFeatures(this, Settings.EntityType.TEAMMATE)
+        val lootFeatures = Settings.entityFeatures(this, Settings.EntityType.LOOT)
         val renderDist = com.deltaradar.app.Settings.renderDistance(this).toDouble()
 
         val enemyFrames = mutableListOf<EnemyLinesView.Enemy>()
@@ -146,7 +147,11 @@ class OverlayService : Service() {
             val team = ent.optInt("team", 0)
             val dx = ex - mx; val dy = ey - my; val dz = baseZ - mz
             val distanceMeters = sqrt(dx * dx + dy * dy + dz * dz)
-            if (distanceMeters < 0.5 || distanceMeters > renderDist) {
+            val isCombatEntity = kind == "player" || kind == "ai" || kind == "vehicle"
+            // The actor root of a box being looted can be almost coincident
+            // with the camera. The near guard exists only to reject duplicate
+            // self/combat pawns; applying it to loot hid point-blank boxes.
+            if ((isCombatEntity && distanceMeters < 0.5) || distanceMeters > renderDist) {
                 rejected.add("$id:$kind:t$team:range:${distanceMeters.toInt()}m")
                 continue
             }
@@ -155,10 +160,18 @@ class OverlayService : Service() {
             if (ent.optBoolean("dead", false) || (healthKnown && health <= 0.01)) {
                 rejected.add("$id:dead"); continue
             }
-            val isCombatEntity = kind == "player" || kind == "ai" || kind == "vehicle"
-            if (isCombatEntity && team == 1 && !showTeammates) { rejected.add("$id:teammate"); continue }
-            if (isCombatEntity && !showPlayers) { rejected.add("$id:players-off"); continue }
-            if (!isCombatEntity && !showLoot) { rejected.add("$id:loot-off"); continue }
+            val features = when {
+                !isCombatEntity -> lootFeatures
+                team == 1 -> teammateFeatures
+                kind == "player" -> playerFeatures
+                else -> botFeatures
+            }
+            if (isCombatEntity && features and Settings.FEATURE_ENABLED == 0) {
+                rejected.add("$id:type-off"); continue
+            }
+            if (!isCombatEntity && features and Settings.FEATURE_ENABLED == 0) {
+                rejected.add("$id:loot-off"); continue
+            }
 
             val halfHeight = when (kind) {
                 "vehicle" -> 1.0
@@ -241,19 +254,18 @@ class OverlayService : Service() {
             )
         }
         handler.post {
-            val drawLines = com.deltaradar.app.Settings.drawEnemyLines(this)
-            val drawLabels = com.deltaradar.app.Settings.showEnemyLabels(this)
-            if (!drawLines && !drawLabels) { enemyLinesView?.clear(); return@post }
             ensureEnemyLinesWindow()
             val view = enemyLinesView ?: return@post
             if (isMenuOpen) { view.clear(); return@post }
-            view.setStyle(drawLines, drawLabels,
+            view.setStyle(playerFeatures, botFeatures, teammateFeatures, lootFeatures,
                 com.deltaradar.app.Settings.playerColor(this),
                 com.deltaradar.app.Settings.botColor(this),
                 com.deltaradar.app.Settings.teammateColor(this),
+                com.deltaradar.app.Settings.lootColor(this),
                 com.deltaradar.app.Settings.playerDrawMode(this),
                 com.deltaradar.app.Settings.botDrawMode(this),
                 com.deltaradar.app.Settings.teammateDrawMode(this),
+                com.deltaradar.app.Settings.lootDrawMode(this),
                 com.deltaradar.app.Settings.lineThicknessPercent(this) / 100f)
             view.submit(frame, android.os.SystemClock.elapsedRealtime())
         }
@@ -427,6 +439,22 @@ class OverlayService : Service() {
             updateToggle(view.findViewById(R.id.toggleShowLootState), enabled)
         }
 
+        // Lines, names, distance and visibility are now configured per entity
+        // type below. Keep the old rows hidden so upgraded installs can still
+        // migrate their saved values without presenting conflicting controls.
+        view.findViewById<View>(R.id.toggleEnemyLines).visibility = View.GONE
+        view.findViewById<View>(R.id.enemyLinesDetails).visibility = View.GONE
+        view.findViewById<View>(R.id.toggleEnemyLabels).visibility = View.GONE
+        view.findViewById<View>(R.id.enemyLabelsDetails).visibility = View.GONE
+        view.findViewById<View>(R.id.toggleShowPlayers).visibility = View.GONE
+        view.findViewById<View>(R.id.toggleShowTeammates).visibility = View.GONE
+        view.findViewById<View>(R.id.toggleShowLoot).visibility = View.GONE
+
+        setupEntityFeaturePanel(view, R.id.playerFeatureContainer, Settings.EntityType.PLAYER)
+        setupEntityFeaturePanel(view, R.id.teammateFeatureContainer, Settings.EntityType.TEAMMATE)
+        setupEntityFeaturePanel(view, R.id.botFeatureContainer, Settings.EntityType.BOT)
+        setupEntityFeaturePanel(view, R.id.lootFeatureContainer, Settings.EntityType.LOOT)
+
         // Render distance slider
         val distSeek = view.findViewById<SeekBar>(R.id.renderDistSeek)
         val distValue = view.findViewById<TextView>(R.id.renderDistValue)
@@ -518,6 +546,111 @@ class OverlayService : Service() {
                 com.deltaradar.app.Settings.setBotColor(this, c)
             }
         }
+
+        setupDrawModeButtons(view,
+            listOf(R.id.lootModeOff, R.id.lootModeLines, R.id.lootModeBoxes, R.id.lootModeMarker),
+            com.deltaradar.app.Settings.lootDrawMode(this), Settings.LOOT_COLOR
+        ) { mode -> com.deltaradar.app.Settings.setLootDrawMode(this, mode) }
+        val lootPresets = listOf(
+            R.id.lootColorGreen to 0xFF4fd08a.toInt(),
+            R.id.lootColorCyan to 0xFF46D9FF.toInt(),
+            R.id.lootColorYellow to 0xFFFFE066.toInt(),
+            R.id.lootColorRed to 0xFFE5534B.toInt(),
+            R.id.lootColorOrange to 0xFFFF8C42.toInt()
+        )
+        lootPresets.forEach { (id, c) ->
+            view.findViewById<View>(id).setOnClickListener {
+                com.deltaradar.app.Settings.setLootColor(this, c)
+            }
+        }
+    }
+
+    private fun setupEntityFeaturePanel(view: View, containerId: Int, type: Settings.EntityType) {
+        val container = view.findViewById<LinearLayout>(containerId)
+        container.removeAllViews()
+        val states = mutableMapOf<Int, TextView>()
+
+        fun refresh() {
+            val mask = Settings.entityFeatures(this, type)
+            states.forEach { (feature, state) -> updateToggle(state, mask and feature != 0) }
+        }
+
+        fun addRow(label: String, feature: Int) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, 0, 0, 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(34)
+                )
+                isClickable = true
+                isFocusable = true
+            }
+            row.addView(TextView(this).apply {
+                text = label
+                textSize = 11f
+                setTextColor(0xFFc8d6e0.toInt())
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            val state = TextView(this).apply {
+                gravity = Gravity.CENTER
+                textSize = 10f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setBackgroundColor(0xFF1E2940.toInt())
+                layoutParams = LinearLayout.LayoutParams(dpToPx(46), dpToPx(22))
+            }
+            states[feature] = state
+            row.addView(state)
+            row.setOnClickListener {
+                Settings.setEntityFeature(this, type, feature,
+                    !Settings.entityFeature(this, type, feature))
+                refresh()
+            }
+            container.addView(row)
+        }
+
+        val quick = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(30)
+            )
+        }
+        fun quickButton(label: String, mask: Int) = TextView(this).apply {
+            text = label
+            gravity = Gravity.CENTER
+            textSize = 10f
+            setTextColor(0xFFc8d6e0.toInt())
+            setBackgroundColor(0xFF1E2940.toInt())
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
+                marginEnd = dpToPx(2)
+            }
+            setOnClickListener {
+                Settings.setEntityFeatures(this@OverlayService, type, mask)
+                if (mask == Settings.ALL_FEATURES) {
+                    when (type) {
+                        Settings.EntityType.PLAYER -> if (Settings.playerDrawMode(this@OverlayService) == Settings.DRAW_MODE_OFF)
+                            Settings.setPlayerDrawMode(this@OverlayService, Settings.DRAW_MODE_BOXES)
+                        Settings.EntityType.BOT -> if (Settings.botDrawMode(this@OverlayService) == Settings.DRAW_MODE_OFF)
+                            Settings.setBotDrawMode(this@OverlayService, Settings.DRAW_MODE_BOXES)
+                        Settings.EntityType.TEAMMATE -> if (Settings.teammateDrawMode(this@OverlayService) == Settings.DRAW_MODE_OFF)
+                            Settings.setTeammateDrawMode(this@OverlayService, Settings.DRAW_MODE_BOXES)
+                        Settings.EntityType.LOOT -> if (Settings.lootDrawMode(this@OverlayService) == Settings.DRAW_MODE_OFF)
+                            Settings.setLootDrawMode(this@OverlayService, Settings.DRAW_MODE_BOXES)
+                    }
+                }
+                refresh()
+            }
+        }
+        quick.addView(quickButton("ALL ON", Settings.ALL_FEATURES))
+        quick.addView(quickButton("ALL OFF", 0))
+        container.addView(quick)
+        addRow("Enabled", Settings.FEATURE_ENABLED)
+        addRow("Tracer lines", Settings.FEATURE_LINES)
+        addRow("Names", Settings.FEATURE_NAMES)
+        addRow("Distance", Settings.FEATURE_DISTANCE)
+        if (type != Settings.EntityType.LOOT) addRow("Health", Settings.FEATURE_HEALTH)
+        addRow("Boxes / skeleton", Settings.FEATURE_BODY)
+        refresh()
     }
 
     private fun setupDrawModeButtons(view: View, ids: List<Int>, currentMode: Int,
