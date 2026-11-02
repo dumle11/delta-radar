@@ -98,8 +98,12 @@ class MainActivity : AppCompatActivity() {
                 }
                 findViewById<TextView>(R.id.txtFeed).apply {
                     val scannerOk = status.scannerPid != null
+                    val receiving = entityFeed?.lastUpdateTs?.let {
+                        it > 0 && System.currentTimeMillis() - it < 5000
+                    } == true
                     text = when {
-                        feedOk && scannerOk -> "Overlay feed: connected (scanner PID ${status.scannerPid})"
+                        feedOk && scannerOk && receiving -> "Overlay feed: receiving (reader PID ${status.scannerPid})"
+                        feedOk && scannerOk -> "Overlay feed: reader running; waiting for match"
                         feedOk -> "Overlay feed: waiting for scanner"
                         else -> "Overlay feed: stopped"
                     }
@@ -139,36 +143,33 @@ class MainActivity : AppCompatActivity() {
         if (game != null) startActivity(game)
         else toast("Delta Force is not installed")
 
-        // The socket listener and native scanner are separate processes. The
-        // old launcher only started the listener, leaving the UI at 0 entities
-        // whenever memscan had exited. Start it once the game process exists;
-        // the scanner itself waits for a valid match/world before publishing.
         thread(name = "scanner-launch") {
-            repeat(10) {
-                val result = RootUtils.exec(
-                    "if pidof $DFM_PKG >/dev/null 2>&1; then " +
-                        "if ! pidof memscan >/dev/null 2>&1; then " +
-                        "nohup /data/local/tmp/memscan run vmreadv " +
-                        ">/data/local/tmp/memscan.log 2>&1 </dev/null & " +
-                        "fi; echo READY; fi"
-                )
-                if (result.contains("READY")) return@thread
-                Thread.sleep(750)
+            var scannerStarted = false
+            try {
+                for (attempt in 0 until 20) {
+                    if (RootUtils.getFullStatus().gamePid != null) {
+                        scannerStarted = RootUtils.startScanner(this)
+                        break
+                    }
+                    Thread.sleep(250)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DeltaRadar", "Reader startup failed", e)
+            }
+            handler.post {
+                tryBindService()
+                starting = false
+                if (!scannerStarted) toast("Reader failed to start; see /data/local/tmp/memscan.log")
+                refreshStatus()
             }
         }
-
-        handler.postDelayed({
-            tryBindService()
-            starting = false
-            refreshStatus()
-        }, 2000)
     }
 
     private fun stopRadar() {
         if (bound) { try { unbindService(connection) } catch (_: Exception) {}; bound = false; entityFeed = null }
         EntityFeedService.stop(this)
         OverlayService.stop(this)
-        thread(name = "scanner-stop") { RootUtils.exec("killall memscan 2>/dev/null || true") }
+        thread(name = "scanner-stop") { RootUtils.exec("killall ue_telemetry 2>/dev/null || true") }
         toast("Radar stopped")
         handler.postDelayed(::refreshStatus, 1000)
     }

@@ -1,13 +1,12 @@
 #!/system/bin/sh
-
-# Start before the game process so memscan opens /proc/<pid>/maps during the
-# brief readable startup window, then retains that descriptor for the session.
-# A force-stop is asynchronous; do not attach to the dying previous PID.
-while [ -n "$(pidof com.proxima.dfm)" ]; do
-    sleep 0.01
+# Compatibility entry point. Do not restart the game or enable debugger gates.
+attempt=0
+while ! pidof com.proxima.dfm >/dev/null 2>&1; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 200 ]; then
+        echo "Game process did not start" >&2
+        exit 1
+    fi
+    sleep 0.1
 done
-while [ -z "$(pidof com.proxima.dfm)" ]; do
-    sleep 0.01
-done
-
-exec /data/local/tmp/memscan run vmreadv
+exec /data/local/tmp/ue_telemetry run

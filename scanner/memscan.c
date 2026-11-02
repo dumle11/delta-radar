@@ -1,5 +1,5 @@
 /*
- * Delta Force memory scanner - finds UE4 structures via process_vm_readv
+ * Delta Force telemetry reader - finds UE4 structures from an external helper
  * SDK dump offsets from github.com/eikarna/deltaforce-dump (Garena v1.203)
  *
  * Build: aarch64-linux-android26-clang -O2 -lm -o memscan memscan.c
@@ -23,6 +23,9 @@
 #include <sys/uio.h>
 #include <sys/syscall.h>
 #include <time.h>
+#ifdef IN_PROCESS
+#include <pthread.h>
+#endif
 
 #define GAME_PKG "com.proxima.dfm"
 #define RADAR_SOCKET_NAME "delta_radar_feed"
@@ -49,10 +52,6 @@
 #define OFF_UOBJECT_NAME              0x1C
 #define OFF_UOBJECT_OUTER             0x10
 #define OFF_GNAMES_FROM_UE4_BASE      0x20744AC0
-/* The canonical FNamePool page above is mapped write-only in this regional
- * build, so process_vm_readv cannot inspect it.  This read/write UE4 alias
- * references the same pool and avoids a 56 MB discovery scan on every start. */
-#define OFF_GNAMES_READABLE_ALIAS     0x1BEE1F60
 #define OFF_GUOBJECTARRAY_FROM_BASE   0x2076B8F8
 #define OFF_GWORLD_FROM_UE4_BASE      0x20AA87A0
 #define OFF_FNAME_POOL_BLOCKS         0x38
@@ -77,6 +76,12 @@ static int num_regions = 0;
 static uint8_t *read_buf = NULL;
 static int use_vm_readv = 0;
 static FILE *maps_file = NULL;
+static int fname_pool_uses_proc_mem = 0;
+static int allow_compatibility_scan = 0;
+static uint64_t fname_pool_addr = 0;
+static int fname_blocks_off = OFF_FNAME_POOL_BLOCKS;
+static int fname_entry_hdr_size = 2;
+static uint64_t fname_block_cache[2048];
 
 static int find_game_pid(void) {
     DIR *proc = opendir("/proc");
@@ -139,6 +144,7 @@ static int parse_maps_with_retry(void) {
     /* Cold starts after Android's debugger gate can take several seconds to
      * map libUE4 on older devices. Keep the early-authorized proc fd alive. */
     for (int attempt = 0; attempt < 600; attempt++) {
+        if (kill(game_pid, 0) < 0 && errno == ESRCH) return -1;
         if (parse_maps() == 0 && num_regions > 0 && ue4_base != 0) return 0;
         usleep(100000);
     }
@@ -152,8 +158,51 @@ static ssize_t read_mem(uint64_t addr, void *buf, size_t len) {
         return syscall(__NR_process_vm_readv, game_pid, &local, 1, &remote, 1, 0);
     }
     if (mem_fd < 0) return -1;
-    if (lseek64(mem_fd, (off64_t)addr, SEEK_SET) == (off64_t)-1) return -1;
-    return read(mem_fd, buf, len);
+    return pread64(mem_fd, buf, len, (off64_t)addr);
+}
+
+/* process_vm_readv rejects the canonical FNamePool because Tencent maps its
+ * container page write-only. Root can still read that page through procfs.
+ * Keep this exceptional path limited to the block-pointer lookup; all actor,
+ * transform, camera and entry data remains on the faster vm_readv path. */
+static ssize_t read_mem_proc(uint64_t addr, void *buf, size_t len) {
+    if (mem_fd < 0) {
+        char path[256];
+        snprintf(path, sizeof(path), "/proc/%d/mem", game_pid);
+        mem_fd = open(path, O_RDONLY);
+        if (mem_fd < 0) return -1;
+    }
+    return pread64(mem_fd, buf, len, (off64_t)addr);
+}
+
+static uint64_t read_fname_pool_ptr(uint64_t addr) {
+    int cache_index = -1;
+    if (fname_pool_addr != 0 && addr >= fname_pool_addr + fname_blocks_off) {
+        uint64_t delta = addr - (fname_pool_addr + fname_blocks_off);
+        if ((delta & 7) == 0 && delta / 8 <
+            sizeof(fname_block_cache) / sizeof(fname_block_cache[0])) {
+            cache_index = (int)(delta / 8);
+            if (fname_block_cache[cache_index] > 0x10000 &&
+                fname_block_cache[cache_index] < 0xFFFFFFFFFFFFULL &&
+                (fname_block_cache[cache_index] & 3) == 0)
+                return fname_block_cache[cache_index];
+        }
+    }
+    uint64_t value = 0;
+    ssize_t got = fname_pool_uses_proc_mem ?
+        read_mem_proc(addr, &value, sizeof(value)) :
+        read_mem(addr, &value, sizeof(value));
+    if (fname_pool_uses_proc_mem && mem_fd >= 0) {
+        /* Do not expose a persistent /proc/<game>/mem descriptor to the
+         * target's match-time integrity checks. FName block pointers are
+         * immutable after allocation and are cached above. */
+        close(mem_fd);
+        mem_fd = -1;
+    }
+    if (got != (ssize_t)sizeof(value)) return 0;
+    if (cache_index >= 0 && value > 0x10000 && value < 0xFFFFFFFFFFFFULL &&
+        (value & 3) == 0) fname_block_cache[cache_index] = value;
+    return value;
 }
 
 static uint64_t read_ptr(uint64_t addr) {
@@ -189,13 +238,19 @@ static int is_in_ue4(uint64_t p) {
 }
 
 static int is_game_heap_ptr(uint64_t p) {
-    return (p & 7) == 0 && p >= 0x6e00000000ULL && p < 0x7800000000ULL;
+    /* ASLR changes the heap range between launches. Never encode the address
+     * range of one captured process as part of UObject validation. */
+    return is_any_ptr(p) && (p & 7) == 0 && !is_in_ue4(p);
 }
 
 #define OFF_APAWN_CONTROLLER 0x3a8
 #define OFF_APAWN_PLAYER_STATE 0x390
 #define OFF_PLAYER_CONTROLLER_ACKNOWLEDGED_PAWN 0x3F0
-#define OFF_PLAYER_STATE_NAME 0x388
+#define OFF_CONTROLLER_PAWN 0x3A0
+#define OFF_CONTROLLER_CHARACTER 0x3B0
+#define OFF_CONTROLLER_PLAYER_STATE 0x378
+#define OFF_PLAYER_CONTROLLER_SPECTATOR_PAWN 0x698
+#define OFF_PLAYER_STATE_NAME 0x378
 #define OFF_PLAYER_STATE_NAME_PRIVATE 0x470
 #define OFF_PLAYER_STATE_BOT_FLAGS 0x39e
 #define OFF_PLAYER_STATE_PAWN_PRIVATE 0x3F8
@@ -279,6 +334,7 @@ typedef struct {
     int level_offset;
     int actor_source; // 0=ActorCluster indirect, 1+=direct ULevel offset index
     int plausible_players;
+    int has_valid_controller;
     int score;
 } GWorldCandidate;
 
@@ -298,11 +354,33 @@ static void keep_gameplay_candidates_only(void) {
     num_candidates = out;
 }
 static int is_character_class(uint64_t cls, uint64_t local_class);
+static int class_name_contains(uint64_t cls, const char *fragment);
 
-/* FName resolution state (used in scan and run modes) */
-static uint64_t fname_pool_addr = 0;
-static int fname_blocks_off = OFF_FNAME_POOL_BLOCKS;
-static int fname_entry_hdr_size = 2; /* bytes before the ASCII string in FNameEntry */
+/* Lobby operator previews resemble real pawns closely enough to fool shape
+ * checks. A deployed match has GameState::PlayerArray entries with replicated
+ * names; the front end does not. This cheap gate prevents all actor/camera/
+ * subsystem work until gameplay is actually active. */
+static int world_has_named_player_state(uint64_t world) {
+    uint64_t game_state = is_any_ptr(world) ?
+        read_ptr(world + OFF_UWORLD_GAME_STATE) : 0;
+    uint64_t player_data = is_any_ptr(game_state) ? read_ptr(game_state + 0x388) : 0;
+    int32_t player_count = is_any_ptr(game_state) ? read_i32(game_state + 0x390) : 0;
+    if (!is_any_ptr(player_data) || player_count <= 0 || player_count > 256) return 0;
+    int check = player_count < 32 ? player_count : 32;
+    for (int i = 0; i < check; i++) {
+        uint64_t state = read_ptr(player_data + (uint64_t)i * 8);
+        if (!is_game_heap_ptr(state)) continue;
+        char name[64] = {0};
+        read_fstring(state + OFF_PLAYER_STATE_NAME, name, sizeof(name));
+        if (!name[0])
+            read_fstring(state + OFF_PLAYER_STATE_NAME_PRIVATE, name, sizeof(name));
+        if (name[0]) return 1;
+    }
+    return 0;
+}
+
+/* FName resolution state is declared with the reader globals because the
+ * exceptional block-pointer reader caches against its exact pool address. */
 
 /* Try to validate a UWorld pointer using SDK dump offsets.
  * Path 1 (SDK dump): UWorld+0xF8 -> ULevel, ULevel+0xC8 -> ActorCluster, ActorCluster+0x28 -> TArray
@@ -380,12 +458,40 @@ static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
     }
 
     if (best_score > 0) {
+        if (!world_has_named_player_state(uworld_ptr)) {
+            out->plausible_players = 0;
+            out->has_valid_controller = 0;
+            out->score = best_score;
+            return best_score;
+        }
         uint64_t game_instance = read_ptr(uworld_ptr + 0x190);
         uint64_t local_players = is_any_ptr(game_instance) ? read_ptr(game_instance + 0x38) : 0;
-        uint64_t local_player = is_any_ptr(local_players) ? read_ptr(local_players) : 0;
-        uint64_t player_controller = is_any_ptr(local_player) ? read_ptr(local_player + 0x30) : 0;
+        int32_t local_player_count = is_any_ptr(game_instance) ?
+            read_i32(game_instance + 0x40) : 0;
+        if (local_player_count <= 0 || local_player_count > 8) local_player_count = 1;
+        uint64_t player_controller = 0;
+        int controller_valid = 0;
+        /* Loading-world transitions can leave a stale LocalPlayer in slot 0.
+         * Validate every small LocalPlayers entry by reflected inheritance;
+         * otherwise a stale pointer can make the active world look valid and
+         * then produce an empty class/name once continuous reading starts. */
+        for (int li = 0; is_any_ptr(local_players) && li < local_player_count; li++) {
+            uint64_t local_player = read_ptr(local_players + (uint64_t)li * 8);
+            uint64_t candidate_pc = is_any_ptr(local_player) ?
+                read_ptr(local_player + 0x30) : 0;
+            if (!is_any_ptr(candidate_pc) ||
+                !class_name_contains(read_ptr(candidate_pc + OFF_UOBJECT_CLASS),
+                                     "PlayerController")) continue;
+            player_controller = candidate_pc;
+            controller_valid = 1;
+            break;
+        }
+        out->has_valid_controller = controller_valid;
+        if (!controller_valid) player_controller = 0;
         uint64_t pawn = is_any_ptr(player_controller) ?
             read_ptr(player_controller + OFF_PLAYER_CONTROLLER_ACKNOWLEDGED_PAWN) : 0;
+        if (!is_any_ptr(pawn) && is_any_ptr(player_controller))
+            pawn = read_ptr(player_controller + OFF_CONTROLLER_PAWN);
         uint64_t local_class = is_any_ptr(pawn) ? read_ptr(pawn + OFF_UOBJECT_CLASS) : 0;
 
         /* Actor-pointer validity alone also scores preview/menu worlds highly.
@@ -394,7 +500,7 @@ static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
         int sample_count = out->actor_count < 256 ? out->actor_count : 256;
         uint64_t sample_ptrs[256];
         int plausible_players = 0;
-        if (sample_count > 0 &&
+        if (is_any_ptr(local_class) && sample_count > 0 &&
             read_mem(out->actor_data, sample_ptrs, (size_t)sample_count * 8) ==
                 (ssize_t)((size_t)sample_count * 8)) {
             for (int i = 0; i < sample_count; i++) {
@@ -436,17 +542,17 @@ static void scan_for_gworld(void) {
 
     num_candidates = 0;
 
-    /* The live SDK dump supplies the actual static GWorld slot.  Checking it
-     * is constant-time and avoids walking hundreds of megabytes every 15
-     * seconds while the user is in menus.  Retain a rare bounded fallback for
-     * a future game build whose offset has changed. */
+    /* The live SDK dump supplies the actual static GWorld slot. Checking it is
+     * constant-time. Continuous overlay mode must never walk hundreds of MB:
+     * on this older device that starves UE resource loading and can terminate
+     * the game. Compatibility scanning is therefore diagnostic scan-mode only. */
     static int direct_misses = 0;
     uint64_t direct_addr = ue4_base + OFF_GWORLD_FROM_UE4_BASE;
     uint64_t direct_world = read_ptr(direct_addr);
     if (is_any_ptr(direct_world)) {
         GWorldCandidate direct = {0};
         int score = try_validate_uworld(direct_world, &direct);
-        if (score >= 70) {
+        if (score >= 70 && direct.plausible_players > 0) {
             direct.gworld_addr = direct_addr;
             direct.uworld = direct_world;
             candidates[num_candidates++] = direct;
@@ -458,14 +564,29 @@ static void scan_for_gworld(void) {
             return;
         }
 
+        if (score >= 70 && direct.has_valid_controller) {
+            direct_misses = 0;
+            fprintf(stderr,
+                    "[*] Static GWorld@0x%lx is a non-gameplay world; waiting for match\n",
+                    (unsigned long)direct_addr);
+            return;
+        }
+
         /* A valid slot commonly points at the login/loading/front-end world.
          * That is not evidence that the SDK offset changed.  Waiting here is
          * effectively free and prevents a multi-hundred-megabyte compatibility
          * scan from starving the game while it loads resources. */
-        direct_misses = 0;
-        fprintf(stderr,
-                "[*] Static GWorld@0x%lx is a non-gameplay world; waiting for match\n",
-                (unsigned long)direct_addr);
+        if (score >= 70) {
+            direct_misses = 0;
+            fprintf(stderr,
+                    "[*] Static GWorld is structurally valid but not an active match; waiting\n");
+            return;
+        }
+    }
+
+    if (!allow_compatibility_scan) {
+        if ((direct_misses++ % 60) == 0)
+            fprintf(stderr, "[*] Static GWorld is unavailable; waiting for engine transition\n");
         return;
     }
 
@@ -791,6 +912,25 @@ static void probe_positions(GWorldCandidate *cand) {
 
 /* fname_pool_addr and fname_blocks_off declared earlier (forward decl) */
 
+static void decrypt_fname_utf8(char *data, int len) {
+    if (!data || len <= 0) return;
+    uint32_t key;
+    switch (len % 9) {
+        case 0: key = (uint32_t)((len & 0x1F) + len); break;
+        case 1: key = (uint32_t)((len ^ 0xDF) + len); break;
+        case 2: key = (uint32_t)((len | 0xCF) + len); break;
+        case 3: key = (uint32_t)(33 * len); break;
+        case 4: key = (uint32_t)(len + (len >> 2)); break;
+        case 5: key = (uint32_t)(3 * len + 5); break;
+        case 6: key = (uint32_t)(((4 * len) | 5) + len); break;
+        case 7: key = (uint32_t)(((len >> 4) | 7) + len); break;
+        case 8: key = (uint32_t)((len ^ 0xC) + len); break;
+        default: key = (uint32_t)((len ^ 0x40) + len); break;
+    }
+    for (int i = 0; i < len; i++)
+        data[i] = (char)((key & 0x80) ^ (uint8_t)(~(uint8_t)data[i]));
+}
+
 /* Resolve an FName index to a string.
  * FNamePool has blocks at fname_blocks_off. Block index = idx >> BlocksBit(18).
  * Entry offset = (idx & ((1<<18)-1)) * Stride(2).
@@ -801,7 +941,8 @@ static int resolve_fname(int32_t idx, char *out, int out_size) {
     int block_idx = idx >> 18;
     int entry_off = (idx & ((1 << 18) - 1)) * 2;
 
-    uint64_t block_ptr = read_ptr(fname_pool_addr + fname_blocks_off + block_idx * 8);
+    uint64_t block_ptr = read_fname_pool_ptr(
+        fname_pool_addr + fname_blocks_off + block_idx * 8);
     if (!is_any_ptr(block_ptr)) { out[0] = 0; return 0; }
 
     int hdr_sz = fname_entry_hdr_size;
@@ -832,12 +973,26 @@ static int resolve_fname(int32_t idx, char *out, int out_size) {
     if (len <= 0 || len >= out_size) { out[0] = 0; return 0; }
 
     if (read_mem(block_ptr + entry_off + hdr_sz, out, len) != len) { out[0] = 0; return 0; }
+    decrypt_fname_utf8(out, len);
     for (int i = 0; i < len; i++) {
         unsigned char c = (unsigned char)out[i];
         if (c < 0x20 || c > 0x7e) { out[0] = 0; return 0; }
     }
     out[len] = 0;
     return len;
+}
+
+static int class_name_contains(uint64_t cls, const char *fragment) {
+    if (!is_any_ptr(cls) || !fname_pool_addr || !fragment) return 0;
+    for (int depth = 0; depth < 16 && is_any_ptr(cls); depth++) {
+        char name[96] = {0};
+        resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name));
+        if (name[0] && strstr(name, fragment)) return 1;
+        uint64_t next = read_ptr(cls + 0x40);
+        if (next == cls) break;
+        cls = next;
+    }
+    return 0;
 }
 
 /* ========== RUNNING MODE: Read actors and POST to radar ========== */
@@ -1162,12 +1317,13 @@ static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root, int mesh
 #define OFF_PC_CONTROL_PITCH 0x3D8
 #define OFF_PC_CONTROL_YAW   0x3DC
 #define OFF_PC_CAMERA_MANAGER 0x408
-#define OFF_CAMERA_CACHE_PRIVATE 0x37B0
+#define OFF_CAMERA_CACHE_PRIVATE 0x2D60
+#define OFF_CAMERA_MANAGER_VIEW_TARGET 0x1880
 #define OFF_CAMERA_CACHE_POV 0x10
 #define OFF_GP_CAMERA_FPP_FOV 0x4C00
 #define OFF_POV_LOCATION 0x0
 #define OFF_POV_ROTATION 0x10
-#define OFF_POV_FOV 0x20
+#define OFF_POV_FOV 0x1C
 
 static char self_entity_id[32] = {0};
 /* Loading/lobby worlds can contain pawn-shaped preview actors. Only publish
@@ -1187,21 +1343,10 @@ static int camera_candidate_count = 0;
  * combatants through their reflected class hierarchy instead: the local pawn's
  * direct parent is the common character base used by human and AI pawns. */
 static int is_character_class(uint64_t cls, uint64_t local_class) {
-    if (!is_any_ptr(cls) || !is_any_ptr(local_class)) return 0;
-    uint64_t local_chain[5] = {0};
-    uint64_t current = local_class;
-    for (int i = 0; i < 5 && is_any_ptr(current); i++) {
-        local_chain[i] = current;
-        current = read_ptr(current + 0x40); /* UStruct::SuperStruct */
-    }
-    for (int depth = 0; depth < 12 && is_any_ptr(cls); depth++) {
-        for (int i = 0; i < 5; i++)
-            if (local_chain[i] != 0 && cls == local_chain[i]) return 1;
-        uint64_t next = read_ptr(cls + 0x40);
-        if (next == cls) break;
-        cls = next;
-    }
-    return 0;
+    (void)local_class;
+    /* Generic Actor/Object ancestors also occur in loot and world objects.
+     * Require the combat character base from the matching SDK instead. */
+    return class_name_contains(cls, "GPCharacterBase");
 }
 
 /* Cache the reflected inheritance result per UClass. Loot actors are not
@@ -1299,6 +1444,92 @@ static uint64_t find_battlefield_system(uint64_t uworld, uint64_t local_pc,
                 uint64_t candidate = referenced[ri];
                 if (!is_game_heap_ptr(candidate)) continue;
                 if (is_battlefield_system(candidate, local_pc, local_pawn)) return candidate;
+            }
+        }
+    }
+    return 0;
+}
+
+/* Reconnect/deployment controllers may have all standard pawn fields cleared
+ * while UGPBattleFieldSystem already owns the replicated local pawn. Resolve
+ * the same subsystem from the world using only its exact controller backlink. */
+static int battlefield_system_pawn_for_controller(uint64_t object,
+                                                   uint64_t local_pc,
+                                                   uint64_t *pawn_out) {
+    if (!is_game_heap_ptr(object) || read_ptr(object + 0x88) != local_pc ||
+        !sane_tarray(object, 0x110, 512)) return 0;
+    uint64_t pawn = read_ptr(object + 0x90);
+    uint64_t data = read_ptr(object + 0x110);
+    int count = read_i32(object + 0x118);
+    if (!is_game_heap_ptr(pawn) || !is_game_heap_ptr(data) || count <= 0) return 0;
+    for (int i = 0; i < count; i++) {
+        if (read_ptr(data + (uint64_t)i * 8) == pawn) {
+            *pawn_out = pawn;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static uint64_t find_battlefield_system_by_controller(uint64_t uworld,
+                                                       uint64_t local_pc,
+                                                       uint64_t *pawn_out) {
+    if (!is_any_ptr(uworld) || !is_game_heap_ptr(local_pc)) return 0;
+    uint64_t world_fields[0x810 / 8] = {0};
+    if (read_mem(uworld, world_fields, sizeof(world_fields)) !=
+        (ssize_t)sizeof(world_fields)) return 0;
+    for (int pass = 0; pass < 2; pass++) {
+        int first = pass == 0 ? 0 : 0x228 / 8;
+        int last = pass == 0 ? (int)(sizeof(world_fields) / sizeof(world_fields[0])) : 0x660 / 8;
+        for (int wi = first; wi < last; wi++) {
+            uint64_t root = world_fields[wi];
+            if (!is_game_heap_ptr(root)) continue;
+            if (battlefield_system_pawn_for_controller(root, local_pc, pawn_out)) return root;
+            if (pass == 0) continue;
+            uint64_t referenced[0x1000 / 8] = {0};
+            ssize_t got = read_mem(root, referenced, sizeof(referenced));
+            if (got <= 0) continue;
+            int count = (int)((size_t)got / sizeof(uint64_t));
+            for (int ri = 0; ri < count; ri++) {
+                uint64_t candidate = referenced[ri];
+                if (is_game_heap_ptr(candidate) &&
+                    battlefield_system_pawn_for_controller(
+                        candidate, local_pc, pawn_out)) return candidate;
+            }
+        }
+    }
+    return 0;
+}
+
+static uint64_t scan_battlefield_system_by_controller(uint64_t local_pc,
+                                                       uint64_t *pawn_out) {
+    for (int pass = 0; pass < 2; pass++) {
+        for (int ri = 0; ri < num_regions; ri++) {
+            if (regions[ri].perms[0] != 'r' || regions[ri].perms[1] != 'w' ||
+                regions[ri].perms[2] == 'x') continue;
+            uint64_t size = regions[ri].end - regions[ri].start;
+            if (size < 4096 || size > 256ULL * 1024 * 1024) continue;
+            int near_controller = local_pc >= regions[ri].start -
+                (regions[ri].start > 0x20000000 ? 0x20000000 : regions[ri].start) &&
+                local_pc < regions[ri].end + 0x20000000;
+            if ((pass == 0) != near_controller) continue;
+
+            for (uint64_t addr = regions[ri].start; addr < regions[ri].end;) {
+                size_t chunk = (size_t)(regions[ri].end - addr);
+                if (chunk > READ_BUF_SIZE) chunk = READ_BUF_SIZE;
+                ssize_t got = read_mem(addr, read_buf, chunk);
+                if (got <= 0) { addr += chunk; continue; }
+                uint64_t *values = (uint64_t *)read_buf;
+                size_t count = (size_t)got / sizeof(uint64_t);
+                for (size_t i = 0; i < count; i++) {
+                    if (values[i] != local_pc) continue;
+                    uint64_t field = addr + i * sizeof(uint64_t);
+                    if (field < 0x88) continue;
+                    uint64_t candidate = field - 0x88;
+                    if (battlefield_system_pawn_for_controller(
+                            candidate, local_pc, pawn_out)) return candidate;
+                }
+                addr += chunk;
             }
         }
     }
@@ -1493,6 +1724,16 @@ static int read_health_set(uint64_t health_set, float *health, float *max_health
  * and frame. Reflection names are preferred, with a strict value-shape check
  * as the fallback when this build's FName layout cannot decode component names. */
 static int discover_health_chain(uint64_t actor, int *component_off, int *set_off) {
+    uint64_t exact_component = read_ptr(actor + OFF_CHARACTER_HEALTH_COMPONENT);
+    uint64_t exact_set = is_game_heap_ptr(exact_component) ?
+        read_ptr(exact_component + OFF_HEALTH_COMPONENT_SET) : 0;
+    float exact_hp, exact_max, exact_alive;
+    if (read_health_set(exact_set, &exact_hp, &exact_max, &exact_alive)) {
+        *component_off = OFF_CHARACTER_HEALTH_COMPONENT;
+        *set_off = OFF_HEALTH_COMPONENT_SET;
+        return 1;
+    }
+    if (!allow_compatibility_scan) return 0;
     int best_score = -1;
     int best_component_off = -1, best_set_off = -1;
     float best_hp = 0.0f, best_max_hp = 0.0f, best_alive = 0.0f;
@@ -1647,6 +1888,7 @@ static void discover_camera_caches(uint64_t camera_manager, const float pawn_pos
             camera_candidate_count++;
         }
     }
+    if (!allow_compatibility_scan) return;
     for (int fov_off = 0x300; fov_off < 0x5000 && camera_candidate_count < 128; fov_off += 4) {
         float fov = read_float(camera_manager + (uint64_t)fov_off);
         if (!(fov >= 20.0f && fov <= 180.0f)) continue;
@@ -1695,6 +1937,11 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
     if (verified_uworld != uworld) {
         verified_uworld = uworld;
         match_was_verified = 0;
+        num_entities = 0;
+        self_entity_id[0] = 0;
+        self_verified = 0;
+        resolved_camera_cache_off = -1;
+        camera_candidate_count = 0;
         last_camera_timestamp = -1.0f;
         stale_camera_frames = 0;
         health_layout_count = 0;
@@ -1726,8 +1973,14 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
     self_entity_id[0] = 0;
     self_verified = 0;
 
-    /* Find local player pawn via the matching Engine SDK layout:
-     * UWorld+0x190 -> GI+0x38 -> LP[0]+0x30 -> PC+0x3f0 -> AcknowledgedPawn. */
+    if (!world_has_named_player_state(uworld)) {
+        num_entities = 0;
+        return 0;
+    }
+
+    /* Find local player pawn via the matching Engine SDK layout. Reconnects
+     * can retain an older LocalPlayer at slot zero, so inspect the complete
+     * small LocalPlayers array and prefer the controller that owns a pawn. */
     uint64_t local_pawn = 0;
     uint64_t local_pc = 0;
     uint64_t local_root = 0;
@@ -1740,30 +1993,223 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         if (is_any_ptr(gi)) {
             uint64_t lp_arr = read_ptr(gi + 0x38);
             if (is_any_ptr(lp_arr)) {
-                uint64_t lp0 = read_ptr(lp_arr);
-                if (is_any_ptr(lp0)) {
-                    uint64_t pc = read_ptr(lp0 + 0x30);
-                    if (is_any_ptr(pc)) {
-                        local_pc = pc;
-                        uint64_t pawn = read_ptr(
-                            pc + OFF_PLAYER_CONTROLLER_ACKNOWLEDGED_PAWN);
-                        if (is_any_ptr(pawn)) {
-                            local_pawn = pawn;
-                            local_class = read_ptr(pawn + OFF_UOBJECT_CLASS);
-                            uint64_t pawn_root = read_ptr(pawn + root_off);
-                            if (is_any_ptr(pawn_root)) {
-                                local_root = pawn_root;
-                                cached_self_pos[0] = read_float(pawn_root + pos_off) / 100.0f;
-                                cached_self_pos[1] = read_float(pawn_root + pos_off + 4) / 100.0f;
-                                cached_self_pos[2] = read_float(pawn_root + pos_off + 8) / 100.0f;
-                            }
-                            cached_local_class = local_class;
-                        }
+                int lp_count = read_i32(gi + 0x40);
+                if (lp_count <= 0 || lp_count > 8) lp_count = 1;
+                for (int li = 0; li < lp_count; li++) {
+                    uint64_t lp = read_ptr(lp_arr + (uint64_t)li * 8);
+                    if (!is_any_ptr(lp)) continue;
+                    uint64_t pc = read_ptr(lp + 0x30);
+                    if (!is_any_ptr(pc) ||
+                        !class_name_contains(read_ptr(pc + OFF_UOBJECT_CLASS),
+                                             "PlayerController")) continue;
+                    if (!is_any_ptr(local_pc)) local_pc = pc;
+                    uint64_t pawn = read_ptr(
+                        pc + OFF_PLAYER_CONTROLLER_ACKNOWLEDGED_PAWN);
+                    if (!is_any_ptr(pawn)) pawn = read_ptr(pc + OFF_CONTROLLER_PAWN);
+                    if (!is_any_ptr(pawn)) pawn = read_ptr(pc + OFF_CONTROLLER_CHARACTER);
+                    if (!is_any_ptr(pawn))
+                        pawn = read_ptr(pc + OFF_PLAYER_CONTROLLER_SPECTATOR_PAWN);
+                    if (!is_any_ptr(pawn)) continue;
+                    local_pc = pc;
+                    local_pawn = pawn;
+                    local_class = read_ptr(pawn + OFF_UOBJECT_CLASS);
+                    uint64_t pawn_root = read_ptr(pawn + root_off);
+                    if (is_any_ptr(pawn_root)) {
+                        local_root = pawn_root;
+                        cached_self_pos[0] = read_float(pawn_root + pos_off) / 100.0f;
+                        cached_self_pos[1] = read_float(pawn_root + pos_off + 4) / 100.0f;
+                        cached_self_pos[2] = read_float(pawn_root + pos_off + 8) / 100.0f;
                     }
+                    cached_local_class = local_class;
+                    break;
                 }
             }
         }
     }
+
+    if (!is_game_heap_ptr(local_pawn) && fname_pool_addr) {
+        int active_controller_found = 0;
+        uint64_t search_levels[128] = {0};
+        int search_level_count = 1;
+        search_levels[0] = level;
+        uint64_t levels_data = read_ptr(uworld + OFF_UWORLD_LEVELS);
+        int levels_count = read_i32(uworld + OFF_UWORLD_LEVELS + 8);
+        if (is_game_heap_ptr(levels_data) && levels_count > 0 && levels_count <= 127) {
+            uint64_t streamed[127] = {0};
+            if (read_mem(levels_data, streamed, (size_t)levels_count * 8) ==
+                (ssize_t)((size_t)levels_count * 8)) {
+                for (int li = 0; li < levels_count && search_level_count < 128; li++) {
+                    if (!is_game_heap_ptr(streamed[li])) continue;
+                    int duplicate = 0;
+                    for (int ei = 0; ei < search_level_count; ei++)
+                        if (search_levels[ei] == streamed[li]) { duplicate = 1; break; }
+                    if (!duplicate) search_levels[search_level_count++] = streamed[li];
+                }
+            }
+        }
+        for (int li = 0; li < search_level_count && !active_controller_found; li++) {
+            uint64_t candidate_data = 0;
+            int candidate_count = 0;
+            if (actor_source > 0) {
+                int off = ULEVEL_ACTOR_OFFSETS[actor_source - 1];
+                candidate_data = read_ptr(search_levels[li] + off);
+                candidate_count = read_i32(search_levels[li] + off + 8);
+            }
+            if (!is_game_heap_ptr(candidate_data) || candidate_count <= 0 ||
+                candidate_count > 2000) continue;
+            uint64_t level_actors[2000];
+            if (read_mem(candidate_data, level_actors, (size_t)candidate_count * 8) !=
+                (ssize_t)((size_t)candidate_count * 8)) continue;
+            for (int ai = 0; ai < candidate_count; ai++) {
+                uint64_t candidate_pc = level_actors[ai];
+                if (!is_game_heap_ptr(candidate_pc)) continue;
+                uint64_t manager = read_ptr(candidate_pc + OFF_PC_CAMERA_MANAGER);
+                if (!is_game_heap_ptr(manager) || read_ptr(manager + 0x370) != candidate_pc)
+                    continue;
+                local_pc = candidate_pc;
+                active_controller_found = 1;
+                fprintf(stderr,
+                        "\n[+] Selected active PlayerController 0x%lx from level actors\n",
+                        (unsigned long)local_pc);
+                break;
+            }
+        }
+    }
+
+    if (!is_game_heap_ptr(local_pawn) && is_game_heap_ptr(local_pc)) {
+        uint64_t controller_state = read_ptr(local_pc + OFF_CONTROLLER_PLAYER_STATE);
+        uint64_t state_pawn = is_game_heap_ptr(controller_state) ?
+            read_ptr(controller_state + OFF_PLAYER_STATE_PAWN_PRIVATE) : 0;
+        if (is_game_heap_ptr(state_pawn)) {
+            local_pawn = state_pawn;
+            local_class = read_ptr(local_pawn + OFF_UOBJECT_CLASS);
+            local_root = read_ptr(local_pawn + root_off);
+            cached_local_class = local_class;
+            if (is_game_heap_ptr(local_root)) {
+                cached_self_pos[0] = read_float(local_root + pos_off) / 100.0f;
+                cached_self_pos[1] = read_float(local_root + pos_off + 4) / 100.0f;
+                cached_self_pos[2] = read_float(local_root + pos_off + 8) / 100.0f;
+            }
+            fprintf(stderr,
+                    "\n[+] Recovered local pawn 0x%lx from Controller::PlayerState\n",
+                    (unsigned long)local_pawn);
+        }
+    }
+
+    if (!is_game_heap_ptr(local_pawn) && is_game_heap_ptr(local_pc)) {
+        uint64_t camera_manager = read_ptr(local_pc + OFF_PC_CAMERA_MANAGER);
+        uint64_t view_target = is_game_heap_ptr(camera_manager) ?
+            read_ptr(camera_manager + OFF_CAMERA_MANAGER_VIEW_TARGET) : 0;
+        if (is_game_heap_ptr(view_target)) {
+            uint64_t target_state = read_ptr(view_target + OFF_APAWN_PLAYER_STATE);
+            uint64_t target_root = read_ptr(view_target + root_off);
+            if (is_game_heap_ptr(target_state) && is_game_heap_ptr(target_root)) {
+                local_pawn = view_target;
+                local_class = read_ptr(local_pawn + OFF_UOBJECT_CLASS);
+                local_root = target_root;
+                cached_local_class = local_class;
+                cached_self_pos[0] = read_float(local_root + pos_off) / 100.0f;
+                cached_self_pos[1] = read_float(local_root + pos_off + 4) / 100.0f;
+                cached_self_pos[2] = read_float(local_root + pos_off + 8) / 100.0f;
+                fprintf(stderr, "\n[+] Recovered local pawn 0x%lx from camera ViewTarget\n",
+                        (unsigned long)local_pawn);
+            }
+        }
+    }
+
+    if (!is_game_heap_ptr(local_pawn) && is_game_heap_ptr(local_pc)) {
+        static uint64_t recovery_world = 0;
+        static int recovery_attempted = 0;
+        if (recovery_world != uworld) {
+            recovery_world = uworld;
+            recovery_attempted = 0;
+        }
+        uint64_t recovered_pawn = 0;
+        uint64_t recovered_system = find_battlefield_system_by_controller(
+            uworld, local_pc, &recovered_pawn);
+        if (allow_compatibility_scan && !is_game_heap_ptr(recovered_system) && !recovery_attempted) {
+            recovery_attempted = 1;
+            recovered_system = scan_battlefield_system_by_controller(
+                local_pc, &recovered_pawn);
+        }
+        if (is_game_heap_ptr(recovered_system) && is_game_heap_ptr(recovered_pawn)) {
+            local_pawn = recovered_pawn;
+            local_class = read_ptr(local_pawn + OFF_UOBJECT_CLASS);
+            local_root = read_ptr(local_pawn + root_off);
+            cached_local_class = local_class;
+            if (is_game_heap_ptr(local_root)) {
+                cached_self_pos[0] = read_float(local_root + pos_off) / 100.0f;
+                cached_self_pos[1] = read_float(local_root + pos_off + 4) / 100.0f;
+                cached_self_pos[2] = read_float(local_root + pos_off + 8) / 100.0f;
+            }
+            fprintf(stderr,
+                    "\n[+] Recovered local pawn 0x%lx from GPBattleFieldSystem 0x%lx\n",
+                    (unsigned long)local_pawn, (unsigned long)recovered_system);
+        }
+    }
+
+    /* Front-end operator previews also expose a PlayerController and a
+     * pawn-shaped actor.  They do not have the replicated named PlayerState
+     * that exists in an actual deployment.  Stop here before camera probing,
+     * streamed-level traversal, health-layout discovery, or the expensive
+     * subsystem fallback scan; none of those features are useful outside a
+     * match and they can contend with resource loading on this device. */
+    if (!is_game_heap_ptr(local_pawn) && !match_was_verified) {
+        static unsigned missing_pawn_diag_tick = 0;
+        if ((missing_pawn_diag_tick++ % 300) == 0) {
+            uint64_t diag_manager = is_game_heap_ptr(local_pc) ?
+                read_ptr(local_pc + OFF_PC_CAMERA_MANAGER) : 0;
+            uint64_t diag_target = is_game_heap_ptr(diag_manager) ?
+                read_ptr(diag_manager + OFF_CAMERA_MANAGER_VIEW_TARGET) : 0;
+            char diag_pc_class[64] = {0};
+            uint64_t diag_cls = is_game_heap_ptr(local_pc) ?
+                read_ptr(local_pc + OFF_UOBJECT_CLASS) : 0;
+            if (is_any_ptr(diag_cls))
+                resolve_fname(read_i32(diag_cls + OFF_UOBJECT_NAME),
+                              diag_pc_class, sizeof(diag_pc_class));
+            fprintf(stderr,
+                    "\n[*] Match gate: pc=0x%lx class=%s ack=0x%lx pawn=0x%lx "
+                    "char=0x%lx spect=0x%lx manager=0x%lx owner=0x%lx target=0x%lx\n",
+                    (unsigned long)local_pc,
+                    diag_pc_class,
+                    (unsigned long)(is_game_heap_ptr(local_pc) ? read_ptr(
+                        local_pc + OFF_PLAYER_CONTROLLER_ACKNOWLEDGED_PAWN) : 0),
+                    (unsigned long)(is_game_heap_ptr(local_pc) ? read_ptr(
+                        local_pc + OFF_CONTROLLER_PAWN) : 0),
+                    (unsigned long)(is_game_heap_ptr(local_pc) ? read_ptr(
+                        local_pc + OFF_CONTROLLER_CHARACTER) : 0),
+                    (unsigned long)(is_game_heap_ptr(local_pc) ? read_ptr(
+                        local_pc + OFF_PLAYER_CONTROLLER_SPECTATOR_PAWN) : 0),
+                    (unsigned long)diag_manager,
+                    (unsigned long)(is_game_heap_ptr(diag_manager) ?
+                        read_ptr(diag_manager + 0x370) : 0),
+                    (unsigned long)diag_target);
+        }
+        return 0;
+    }
+    if (is_game_heap_ptr(local_pawn)) {
+        uint64_t local_state = read_ptr(local_pawn + OFF_APAWN_PLAYER_STATE);
+        char local_name[64] = {0};
+        if (is_game_heap_ptr(local_state)) {
+            read_fstring(local_state + OFF_PLAYER_STATE_NAME,
+                         local_name, sizeof(local_name));
+            if (!local_name[0])
+                read_fstring(local_state + OFF_PLAYER_STATE_NAME_PRIVATE,
+                             local_name, sizeof(local_name));
+        }
+        if (!local_name[0]) {
+            static unsigned front_end_diag_tick = 0;
+            if ((front_end_diag_tick++ % 300) == 0)
+                fprintf(stderr,
+                        "\n[*] Match gate: pawn=0x%lx state=0x%lx has no replicated name\n",
+                        (unsigned long)local_pawn, (unsigned long)local_state);
+            return 0;
+        }
+    }
+
+    if (!match_was_verified &&
+        (!is_character_class(local_class, local_class) || !is_game_heap_ptr(local_root)))
+        return 0;
 
     /* The rendered camera is not the pawn origin (and changes target while
      * spectating). Read the engine's current camera cache so projection follows
@@ -1865,7 +2311,7 @@ camera_done:
     if (!is_game_heap_ptr(battlefield_system) && is_game_heap_ptr(local_pawn) &&
         (battlefield_attempt_tick++ % 300) == 0) {
         battlefield_system = find_battlefield_system(uworld, local_pc, local_pawn);
-        if (!is_game_heap_ptr(battlefield_system))
+        if (allow_compatibility_scan && !is_game_heap_ptr(battlefield_system))
             battlefield_system = scan_battlefield_system(local_pc, local_pawn);
         if (is_game_heap_ptr(battlefield_system))
             fprintf(stderr, "\n[+] GPBattleFieldSystem=0x%lx (authoritative roster)\n",
@@ -2618,26 +3064,11 @@ static int post_to_radar(void) {
 }
 
 static volatile int running = 1;
+#ifndef IN_PROCESS
 static void sig_handler(int sig) { (void)sig; running = 0; }
+#endif
 
 #define WORLD_CACHE_PATH "/data/local/tmp/delta-world.cache"
-
-static int load_world_cache(int pid, uint64_t *gworld, int *actor_source) {
-    FILE *f = fopen(WORLD_CACHE_PATH, "r");
-    if (!f) return 0;
-    int cached_pid = 0, cached_source = 0;
-    unsigned long long cached_gworld = 0;
-    int matched = fscanf(f, "%d %llx %d", &cached_pid, &cached_gworld, &cached_source) == 3;
-    fclose(f);
-    if (!matched || cached_pid != pid || cached_source < 0 || cached_source > 4) return 0;
-    GWorldCandidate candidate = {0};
-    uint64_t uworld = read_ptr((uint64_t)cached_gworld);
-    if (!is_any_ptr(uworld) || try_validate_uworld(uworld, &candidate) < 130 ||
-        candidate.plausible_players < 1) return 0;
-    *gworld = (uint64_t)cached_gworld;
-    *actor_source = cached_source;
-    return 1;
-}
 
 static void save_world_cache(int pid, uint64_t gworld, int actor_source) {
     FILE *f = fopen(WORLD_CACHE_PATH, "w");
@@ -2646,7 +3077,13 @@ static void save_world_cache(int pid, uint64_t gworld, int actor_source) {
     fclose(f);
 }
 
-int main(int argc, char **argv) {
+#ifdef IN_PROCESS
+#define SCANNER_ENTRY scanner_entry
+#else
+#define SCANNER_ENTRY main
+#endif
+
+int SCANNER_ENTRY(int argc, char **argv) {
     int mode_scan = 0, mode_run = 0, mode_regions = 0, mode_dump = 0;
     int use_root_off = OFF_AACTOR_ROOT_COMPONENT;
     int use_pos_off = OFF_PROXIMA_ROOT_WORLD_LOCATION;
@@ -2673,6 +3110,8 @@ int main(int argc, char **argv) {
             use_vm_readv = 1;
     }
 
+    allow_compatibility_scan = mode_scan && !mode_run;
+
     if (!mode_scan && !mode_run && !mode_regions && !mode_dump) {
         fprintf(stderr,
             "Usage: memscan <scan|run|regions|dump> [vmreadv] [options]\n"
@@ -2685,12 +3124,14 @@ int main(int argc, char **argv) {
             "    ctw             - Use ComponentToWorld instead of RelativeLocation\n"
             "  regions           - List memory regions\n"
             "  dump gworld=ADDR  - Dump UWorld structure\n"
-            "  vmreadv           - Use process_vm_readv (recommended)\n");
+            "  vmreadv           - Diagnostic transport (not used by launcher)\n");
         return 1;
     }
 
+#ifndef IN_PROCESS
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
+#endif
 
     read_buf = malloc(READ_BUF_SIZE);
     if (!read_buf) { fprintf(stderr, "malloc failed\n"); return 1; }
@@ -2723,17 +3164,31 @@ int main(int argc, char **argv) {
     /* Try to set up FName resolution from known GNames offset.
      * The FNamePool::Blocks offset varies between UE4 builds; probe several. */
     if (ue4_base > 0) {
-        uint64_t gnames_base = ue4_base +
-            (use_vm_readv ? OFF_GNAMES_READABLE_ALIAS : OFF_GNAMES_FROM_UE4_BASE);
+        uint64_t gnames_base = ue4_base + OFF_GNAMES_FROM_UE4_BASE;
+        fname_pool_uses_proc_mem = use_vm_readv;
         static const int blocks_offsets[] = {0x38, 0x10, 0x18, 0x20, 0x28, 0x30, 0x40, 0x48, 0x50};
         int found_blocks = 0;
         for (int bi = 0; bi < (int)(sizeof(blocks_offsets)/sizeof(blocks_offsets[0])) && !found_blocks; bi++) {
-            uint64_t block0 = read_ptr(gnames_base + blocks_offsets[bi]);
+            uint64_t block0 = read_fname_pool_ptr(gnames_base + blocks_offsets[bi]);
+            if (use_vm_readv && bi == 0) {
+                unsigned char probe[16] = {0};
+                ssize_t probe_got = is_any_ptr(block0) ?
+                    read_mem(block0, probe, sizeof(probe)) : -1;
+                fprintf(stderr,
+                        "[*] Canonical GNames probe pool=0x%lx block0=0x%lx got=%zd "
+                        "bytes=%02x%02x%02x%02x%02x%02x%02x%02x\n",
+                        (unsigned long)gnames_base, (unsigned long)block0, probe_got,
+                        probe[0], probe[1], probe[2], probe[3],
+                        probe[4], probe[5], probe[6], probe[7]);
+            }
             if (!is_any_ptr(block0)) continue;
             char test[16];
             if (read_mem(block0, test, 16) != 16) continue;
             for (int no = 2; no <= 8; no += 2) {
-                if (memcmp(test + no, "None", 4) == 0) {
+                char decoded_none[4];
+                memcpy(decoded_none, test + no, sizeof(decoded_none));
+                decrypt_fname_utf8(decoded_none, (int)sizeof(decoded_none));
+                if (memcmp(decoded_none, "None", 4) == 0) {
                     fname_pool_addr = gnames_base;
                     fname_blocks_off = blocks_offsets[bi];
                     fname_entry_hdr_size = no;
@@ -2744,7 +3199,8 @@ int main(int argc, char **argv) {
                 }
             }
         }
-        if (!found_blocks) {
+        if (!found_blocks && allow_compatibility_scan) {
+            fname_pool_uses_proc_mem = 0;
             /* Scan the three large UE4 rw data sections for any pointer
              * whose target starts with the "None" FNameEntry. Read in
              * 64KB chunks; only valid-looking pointers get a remote
@@ -2884,6 +3340,38 @@ int main(int argc, char **argv) {
             }
             if (!found_blocks)
                 fprintf(stderr, "[!] FNamePool not found after all phases\n");
+        }
+    }
+
+    /* Early attach intentionally starts before the pool has been constructed.
+     * In continuous mode, wait on the exact SDK global instead of falling back
+     * to broad memory scans while UE is loading. */
+    if (mode_run && fname_pool_addr == 0) {
+        fprintf(stderr, "[*] Canonical GNames is not initialized yet; waiting\n");
+        while (running && fname_pool_addr == 0) {
+            parse_maps();
+            if (ue4_base != 0) {
+                uint64_t pool = ue4_base + OFF_GNAMES_FROM_UE4_BASE;
+                fname_pool_uses_proc_mem = use_vm_readv;
+                uint64_t block0 = read_fname_pool_ptr(pool + OFF_FNAME_POOL_BLOCKS);
+                char entry[16] = {0};
+                if (is_any_ptr(block0) && read_mem(block0, entry, sizeof(entry)) ==
+                    (ssize_t)sizeof(entry)) {
+                    char decoded_none[4];
+                    memcpy(decoded_none, entry + 2, sizeof(decoded_none));
+                    decrypt_fname_utf8(decoded_none, (int)sizeof(decoded_none));
+                    if (memcmp(decoded_none, "None", 4) == 0) {
+                        fname_pool_addr = pool;
+                        fname_blocks_off = OFF_FNAME_POOL_BLOCKS;
+                        fname_entry_hdr_size = 2;
+                        fprintf(stderr,
+                                "[+] Canonical GNames became ready at 0x%lx\n",
+                                (unsigned long)fname_pool_addr);
+                        break;
+                    }
+                }
+            }
+            usleep(500000);
         }
     }
 
@@ -3089,9 +3577,9 @@ int main(int argc, char **argv) {
 
             /* Print run command */
             fprintf(stderr, "\n[*] To run continuously:\n");
-            fprintf(stderr, "  ./memscan run vmreadv gworld=%lx actorsrc=%d\n",
+            fprintf(stderr, "  ./ue_telemetry run gworld=%lx actorsrc=%d\n",
                     (unsigned long)best->gworld_addr, best->actor_source);
-            fprintf(stderr, "  ./memscan run vmreadv gworld=%lx actorsrc=%d ctw\n",
+            fprintf(stderr, "  ./ue_telemetry run gworld=%lx actorsrc=%d ctw\n",
                     (unsigned long)best->gworld_addr, best->actor_source);
         }
 
@@ -3102,51 +3590,11 @@ int main(int argc, char **argv) {
 
     if (mode_run) {
         if (use_gworld == 0) {
-            if (load_world_cache(game_pid, &use_gworld, &use_actor_src)) {
-                fprintf(stderr, "[+] Reusing verified world cache GWorld@0x%lx actorsrc=%d\n",
-                        (unsigned long)use_gworld, use_actor_src);
-            } else {
-                fprintf(stderr, "[*] No valid world cache for PID %d; performing one bounded discovery...\n",
-                        game_pid);
-                scan_for_gworld();
-                keep_gameplay_candidates_only();
-            }
-            if (use_gworld != 0) {
-                /* Cache was accepted above. */
-            } else if (num_candidates == 0) {
-                /* A launcher-started scanner normally attaches while the user
-                 * is still in the menu. Keep the early authorized map stream
-                 * and wait for gameplay instead of exiting after startup. */
-                while (running && num_candidates == 0) {
-                    fprintf(stderr, "[*] No active gameplay world; waiting for a match...\n");
-                    sleep(15);
-                    parse_maps();
-                    scan_for_gworld();
-                    keep_gameplay_candidates_only();
-                }
-                if (!running) {
-                    if (mem_fd >= 0) close(mem_fd);
-                    free(read_buf);
-                    return 0;
-                }
-            } else {
-                /* handled below */
-            }
-
-            if (use_gworld == 0 && num_candidates > 0) {
-                int best_idx = 0;
-                for (int i = 1; i < num_candidates; i++)
-                    if (candidates[i].score > candidates[best_idx].score ||
-                        (candidates[i].score == candidates[best_idx].score &&
-                         candidates[i].plausible_players > candidates[best_idx].plausible_players))
-                        best_idx = i;
-                use_gworld = candidates[best_idx].gworld_addr;
-                use_actor_src = candidates[best_idx].actor_source;
-                save_world_cache(game_pid, use_gworld, use_actor_src);
-                fprintf(stderr, "[+] Auto-selected and cached GWorld@0x%lx actorsrc=%d players=%d\n",
-                        (unsigned long)use_gworld, use_actor_src,
-                        candidates[best_idx].plausible_players);
-            }
+            /* Follow the verified global through lobby, loading and gameplay.
+             * Match admission belongs to read_entities_sdk, not a second
+             * discovery loop that cannot notice a dead/replaced process. */
+            use_gworld = ue4_base + OFF_GWORLD_FROM_UE4_BASE;
+            use_actor_src = 1; /* ULevel::Actors +0x98 */
         }
 
         fprintf(stderr, "[+] Running: gworld=0x%lx actorsrc=%d root=+0x%x pos=+0x%x ctw=%d\n",
@@ -3156,37 +3604,30 @@ int main(int argc, char **argv) {
         int zero_entity_frames = 0;
         int last_reported_count = -1;
         unsigned report_tick = 0;
-        unsigned pid_tick = 0;
-        int game_missing = 0;
+        time_t last_pid_check = 0;
         while (running) {
-            if ((pid_tick++ % 30) == 0) {
+            struct timespec check_time;
+            clock_gettime(CLOCK_MONOTONIC, &check_time);
+            if (check_time.tv_sec != last_pid_check) {
+                last_pid_check = check_time.tv_sec;
                 int active_pid = find_game_pid();
-                if (active_pid > 0 && active_pid != game_pid) {
-                    fprintf(stderr, "\n[+] Game PID changed %d -> %d; reattaching\n",
-                            game_pid, active_pid);
+                if (active_pid != game_pid) {
                     num_entities = 0;
                     self_entity_id[0] = 0;
+                    self_verified = 0;
                     post_to_radar();
+                    close_radar_sock();
                     if (maps_file) { fclose(maps_file); maps_file = NULL; }
                     if (mem_fd >= 0) { close(mem_fd); mem_fd = -1; }
-                    execv(argv[0], argv);
-                    fprintf(stderr, "[-] Scanner reattach exec failed: %s\n", strerror(errno));
+                    fprintf(stderr, "\n[*] Target PID %d ended (current PID %d)\n",
+                            game_pid, active_pid);
+#ifndef IN_PROCESS
+                    if (active_pid > 0) {
+                        execv(argv[0], argv);
+                        fprintf(stderr, "[-] Scanner reattach failed: %s\n", strerror(errno));
+                    }
+#endif
                     break;
-                }
-                if (active_pid <= 0 && !game_missing) {
-                    /* Immediately remove the previous match from the Android
-                     * overlay while the game is closed or restarting. */
-                    int saved_count = num_entities;
-                    char saved_self[sizeof(self_entity_id)];
-                    memcpy(saved_self, self_entity_id, sizeof(saved_self));
-                    num_entities = 0;
-                    self_entity_id[0] = 0;
-                    post_to_radar();
-                    num_entities = saved_count;
-                    memcpy(self_entity_id, saved_self, sizeof(self_entity_id));
-                    game_missing = 1;
-                } else if (active_pid == game_pid) {
-                    game_missing = 0;
                 }
             }
             int n = read_entities_sdk(use_gworld, use_actor_src,
@@ -3326,7 +3767,9 @@ int main(int argc, char **argv) {
                 consecutive_failures = 0;
                 zero_entity_frames = 0;
             }
-            usleep(33000); /* ~30 Hz data feed */
+            /* Gameplay stays smooth at 30 Hz. Menus/loading screens only need
+             * a cheap state check twice per second. */
+            usleep(self_verified ? 33000 : 500000);
         }
         fprintf(stderr, "\n[*] Stopped\n");
         if (mem_fd >= 0) close(mem_fd);
@@ -3338,3 +3781,21 @@ int main(int argc, char **argv) {
     free(read_buf);
     return 0;
 }
+
+#ifdef IN_PROCESS
+static void *in_process_scanner_thread(void *unused) {
+    (void)unused;
+    char arg0[] = "ue_telemetry";
+    char arg1[] = "run";
+    char arg2[] = "vmreadv";
+    char *argv[] = {arg0, arg1, arg2, NULL};
+    scanner_entry(3, argv);
+    return NULL;
+}
+
+__attribute__((constructor)) static void start_in_process_scanner(void) {
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, in_process_scanner_thread, NULL) == 0)
+        pthread_detach(thread);
+}
+#endif

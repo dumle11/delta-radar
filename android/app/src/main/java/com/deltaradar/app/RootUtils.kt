@@ -1,6 +1,7 @@
 package com.deltaradar.app
 
 import android.os.SystemClock
+import android.content.Context
 import java.io.BufferedReader
 import java.io.DataOutputStream
 import java.io.InputStreamReader
@@ -76,6 +77,25 @@ object RootUtils {
         } catch (_: Exception) { false }
     }
 
+    fun startScanner(context: Context): Boolean {
+        val binary = java.io.File(context.noBackupFilesDir, "ue_telemetry")
+        context.assets.open("ue_telemetry").use { input ->
+            binary.outputStream().use { output -> input.copyTo(output) }
+        }
+        // Replace stale helpers and old installed versions without restarting
+        // the game or changing Android's debugger settings.
+        val result = exec(
+            "killall ue_telemetry 2>/dev/null; " +
+                "cp '${binary.absolutePath}' /data/local/tmp/ue_telemetry.next && " +
+                "chmod 755 /data/local/tmp/ue_telemetry.next && " +
+                "mv /data/local/tmp/ue_telemetry.next /data/local/tmp/ue_telemetry && " +
+                "(nohup /data/local/tmp/ue_telemetry run " +
+                ">/data/local/tmp/memscan.log 2>&1 </dev/null &); " +
+                "sleep 1; pidof ue_telemetry"
+        )
+        return result.lines().any { it.trim().toIntOrNull() != null }
+    }
+
     data class StatusInfo(
         val hasRoot: Boolean,
         val gamePid: Int?,
@@ -91,7 +111,7 @@ object RootUtils {
             val out = exec(
                 "echo ROOT_OK; " +
                     "echo GAME=\$(pidof com.proxima.dfm 2>/dev/null); " +
-                    "echo SCANNER=\$(pidof memscan 2>/dev/null)"
+                    "echo SCANNER=\$(pidof ue_telemetry 2>/dev/null)"
             )
             if (out.isEmpty()) return cachedStatus ?: StatusInfo(false, null)
             val rootLines = out.lines()
