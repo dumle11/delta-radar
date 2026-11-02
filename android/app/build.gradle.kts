@@ -40,14 +40,12 @@ dependencies {
 
 // Ship the reader with the APK so launcher and native protocol stay in sync.
 val scannerAssets = layout.buildDirectory.dir("generated/scannerAssets")
-val prepareScannerAssets by tasks.registering(Copy::class) {
+val prepareScannerAssets by tasks.registering(Sync::class) {
     val scannerDir = rootProject.projectDir.parentFile.resolve("scanner")
-    val current = scannerDir.resolve("memscan")
-    val legacy = scannerDir.resolve("memscan-legacy")
-    from(current) { rename { "ue_telemetry" } }
-    from(legacy) { rename { "memscan_legacy" } }
+    val reader = scannerDir.resolve("memscan-legacy")
+    from(reader) { rename { "memscan_legacy" } }
     doFirst {
-        require(current.isFile && legacy.isFile) { "Both scanner binaries are required" }
+        require(reader.isFile) { "The scanner binary is required" }
     }
     into(scannerAssets)
 }

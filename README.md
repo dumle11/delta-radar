@@ -7,8 +7,8 @@ listener, browser UI, SSE endpoint, or web assets are included.
 
 ## Components
 
-- `scanner/memscan.c` — native actor, transform, health, death, and team reader.
-- `scanner/launch.sh` — starts the scanner early enough to retain read access.
+- `scanner/memscan-legacy.c` — external actor, transform, health, death, and team reader used by the app.
+- `scanner/launch.sh` — starts the app-installed reader and the game.
 - `android/` — floating menu and on-device overlay renderer.
 
 ## Build
@@ -21,21 +21,26 @@ JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' \
 The scanner and Android app must use the same abstract socket name:
 `delta_radar_feed`.
 
-## Reader stability
+## Reader
 
-The app does not start a reader until **Start Overlay** is pressed. Both the
-current and historical readers have been followed by game termination; neither
-is a verified stable feed. The experimental historical reader is opt-in and may
-show incorrect or missing entities. It uses `process_vm_readv` and is based on
-the reader from commit `67cc7a3`. The original binary survived one 45-second
-live test, but its hard-coded heap range prevented camera and local-player
-verification. The experimental source now accepts current heap addresses for
-those fields, checks remote player states outside the old fixed heap range, and
-uses the SDK's current camera, player-name, team, and death offsets; the
-publication gate remains in place. This revised binary has not passed a live
-stability or full-match correctness test.
+Press **Start Overlay** to start the external reader. It uses
+`process_vm_readv`; the previously experimental reader is now the sole app
+reader. Its source and binary retain their `memscan-legacy` filenames. Players
+and bots have been observed rendering without a game exit, but a full-match
+stability and correctness test has not yet been completed.
 
-To rebuild the experimental reader with the Android NDK:
+Player detection uses the same raw root-position behavior as master. Some
+remote character positions are encrypted, so their lines and boxes can still
+appear underground or in other incorrect locations. Correct decoding remains
+unresolved.
+
+The reader now recognizes selected loot, containers and death boxes using SDK
+class ancestry, and skips encrypted or invalid loot transforms. Class indices
+and the expanded streamed-level scan have not been comprehensively verified.
+The user observed loot rendering correctly in a match, but some loot may still
+be missing, and stability under the additional reads is not yet established.
+
+To rebuild the reader with the Android NDK:
 
 ```bash
 "$ANDROID_NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang" \

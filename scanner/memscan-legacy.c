@@ -998,10 +998,9 @@ static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root, int mesh
 #define OFF_PC_CAMERA_MANAGER 0x408
 #define OFF_CAMERA_CACHE_PRIVATE 0x2D60
 #define OFF_CAMERA_CACHE_POV 0x10
-#define OFF_GP_CAMERA_FPP_FOV 0x4C00
 #define OFF_POV_LOCATION 0x0
 #define OFF_POV_ROTATION 0x10
-#define OFF_POV_FOV 0x20
+#define OFF_POV_FOV 0x1C
 
 static char self_entity_id[32] = {0};
 /* Loading/lobby worlds can contain pawn-shaped preview actors. Only publish
@@ -1036,6 +1035,65 @@ static int is_character_class(uint64_t cls, uint64_t local_class) {
         cls = next;
     }
     return 0;
+}
+
+enum LootKind {
+    LOOT_NONE, LOOT_ITEM, LOOT_CONTAINER, LOOT_STASH, LOOT_DEATH_BOX
+};
+
+/* Native registration indices and parent indices from the matching SDK dump.
+ * Blueprint subclasses are resolved by walking to their native ancestor. */
+static int loot_kind_from_class(uint64_t cls) {
+    static const struct { int32_t index, parent; enum LootKind kind; } anchors[] = {
+        {6322, 57, LOOT_STASH}, {7559, 7557, LOOT_STASH},
+        {7823, 6851, LOOT_ITEM}, {7824, 7823, LOOT_ITEM},
+        {7825, 7824, LOOT_CONTAINER}, {7826, 7825, LOOT_DEATH_BOX},
+        {8067, 57, LOOT_ITEM}
+    };
+    for (int depth = 0; depth < 16 && is_any_ptr(cls); depth++) {
+        int32_t index, parent_index;
+        uint64_t parent;
+        if (read_mem(cls + 0x24, &index, sizeof(index)) != sizeof(index) ||
+            read_mem(cls + 0x40, &parent, sizeof(parent)) != sizeof(parent))
+            return -1;
+        for (size_t i = 0; i < sizeof(anchors) / sizeof(anchors[0]); i++) {
+            if (index != anchors[i].index) continue;
+            if (!is_any_ptr(parent) ||
+                read_mem(parent + 0x24, &parent_index, sizeof(parent_index)) != sizeof(parent_index))
+                return -1;
+            if (parent_index == anchors[i].parent) return anchors[i].kind;
+        }
+        if (parent == cls) break;
+        cls = parent;
+    }
+    return LOOT_NONE;
+}
+
+static int read_loot_position(uint64_t root, float out[3]) {
+    float transform[12];
+    if (read_mem(root + 0x210, transform, sizeof(transform)) != sizeof(transform)) {
+        static unsigned errors = 0;
+        if (errors++ < 5) fprintf(stderr, "[!] Cannot read loot world transform\n");
+        return 0;
+    }
+    const uint8_t *handler = (const uint8_t *)transform + 0x28;
+    if (handler[2]) {
+        static unsigned encrypted = 0;
+        if ((encrypted++ % 300) == 0)
+            fprintf(stderr, "[!] Skipping encrypted loot transform without a verified decoder\n");
+        return 0;
+    }
+    float norm = 0;
+    for (int i = 0; i < 4; i++) {
+        if (!isfinite(transform[i])) return 0;
+        norm += transform[i] * transform[i];
+    }
+    if (norm < 0.5f || norm > 1.5f) return 0;
+    for (int i = 0; i < 3; i++) {
+        out[i] = transform[i + 4];
+        if (!isfinite(out[i]) || fabsf(out[i]) > 10000000) return 0;
+    }
+    return out[0] != 0 || out[1] != 0 || out[2] != 0;
 }
 
 static uint64_t cached_local_class = 0;
@@ -1382,15 +1440,13 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             uint64_t pov = cache + OFF_CAMERA_CACHE_POV;
             fprintf(stderr,
                 "\n[diag] camera pc=0x%lx managerOff=0x%x manager=0x%lx "
-                "sdkCache(ts=%.3f loc=%.1f,%.1f,%.1f rot=%.1f,%.1f fov=%.1f) "
-                "fppFov=%.1f\n",
+                "sdkCache(ts=%.3f loc=%.1f,%.1f,%.1f rot=%.1f,%.1f fov=%.1f)\n",
                 (unsigned long)local_pc, camera_manager_off,
                 (unsigned long)camera_manager, read_float(cache),
                 read_float(pov), read_float(pov + 4), read_float(pov + 8),
                 read_float(pov + OFF_POV_ROTATION),
                 read_float(pov + OFF_POV_ROTATION + 4),
-                read_float(pov + OFF_POV_FOV),
-                read_float(camera_manager + OFF_GP_CAMERA_FPP_FOV));
+                read_float(pov + OFF_POV_FOV));
             camera_diag_logged = 1;
         }
         if (is_telemetry_ptr(camera_manager)) {
@@ -1413,12 +1469,6 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             camera_pitch = read_float(pov + OFF_POV_ROTATION);
             camera_yaw = read_float(pov + OFF_POV_ROTATION + 4);
             camera_fov = read_float(pov + OFF_POV_FOV);
-            /* Delta Force applies weapon ADS through its derived camera
-             * manager and can leave FMinimalViewInfo::FOV at the base 90°.
-             * FPPCameraFOV is the effective first-person projection angle. */
-            float fpp_camera_fov = read_float(camera_manager + OFF_GP_CAMERA_FPP_FOV);
-            if (fpp_camera_fov >= 5.0f && fpp_camera_fov <= 180.0f)
-                camera_fov = fpp_camera_fov;
             camera_valid = camera_x == camera_x && camera_y == camera_y && camera_z == camera_z &&
                 camera_pitch == camera_pitch && camera_yaw == camera_yaw &&
                 fabsf(camera_x) < 100000.0f && fabsf(camera_y) < 100000.0f &&
@@ -1445,12 +1495,14 @@ camera_done:
     static uint64_t cached_uworld = 0;
     static uint64_t cached_actor_data = 0;
     static uint64_t cached_actor_ptrs[MAX_ACTORS];
+    static uint64_t cached_actor_classes[MAX_ACTORS];
+    static uint8_t cached_actor_kinds[MAX_ACTORS];
     static int cached_actor_count = 0;
     static unsigned cache_age = 0;
     int refresh_cache = cached_uworld != uworld || cached_actor_data != actor_data ||
                         cached_actor_count == 0 || cache_age >= 20;
     if (refresh_cache) {
-        uint64_t levels[128] = {0};
+        uint64_t levels[512] = {0};
         int level_count = 1;
         levels[0] = level;
 
@@ -1459,11 +1511,11 @@ camera_done:
          * merge their actor arrays into one deduplicated transform cache. */
         uint64_t levels_data = read_ptr(uworld + OFF_UWORLD_LEVELS);
         int32_t world_level_count = read_i32(uworld + OFF_UWORLD_LEVELS + 8);
-        if (is_any_ptr(levels_data) && world_level_count > 0 && world_level_count <= 127) {
-            uint64_t streamed[127] = {0};
+        if (is_any_ptr(levels_data) && world_level_count > 0 && world_level_count <= 511) {
+            uint64_t streamed[511] = {0};
             if (read_mem(levels_data, streamed, (size_t)world_level_count * 8) ==
                 (ssize_t)((size_t)world_level_count * 8)) {
-                for (int li = 0; li < world_level_count && level_count < 128; li++) {
+                for (int li = 0; li < world_level_count && level_count < 512; li++) {
                     if (!is_any_ptr(streamed[li])) continue;
                     int duplicate = 0;
                     for (int existing = 0; existing < level_count; existing++)
@@ -1471,9 +1523,19 @@ camera_done:
                     if (!duplicate) levels[level_count++] = streamed[li];
                 }
             }
+        } else if (world_level_count > 511) {
+            static unsigned level_warnings = 0;
+            if ((level_warnings++ % 300) == 0)
+                fprintf(stderr, "[!] Too many streamed levels (%d); scanning persistent level only\n",
+                        world_level_count);
         }
 
         uint64_t *all_actor_ptrs = (uint64_t *)(read_buf + READ_BUF_SIZE / 2);
+        uint64_t loot_ptrs[MAX_ACTORS];
+        uint64_t loot_actor_classes[MAX_ACTORS];
+        uint8_t loot_kinds[MAX_ACTORS];
+        struct { uint64_t cls; int kind; } loot_classes[512];
+        int loot_count = 0, loot_class_count = 0;
         cached_actor_count = 0;
         for (int li = 0; li < level_count && cached_actor_count < MAX_ACTORS; li++) {
             uint64_t level_actor_data = 0;
@@ -1534,9 +1596,54 @@ camera_done:
                     }
                 }
 
-                if (is_character)
-                    cached_actor_ptrs[cached_actor_count++] = actor;
+                if (is_character) {
+                    cached_actor_ptrs[cached_actor_count] = actor;
+                    cached_actor_classes[cached_actor_count] = cls;
+                    cached_actor_kinds[cached_actor_count++] = LOOT_NONE;
+                    continue;
+                }
+
+                uint64_t state = read_ptr(actor + OFF_APAWN_PLAYER_STATE);
+                if (is_telemetry_ptr(state) &&
+                    read_ptr(state + OFF_PLAYER_STATE_PAWN_PRIVATE) == actor)
+                    continue;
+                int loot_kind = -1;
+                for (int ci = 0; ci < loot_class_count; ci++)
+                    if (loot_classes[ci].cls == cls) {
+                        loot_kind = loot_classes[ci].kind;
+                        break;
+                    }
+                if (loot_kind < 0 && is_any_ptr(cls)) {
+                    loot_kind = loot_kind_from_class(cls);
+                    if (loot_kind >= 0 && loot_class_count < 512) {
+                        loot_classes[loot_class_count].cls = cls;
+                        loot_classes[loot_class_count++].kind = loot_kind;
+                    } else if (loot_kind < 0) {
+                        static unsigned class_errors = 0;
+                        if (class_errors++ < 5)
+                            fprintf(stderr, "[!] Cannot validate loot class ancestry\n");
+                    }
+                }
+                if (loot_kind > LOOT_NONE && loot_count < MAX_ACTORS) {
+                    int duplicate = 0;
+                    for (int li2 = 0; li2 < loot_count; li2++)
+                        if (loot_ptrs[li2] == actor) { duplicate = 1; break; }
+                    if (!duplicate) {
+                        loot_ptrs[loot_count] = actor;
+                        loot_actor_classes[loot_count] = cls;
+                        loot_kinds[loot_count++] = (uint8_t)loot_kind;
+                    }
+                }
             }
+        }
+        for (int i = 0; i < loot_count && cached_actor_count < MAX_ACTORS; i++) {
+            int duplicate = 0;
+            for (int ci = 0; ci < cached_actor_count; ci++)
+                if (cached_actor_ptrs[ci] == loot_ptrs[i]) { duplicate = 1; break; }
+            if (duplicate) continue;
+            cached_actor_ptrs[cached_actor_count] = loot_ptrs[i];
+            cached_actor_classes[cached_actor_count] = loot_actor_classes[i];
+            cached_actor_kinds[cached_actor_count++] = loot_kinds[i];
         }
         cached_uworld = uworld;
         cached_actor_data = actor_data;
@@ -1567,6 +1674,32 @@ camera_done:
         int is_self_pawn = (local_pawn != 0 && actor_ptrs[i] == local_pawn);
         diag_controller++;
 
+        if (cached_actor_kinds[i] != LOOT_NONE) {
+            if (read_ptr(actor_ptrs[i] + OFF_UOBJECT_CLASS) != cached_actor_classes[i]) {
+                cache_age = 20;
+                continue;
+            }
+            uint64_t loot_root = read_ptr(actor_ptrs[i] + root_off);
+            float position[3];
+            if (!is_any_ptr(loot_root) || !read_loot_position(loot_root, position)) continue;
+            Entity *loot = &entities[num_entities++];
+            memset(loot, 0, sizeof(*loot));
+            snprintf(loot->id, sizeof(loot->id), "ent_%llx",
+                     (unsigned long long)actor_ptrs[i]);
+            snprintf(loot->kind, sizeof(loot->kind), "loot");
+            const char *name = cached_actor_kinds[i] == LOOT_DEATH_BOX ? "Death Box" :
+                cached_actor_kinds[i] == LOOT_CONTAINER ? "Loot Container" :
+                cached_actor_kinds[i] == LOOT_STASH ? "Stash / Interactable" : "Loot Item";
+            snprintf(loot->name, sizeof(loot->name), "%s", name);
+            loot->x = position[0] / 100.0f;
+            loot->y = position[1] / 100.0f;
+            loot->z = position[2] / 100.0f;
+            loot->half_height = 0.35f;
+            loot->team = 2;
+            loot->native_team = -1;
+            continue;
+        }
+
         /* APawn::PlayerState is explicit in the matching UE4 SDK layout. The old
          * heuristic searched unrelated fields and mislabeled real pawns as loot. */
         uint64_t player_state = read_ptr(actor_ptrs[i] + OFF_APAWN_PLAYER_STATE);
@@ -1590,7 +1723,6 @@ camera_done:
         if (!is_any_ptr(root)) continue;
         diag_root++;
 
-        /* Read the verified Proxima live world vector. */
         float wx = read_float(root + pos_off);
         float wy = read_float(root + pos_off + 4);
         float wz = read_float(root + pos_off + 8);

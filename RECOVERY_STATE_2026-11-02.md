@@ -1,5 +1,171 @@
 # Delta Radar recovery state — 2026-11-02
 
+## Later follow-up: HUD position investigation
+
+The SDK declares a possible read-only position path from
+`ADFMCharacter::CachedMarkerManager` to `AGPMarkerManager` and its
+`AGPSceneActorReplicator`. The latter contains a character HUD location array
+and scene-actor records; teammate records contain UINs and actor pointers.
+These declarations do not establish that the fields are populated, current,
+correctly matched, or in the coordinate system needed for projection.
+
+An isolated Android diagnostic passed an owned-memory test. With the user's
+approval, one bounded `process_vm_readv` attempt was made against readable
+mappings only. It stopped before obtaining positions because a required
+pointer was unavailable; the initial diagnostic did not identify which
+pointer. A second separately approved attempt reached the cached marker
+manager and verified its local-character and world links, but its presumed
+scene-replicator pointer at `+0x758` was unavailable. The dump may differ
+from the live build, or the pointer may not be populated in this context.
+Neither attempt obtained HUD locations. The game and existing scanner were
+running immediately afterward, which does not establish long-term safety.
+The diagnostic remains outside the production reader and APK. No position fix
+has been validated, and the previous raw player behavior is unchanged.
+
+A later user-approved readable-memory diagnostic examined all 295 actor
+pointers in one persistent-level snapshot, but the scanner's configured
+FName-pool interpretation resolved none of 64 observed class names. It
+therefore could not establish whether the replicator was present. A separate
+approved check matched one of 466 actors by a presumed battlefield-system
+pointer whose local controller and pawn agreed with the current world. That
+is a structural candidate, not confirmed class identity. Its presumed HUD and
+scene-record arrays and the marker manager's teammate array were empty in
+both samples, so no teammate coordinates were obtained or validated. The
+game and scanner were running immediately after the checks. The limits were
+512 actors, 2,500 `process_vm_readv` calls and 128 KiB per diagnostic, with
+readable mappings only; the latter check actually used 344 calls and 7,128
+bytes. These observations do not establish that the real arrays are empty.
+
+An offline copy of the installed `libUE4.so` had SHA-256
+`ae72b80e2993589558fd642e8f0697613f9b8af2b20a421ef079244e5f0b8639`.
+Bounded disassembly at the prior decoder accessor and SDK map-icon offsets
+showed mostly undecodable instructions in the file; these bytes do not
+establish the runtime functions or a usable decoding algorithm. The copied
+library was removed after inspection. No decoder or new APK was deployed.
+
+Another user-approved readable-memory probe tested the SDK's distinct
+`AGPCharacter::LastFrameWorldPosition` at actor `+0x1d10` alongside the
+root bounds origin. One same-team candidate, validated through its
+player-state/pawn link and team ID, was found in the first 512 of 700 actors.
+Across three one-second samples its bounds handler reported encryption; the
+last-frame handler reported unencrypted data but did not change. Relative to
+the local plaintext root, the last-frame vector was approximately 9.7 m away
+and 9.6 m lower. The match had ended by the time the user's observation was
+requested, so actual teammate motion and alignment were not established;
+neither plaintext status nor a finite value is proof of a current location.
+The game and scanner were running immediately afterward. The probe used 288
+reads and 6,472 bytes and remains outside the production APK.
+
+In a new match, the user reported a teammate roughly 30 m away and separately
+approved repeating the same diagnostic. One same-team candidate was found in
+the first 512 of 556 actors. Its last-frame vector was marked unencrypted and
+reported 11.2–11.4 m distance and 10.7 m below the local root; its encrypted
+bounds reported 12–20 m distance and 11.3 m below. These estimates do not
+agree with the reported distance, although the sampled candidate and user
+observation were not independently correlated by name or screenshot. The
+game and scanner remained running immediately afterward; the probe used 321
+reads and 6,740 bytes.
+
+The user supplied a Windows/x86-64 Tencent China coordinate-decoding post.
+It describes finding a transform through a dynamic hash table and executing
+modified, copied machine code, using an AVX register-derived key. This is a
+testable architectural hypothesis, not evidence that the Android ARM64 build
+uses the same table, offsets, key, or slot layout. It also targets
+ComponentToWorld rather than the bounds origin currently used by the radar.
+The supplied code was not executed, copied into the project, or deployed.
+Process-map metadata in the new game process still placed the existing Android
+decoder's expected global in an anonymous write-only `.bss` mapping. No
+protected memory was read; map metadata does not prove whether another usable
+copy of that value exists.
+
+## Later follow-up: stable reader and missing loot
+
+The original executive summary below describes an earlier build. The app now
+uses the historical external `memscan-legacy` reader with `process_vm_readv`
+by default. The user confirmed that player and bot boxes appeared without the
+previous game exit. A full-match stability test has not been completed.
+
+The reader now also recognizes selected loot and death-box classes using native
+class indices and parent indices from the SDK, with bounded inheritance walks.
+It reads unencrypted component transforms and skips encrypted or invalid ones.
+The user observed loot rendering correctly in a match, but the additions and
+expanded streamed-level scan have not been comprehensively verified on this
+device. The user's existing loot setting is preserved.
+Do not copy the newer reader's unverified structural loot heuristics: they
+previously misidentified moving pawns, and several offsets disagree with the SDK.
+
+With the user's permission, a short read-only class-table probe failed at the
+object-table global because its mapping was write-only. A separate bounded
+actor-class sample read 16 actors without read failures, but found no pickup
+or death-box class; it did confirm the SDK's `Engine.Actor` index and size.
+That single match is insufficient to establish that the dump's loot-class
+indices are stable. The game and reader remained alive after these probes.
+During a world transition the reader temporarily reported no gameplay world
+and later resumed publishing characters.
+
+The user also reported some enemy boxes and lines appearing underground. A
+user-approved `process_vm_readv` comparison of three affected remote human
+actors showed `RelativeLocation.EncHandler.bEncrypted == 1`; the local
+character's flag was zero. Their cached root, mesh and replicated positions
+did not establish a correct alternative. These observations do not prove that
+every encrypted actor has an invalid cached world position.
+
+The screenshot showed nearby underground player markers, including a teammate
+whose game HUD distance disagreed with the overlay. A user-approved bounded
+`process_vm_readv` sample found encrypted bounds and encrypted world transforms
+for remote characters; a normal quaternion was not sufficient to validate a
+transform. The game and reader remained running. An interim fallback omitted
+remote characters whose bounds could not be confirmed plaintext, but it hid
+player lines. At the user's request, the reader again uses master's raw player
+positions; encrypted players may appear underground or elsewhere incorrectly.
+The offline
+disassembler was blocked by macOS Automation permissions, so position decoding
+remains unknown. Loot class indices have not been established as stable for
+this game process, and stability of the extra reads is unverified. Avoid
+speculative offsets and memory-access methods associated with game exits.
+
+## Android 10 decoder investigation
+
+The user reported that the fail-closed fallback hid all player lines and chose
+to investigate the experimental `working-v1` decoder. An isolated API-24 build
+started on this Android 10 device in identity-only mode; it was not deployed
+as the scanner. The branch expects Android 12 stack/TLS mapping labels, which
+are absent here. A prototype using thread syscall metadata to identify the
+stack mapping passed three owned-thread TLS tests. With user approval, a
+bounded game-thread metadata and `process_vm_readv` diagnostic also found a
+matching TLS. Neither result validates decoded positions.
+
+The user then approved one 32-byte read of the decoder-global write-only
+mapping through `/proc/<pid>/mem`. `process_vm_readv` could not read that
+mapping, while the single protected read succeeded. The game and reader were
+running immediately afterward. Later the game process exited at 20:23:28;
+Android recorded its death but the available crash buffer did not identify a
+cause. The user confirmed the exit was unexpected. The timing does not
+establish whether the diagnostic caused the exit. The user requested the
+master player-detection behavior instead. Do not restart the game automatically
+or repeat protected reads. The decoder remains an isolated prototype and was
+not integrated into an APK.
+
+Further isolated work on the decoder found two reproducible emulator defects:
+
+- Refreshing copied instruction pages did not invalidate Unicorn's translated
+  code cache. An owned ARM64 fixture continued executing the old instructions
+  after a refresh. Explicitly flushing translated blocks fixed that fixture.
+- A failed page read was cached as zero-filled data and later returned as a
+  successful read. The prototype now rejects that cache entry and retries the
+  read on the next request.
+
+The prototype also stops on unsupported emulated syscalls instead of returning
+success, and rejects incomplete or timed-out emulated calls. An owned-process
+test covers these paths and recovery, and the Android 10 owned-thread TLS tests
+still pass. The API-24 prototype builds, but these tests do not demonstrate
+correct decryption of a game character. In particular, the prior branch observed
+an unsupported KGSL ioctl and had no validated visible-player alignment.
+The experimental work is retained in the session workspace, not the APK.
+Existing frozen game captures from the branch handoff are not present in this
+workspace; do not make further protected game-memory reads without a new,
+explicitly approved safety plan.
+
 ## Executive summary
 
 The current Delta Radar build is **not a working release**. The Android overlay itself still starts, but its native entity feed is not safe to attach to the live game. Starting the radar launches an external reader; the game then exits. When the reader is absent, the game starts normally.

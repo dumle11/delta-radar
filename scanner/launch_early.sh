@@ -9,4 +9,4 @@ while ! pidof com.proxima.dfm >/dev/null 2>&1; do
     fi
     sleep 0.1
 done
-exec /data/local/tmp/ue_telemetry run
+exec /data/local/tmp/delta_radar_legacy/memscan run vmreadv

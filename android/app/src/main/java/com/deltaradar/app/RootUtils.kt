@@ -7,9 +7,10 @@ import java.io.BufferedReader
 import java.io.DataOutputStream
 import java.io.InputStreamReader
 
-internal enum class ScannerMode(val asset: String, val path: String, val arguments: String) {
-    CURRENT("ue_telemetry", "/data/local/tmp/ue_telemetry", "run"),
-    LEGACY("memscan_legacy", "/data/local/tmp/delta_radar_legacy/memscan", "run vmreadv")
+internal object ScannerConfig {
+    const val ASSET = "memscan_legacy"
+    const val PATH = "/data/local/tmp/delta_radar_legacy/memscan"
+    const val ARGUMENTS = "run vmreadv"
 }
 
 object RootUtils {
@@ -91,19 +92,20 @@ object RootUtils {
         } catch (_: Exception) { false }
     }
 
-    internal fun startScanner(context: Context, mode: ScannerMode): Boolean {
+    internal fun startScanner(context: Context): Boolean {
         if (!stopScanner()) return false
-        val binary = java.io.File(context.noBackupFilesDir, mode.asset)
-        context.assets.open(mode.asset).use { input ->
+        val binary = java.io.File(context.noBackupFilesDir, ScannerConfig.ASSET)
+        context.assets.open(ScannerConfig.ASSET).use { input ->
             binary.outputStream().use { output -> input.copyTo(output) }
         }
-        val directory = mode.path.substringBeforeLast('/')
+        val path = ScannerConfig.PATH
+        val directory = path.substringBeforeLast('/')
         val result = exec(
             "mkdir -p '$directory' && " +
-                "cp '${binary.absolutePath}' '${mode.path}.next' && " +
-                "chmod 755 '${mode.path}.next' && " +
-                "mv '${mode.path}.next' '${mode.path}' && " +
-                "(nohup '${mode.path}' ${mode.arguments} " +
+                "cp '${binary.absolutePath}' '$path.next' && " +
+                "chmod 755 '$path.next' && " +
+                "mv '$path.next' '$path' && " +
+                "(nohup '$path' ${ScannerConfig.ARGUMENTS} " +
                 ">/data/local/tmp/memscan.log 2>&1 </dev/null &) && " +
                 "sleep 1 && $scannerPidsCommand"
         )

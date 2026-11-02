@@ -123,7 +123,9 @@ class OverlayService : Service() {
         }
 
         val hfovDeg = cameraFov
-        val metrics = resources.displayMetrics
+        val metrics = android.util.DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealMetrics(metrics)
         val screenAspect = metrics.widthPixels.toDouble() / metrics.heightPixels.coerceAtLeast(1)
         // Tracer lines originate from the top-centre of the viewport. Entity
         // boxes and labels continue to use their projected world positions.
