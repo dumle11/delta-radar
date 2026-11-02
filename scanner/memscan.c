@@ -84,11 +84,11 @@ static int session_active(void) {
 #define OFF_GUOBJECTARRAY_FROM_BASE   0x18bca1a0
 #define OFF_FNAME_POOL_BLOCKS         0x38
 
-/* Proxima v1.202 live-probed actor array offsets in ULevel */
-static const int ULEVEL_ACTOR_OFFSETS[] = {
-    0xC30, 0xC40, 0xC50
-};
-#define NUM_ULEVEL_ACTOR_OFFSETS (sizeof(ULEVEL_ACTOR_OFFSETS)/sizeof(ULEVEL_ACTOR_OFFSETS[0]))
+/* Proxima v1.202: actor arrays move within ULevel between matches.
+ * Scan a range of the level object for TArray patterns instead. */
+#define ULEVEL_SCAN_START 0x800
+#define ULEVEL_SCAN_END   0x2000
+#define ULEVEL_SCAN_STEP  8
 
 typedef struct {
     uint64_t start, end;
@@ -669,40 +669,50 @@ static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
         }
     }
 
-    /* Path 2: direct TArray in ULevel pad area */
-    for (int i = 0; i < (int)NUM_ULEVEL_ACTOR_OFFSETS; i++) {
-        diag_path(i + 1); diag_stage(DS_ARRAY_FIELDS);
-        int off = ULEVEL_ACTOR_OFFSETS[i];
-        uint64_t actor_data = read_ptr(level + off);
-        int32_t count = read_i32(level + off + 8);
-        int32_t max = read_i32(level + off + 12);
+    /* Path 2: scan ULevel for TArray patterns (offset moves between matches) */
+    {
+        uint8_t lbuf[ULEVEL_SCAN_END];
+        ssize_t lread = read_mem(level, lbuf, sizeof(lbuf));
+        if (lread >= (ssize_t)(ULEVEL_SCAN_START + 16)) {
+            int scan_path = 0;
+            for (int off = ULEVEL_SCAN_START; off + 16 <= lread; off += ULEVEL_SCAN_STEP) {
+                if (scan_path < 4) diag_path(scan_path + 1);
+                diag_stage(DS_ARRAY_FIELDS);
+                uint64_t actor_data;
+                int32_t count, max;
+                memcpy(&actor_data, lbuf + off, 8);
+                memcpy(&count, lbuf + off + 8, 4);
+                memcpy(&max, lbuf + off + 12, 4);
 
-        if (!D_CHECK(DC_COUNT_MIN, count >= 5) || !D_CHECK(DC_COUNT_MAX, count <= 50000) ||
-            !D_CHECK(DC_CAPACITY_MIN, max >= count) || !D_CHECK(DC_CAPACITY_MAX, max <= 100000)) continue;
-        if (!D_CHECK(DC_ARRAY_POINTER, is_heap_ptr(actor_data))) continue;
-        D_COUNT(lists_valid); diag_reached(3);
+                if (!D_CHECK(DC_COUNT_MIN, count >= 5) || !D_CHECK(DC_COUNT_MAX, count <= 50000) ||
+                    !D_CHECK(DC_CAPACITY_MIN, max >= count) || !D_CHECK(DC_CAPACITY_MAX, max <= 100000)) continue;
+                if (!D_CHECK(DC_ARRAY_POINTER, is_heap_ptr(actor_data))) continue;
+                D_COUNT(lists_valid); diag_reached(3);
 
-        int check = count < 20 ? count : 20;
-        uint64_t ptrs[20];
-        diag_stage(DS_ARRAY_CONTENTS);
-        if (!D_CHECK(DC_ARRAY_READ, read_mem(actor_data, ptrs, check * 8) == check * 8)) continue;
-        D_COUNT(lists_read); diag_reached(4);
+                int check = count < 20 ? count : 20;
+                uint64_t ptrs[20];
+                diag_stage(DS_ARRAY_CONTENTS);
+                if (!D_CHECK(DC_ARRAY_READ, read_mem(actor_data, ptrs, check * 8) == check * 8)) continue;
+                D_COUNT(lists_read); diag_reached(4);
 
-        int valid = 0;
-        for (int k = 0; k < check; k++)
-            if (is_heap_ptr(ptrs[k])) valid++;
-        int score = valid * 100 / check;
-        if (has_backref) score += 10;
-        diag_path_score(score, valid, check);
-        if (D_CHECK(DC_SCORE_IMPROVES, score > best_score) && D_CHECK(DC_THREE_POINTERS, valid >= 3)) {
-            D_COUNT(lists_selected); diag_reached(5);
-            best_score = score;
-            out->level = level;
-            out->actor_data = actor_data;
-            out->actor_count = count;
-            out->level_offset = OFF_UWORLD_PERSISTENT_LEVEL;
-            out->actor_source = 1 + i;
-            out->score = score;
+                int valid = 0;
+                for (int k = 0; k < check; k++)
+                    if (is_heap_ptr(ptrs[k])) valid++;
+                int score = valid * 100 / check;
+                if (has_backref) score += 10;
+                if (scan_path < 4) diag_path_score(score, valid, check);
+                if (D_CHECK(DC_SCORE_IMPROVES, score > best_score) && D_CHECK(DC_THREE_POINTERS, valid >= 3)) {
+                    D_COUNT(lists_selected); diag_reached(5);
+                    best_score = score;
+                    out->level = level;
+                    out->actor_data = actor_data;
+                    out->actor_count = count;
+                    out->level_offset = OFF_UWORLD_PERSISTENT_LEVEL;
+                    out->actor_source = off;
+                    out->score = score;
+                }
+                scan_path++;
+            }
         }
     }
 
@@ -832,9 +842,10 @@ static void scan_for_gworld(void) {
                     cand.uworld = val;
                     candidates[num_candidates++] = cand;
 
-                    const char *src = cand.actor_source == 0 ?
-                        "ActorCluster(0xC8->0x28)" :
-                        "DirectULevel";
+                    char src_desc[64];
+                    if (cand.actor_source == 0) snprintf(src_desc, sizeof(src_desc), "ActorCluster(0xC8->0x28)");
+                    else snprintf(src_desc, sizeof(src_desc), "DirectLevel+0x%x", cand.actor_source);
+                    const char *src = src_desc;
                     fprintf(stderr, "[+] Candidate #%d: GWorld@0x%lx -> UWorld=0x%lx "
                            "Level=0x%lx actors=%d players=%d score=%d%% src=%s\n",
                            num_candidates, (unsigned long)cand.gworld_addr,
@@ -917,9 +928,8 @@ static void probe_positions(GWorldCandidate *cand) {
         actor_data = read_ptr(cluster + OFF_ACTOR_CONTAINER_ACTORS);
         actor_count = read_i32(cluster + OFF_ACTOR_CONTAINER_ACTORS + 8);
     } else {
-        int off = ULEVEL_ACTOR_OFFSETS[cand->actor_source - 1];
-        actor_data = read_ptr(level + off);
-        actor_count = read_i32(level + off + 8);
+        actor_data = read_ptr(level + cand->actor_source);
+        actor_count = read_i32(level + cand->actor_source + 8);
     }
 
     if (actor_count < check) check = actor_count;
@@ -2033,9 +2043,8 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         actor_data = read_ptr(cluster + OFF_ACTOR_CONTAINER_ACTORS);
         actor_count = read_i32(cluster + OFF_ACTOR_CONTAINER_ACTORS + 8);
     } else {
-        int off = ULEVEL_ACTOR_OFFSETS[actor_source - 1];
-        actor_data = read_ptr(level + off);
-        actor_count = read_i32(level + off + 8);
+        actor_data = read_ptr(level + actor_source);
+        actor_count = read_i32(level + actor_source + 8);
     }
 
     if (!is_any_ptr(actor_data) || actor_count <= 0 || actor_count > 50000) return -1;
@@ -2234,9 +2243,8 @@ camera_done:
                 level_actor_data = read_ptr(cluster + OFF_ACTOR_CONTAINER_ACTORS);
                 level_actor_count = read_i32(cluster + OFF_ACTOR_CONTAINER_ACTORS + 8);
             } else {
-                int off = ULEVEL_ACTOR_OFFSETS[actor_source - 1];
-                level_actor_data = read_ptr(levels[li] + off);
-                level_actor_count = read_i32(levels[li] + off + 8);
+                level_actor_data = read_ptr(levels[li] + actor_source);
+                level_actor_count = read_i32(levels[li] + actor_source + 8);
             }
             if (!is_any_ptr(level_actor_data) || level_actor_count <= 0 || level_actor_count > 50000)
                 continue;
@@ -3493,21 +3501,27 @@ int main(int argc, char **argv) {
                 uint64_t current_level = is_any_ptr(current_world) ?
                     read_ptr(current_world + OFF_UWORLD_PERSISTENT_LEVEL) : 0;
                 if (is_any_ptr(current_world) && is_any_ptr(current_level)) {
-                    int source_count = (int)(sizeof(ULEVEL_ACTOR_OFFSETS) /
-                                             sizeof(ULEVEL_ACTOR_OFFSETS[0]));
-                    for (int candidate_source = 0;
-                         candidate_source <= source_count && n < 0;
-                         candidate_source++) {
-                        if (candidate_source == use_actor_src) continue;
-                        int candidate_n = read_entities_sdk(use_gworld, candidate_source,
-                            use_root_off, use_pos_off, use_ctw);
-                        if (candidate_n >= 0) {
-                            use_actor_src = candidate_source;
-                            save_world_cache(game_pid, use_gworld, use_actor_src);
-                            fprintf(stderr,
-                                "\n[+] Recovered actor container source=%d without world scan\n",
-                                use_actor_src);
-                            n = candidate_n;
+                    uint8_t lvl_buf[ULEVEL_SCAN_END];
+                    if (read_mem(current_level, lvl_buf, sizeof(lvl_buf)) == (ssize_t)sizeof(lvl_buf)) {
+                        for (int off = ULEVEL_SCAN_START;
+                             off < ULEVEL_SCAN_END && n < 0;
+                             off += ULEVEL_SCAN_STEP) {
+                            if (off == use_actor_src) continue;
+                            uint64_t aptr; int32_t acnt, acap;
+                            memcpy(&aptr, lvl_buf + off, 8);
+                            memcpy(&acnt, lvl_buf + off + 8, 4);
+                            memcpy(&acap, lvl_buf + off + 12, 4);
+                            if (!is_any_ptr(aptr) || acnt < 5 || acnt > 50000 || acap < acnt) continue;
+                            int candidate_n = read_entities_sdk(use_gworld, off,
+                                use_root_off, use_pos_off, use_ctw);
+                            if (candidate_n >= 0) {
+                                use_actor_src = off;
+                                save_world_cache(game_pid, use_gworld, use_actor_src);
+                                fprintf(stderr,
+                                    "\n[+] Recovered actor array at level+0x%x without world scan\n",
+                                    off);
+                                n = candidate_n;
+                            }
                         }
                     }
                 }
