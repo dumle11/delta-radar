@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings as AndroidSettings
 import android.view.Gravity
+import android.view.Choreographer
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -21,7 +22,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import kotlin.concurrent.thread
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.RejectedExecutionException
 import kotlin.math.sqrt
 
 class OverlayService : Service() {
@@ -30,7 +31,7 @@ class OverlayService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var bubbleView: View? = null
     private var menuView: View? = null
-    private var isMenuOpen = false
+    @Volatile private var isMenuOpen = false
     private var selectedTab = 0
     private var bubbleHidden = false
     private var overlaysHidden = false
@@ -49,7 +50,8 @@ class OverlayService : Service() {
     private val projectionExecutor = Executors.newSingleThreadExecutor { r ->
         Thread(r, "delta-projection").apply { isDaemon = true }
     }
-    private val projectionInFlight = AtomicBoolean(false)
+    private val projectionWork = ConflatedWork()
+    private val publicationGate = FramePublicationGate()
     @Volatile private var lastProjectionLogAt = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -92,29 +94,60 @@ class OverlayService : Service() {
 
     @Volatile private var refreshCount = 0L
 
-    fun refreshEnemyLines() {
-        val generation = lifecycle.capture() ?: return
+    /** May be called by the feed thread. Intermediate snapshots are not queued. */
+    fun requestEnemyLinesRefresh() {
+        if (!isMenuOpen && lifecycle.capture() != null && projectionWork.request()) dispatchProjection()
+    }
+
+    private fun dispatchProjection() {
+        handler.post {
+            Choreographer.getInstance().postFrameCallback {
+                try {
+                    projectionExecutor.execute {
+                        try { refreshEnemyLines(::finishProjection) }
+                        catch (e: Exception) {
+                            android.util.Log.w("DeltaRadar", "Overlay projection: ${e.message}")
+                            finishProjection()
+                        }
+                    }
+                } catch (_: RejectedExecutionException) { finishProjection() }
+            }
+        }
+    }
+
+    private fun finishProjection() {
+        if (projectionWork.finish()) dispatchProjection()
+    }
+
+    private fun publishProjection(finished: () -> Unit, publish: () -> Unit) {
+        handler.post { try { publish() } finally { finished() } }
+    }
+
+    private fun refreshEnemyLines(finished: () -> Unit) {
+        val generation = lifecycle.capture() ?: run { finished(); return }
         refreshCount++
         val service = EntityFeedService.instance
         if (service == null) {
-            handler.post { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
+            publishProjection(finished) { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
             return
+        }
+        val status = service.feedStatus
+        if (status.hasCamera && publicationGate.alreadyPublished(service, generation, status.sequence)) {
+            finished(); return
         }
         val snapshot = service.getSnapshot()
         val selfId = snapshot.json.optString("self", "")
         if (!snapshot.status.hasCamera || selfId.isEmpty()) {
-            handler.post { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
+            publishProjection(finished) { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
             return
         }
         val entities = snapshot.json.getJSONArray("entities")
-        val byId = HashMap<String, org.json.JSONObject>(entities.length())
 
         var mx = 0.0; var my = 0.0; var mz = 0.0; var myYaw = 0.0; var myPitch = 0.0
         var cameraFov = 80.0
         var foundSelf = false
         for (i in 0 until entities.length()) {
             val e = entities.getJSONObject(i)
-            byId[e.optString("id")] = e
             if (e.optString("id") == selfId) {
                 foundSelf = true
                 mx = e.optDouble("x"); my = e.optDouble("y"); mz = e.optDouble("z")
@@ -123,7 +156,7 @@ class OverlayService : Service() {
             }
         }
         if (!foundSelf) {
-            handler.post { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
+            publishProjection(finished) { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
             return
         }
 
@@ -144,7 +177,10 @@ class OverlayService : Service() {
 
         val enemyFrames = mutableListOf<EnemyLinesView.Enemy>()
         val rejected = mutableListOf<String>()
-        for ((id, ent) in byId) {
+        // Snapshot validation already guarantees unique IDs; do not rebuild a map.
+        for (i in 0 until entities.length()) {
+            val ent = entities.getJSONObject(i)
+            val id = ent.getString("id")
             if (id == selfId) continue
             val kind = ent.optString("kind", "player")
             val name = ent.optString("name", id)
@@ -260,16 +296,16 @@ class OverlayService : Service() {
                 "Overlay frame: rendered=${enemyFrames.size} rejected=${rejected.size} feed=${service.entityCount}"
             )
         }
-        handler.post {
-            if (!lifecycle.accepts(generation) || EntityFeedService.instance !== service) return@post
+        publishProjection(finished) {
+            if (!lifecycle.accepts(generation) || EntityFeedService.instance !== service) return@publishProjection
             if (!service.canRender(snapshot.status)) {
                 if (!service.feedStatus.hasCamera) enemyLinesView?.clear()
-                return@post
+                return@publishProjection
             }
-            if (snapshot.status.sequence < lastPublishedSequence) return@post
             ensureEnemyLinesWindow()
-            val view = enemyLinesView ?: return@post
-            if (isMenuOpen) { view.clear(); return@post }
+            val view = enemyLinesView ?: return@publishProjection
+            if (isMenuOpen) { view.clear(); return@publishProjection }
+            if (!publicationGate.accept(service, generation, snapshot.status.sequence)) return@publishProjection
             view.setStyle(playerFeatures, botFeatures, teammateFeatures, lootFeatures,
                 com.deltaradar.app.Settings.playerColor(this),
                 com.deltaradar.app.Settings.botColor(this),
@@ -299,19 +335,16 @@ class OverlayService : Service() {
 
     private fun startOverlayRefresh() {
         stopOverlayRefresh()
+        publicationGate.reset() // Publish style changes even if the feed has paused.
         val r = object : Runnable {
             override fun run() {
                 if (lifecycle.capture() == null) return
-                if (projectionInFlight.compareAndSet(false, true)) {
-                    projectionExecutor.execute {
-                        try { refreshEnemyLines() } finally { projectionInFlight.set(false) }
-                    }
-                }
-                handler.postDelayed(this, 33)
+                requestEnemyLinesRefresh()
+                handler.postDelayed(this, 100) // Fallback; fresh feed frames request a display-frame update.
             }
         }
         overlayRefreshRunnable = r
-        handler.postDelayed(r, 50)
+        handler.post(r)
     }
 
     private fun stopOverlayRefresh() {
@@ -358,6 +391,8 @@ class OverlayService : Service() {
     private fun openMenu() {
         if (isMenuOpen) return
         isMenuOpen = true
+        stopOverlayRefresh()
+        enemyLinesView?.clear()
         removeBubble()
 
         val view = LayoutInflater.from(this).inflate(R.layout.overlay_menu, null)
@@ -740,6 +775,7 @@ class OverlayService : Service() {
     override fun onDestroy() {
         lifecycle.destroy()
         stopOverlayRefresh()
+        projectionWork.close()
         projectionExecutor.shutdownNow()
         enemyLinesView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         enemyLinesView = null

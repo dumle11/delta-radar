@@ -172,6 +172,7 @@ class EntityFeedService : Service() {
         if (!running.get()) return false
         val accepted = snapshots.ingest(jsonLine)
         if (!accepted) Log.w(TAG, "Rejected invalid entity frame")
+        else OverlayService.instance?.requestEnemyLinesRefresh()
         CaptureDiagnostics.record(this, "latest-scanner-frame.json") {
             val snapshot = snapshots.snapshot()
             org.json.JSONObject().put("rawLine", jsonLine).put("valid", accepted)

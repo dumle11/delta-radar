@@ -1,3 +1,20 @@
+## Offline performance audit — 2026-11-02 (latest candidate)
+
+See [the performance audit](PERFORMANCE_AUDIT.md) for findings, fixes and checks.
+The user reported a game exit at 19:51:24, recorded by Android as SIGBUS; no
+game backtrace was available. The phone subsequently ran out of charge and was
+unavailable throughout the audit. The cause of that exit remains unproven.
+
+The new candidate is built locally on `working-v1` for PR #2. It has **not** been
+installed or live-tested. The previously verified phone build remains the combined
+`3e77827d...` build described below. Latest artifacts and validation are in ignored
+`evidence/local/session/audit-20261102/`; deployment properties pin the new binary.
+The audit preserves the enemy and loot coordinate paths while changing scheduling,
+freshness, cache eviction and rendering overhead. Do not claim enemy placement or
+the SIGBUS crash has been fixed by these offline checks.
+
+---
+
 ## Combined enemy/loot integration — 2026-11-02 19:40 UTC
 
 The user requested the remote enemy lines combined with our verified loot lines

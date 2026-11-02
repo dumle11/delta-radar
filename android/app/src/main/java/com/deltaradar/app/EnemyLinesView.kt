@@ -7,11 +7,16 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.os.SystemClock
 import android.view.View
-import java.util.Locale
 import kotlin.math.roundToInt
 
 class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View(context) {
-    companion object { const val FRESHNESS_MS = EntitySnapshotStore.FRESHNESS_MS }
+    companion object {
+        const val FRESHNESS_MS = EntitySnapshotStore.FRESHNESS_MS
+        private val BONE_CONNECTIONS = intArrayOf(
+            0,1, 1,2, 2,3, 1,4, 4,5, 5,6, 1,7, 7,8, 8,9,
+            3,10, 10,11, 11,12, 3,13, 13,14, 14,15
+        )
+    }
 
     data class Enemy(
         val id: String,
@@ -38,8 +43,6 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         private set
     private var frame: Frame? = null
     private var receivedAt = 0L
-    private var transitionStartedAt = 0L
-    private var previousById = emptyMap<String, Enemy>()
     private var playerFeatures = 0
     private var botFeatures = 0
     private var teammateFeatures = 0
@@ -76,6 +79,8 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     private val healthBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC000000.toInt() }
     private val healthFillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rounded = RectF()
+    private val candidateLabel = RectF()
+    private val fontMetrics = Paint.FontMetrics()
     private val expire = Runnable { clear(); onExpired() }
 
     init {
@@ -103,17 +108,15 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
 
     fun submit(value: Frame, receivedAtMs: Long) {
         if (value.me == null || value.enemies.isEmpty()) { clear(); return }
-        previousById = frame?.enemies?.associateBy { it.id }.orEmpty()
         frame = value; receivedAt = receivedAtMs
-        transitionStartedAt = SystemClock.elapsedRealtime()
         removeCallbacks(expire)
         visibility = VISIBLE
-        invalidate()
+        postInvalidateOnAnimation()
         postDelayed(expire, (FRESHNESS_MS - (SystemClock.elapsedRealtime() - receivedAt)).coerceAtLeast(1))
     }
 
     fun clear() {
-        removeCallbacks(expire); frame = null; previousById = emptyMap(); visibility = GONE
+        removeCallbacks(expire); frame = null; visibility = GONE
     }
 
     override fun onDetachedFromWindow() { clear(); super.onDetachedFromWindow() }
@@ -134,13 +137,11 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         }
         val padding = 2f * density
         val occupied = mutableListOf<RectF>()
-        val blend = ((SystemClock.elapsedRealtime() - transitionStartedAt) / 50f).coerceIn(0f, 1f)
-
         for (enemy in data.enemies) {
-            val previous = previousById[enemy.id]
-            fun lerp(from: Float, to: Float): Float = from + (to - from) * blend
-            val ex = lerp(previous?.screenX ?: enemy.screenX, enemy.screenX) * width
-            val ey = lerp(previous?.screenY ?: enemy.screenY, enemy.screenY) * height
+            // Tracers, labels and boxes must use the same camera sample.
+            // Blending screen coordinates adds lag during every camera turn.
+            val ex = enemy.screenX * width
+            val ey = enemy.screenY * height
             val mx = me.first * width
             val my = me.second * height
             val isLoot = enemy.kind == "loot" || enemy.kind == "objective"
@@ -185,10 +186,10 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
 
             var boxHeightForLabel = 48f * density
             if (enemy.onScreen && (drawBody || drawHealth)) {
-                val headX = lerp(previous?.headX ?: enemy.headX, enemy.headX) * width
-                val headY = lerp(previous?.headY ?: enemy.headY, enemy.headY) * height
-                val feetX = lerp(previous?.feetX ?: enemy.feetX, enemy.feetX) * width
-                val feetY = lerp(previous?.feetY ?: enemy.feetY, enemy.feetY) * height
+                val headX = enemy.headX * width
+                val headY = enemy.headY * height
+                val feetX = enemy.feetX * width
+                val feetY = enemy.feetY * height
                 val boxH = kotlin.math.abs(feetY - headY).coerceIn(7 * density, 180 * density)
                 boxHeightForLabel = boxH
                 val centerX = (headX + feetX) * 0.5f
@@ -210,26 +211,17 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                     Settings.DRAW_MODE_SKELETON -> {
                         val bx = enemy.boneScreenX
                         val by = enemy.boneScreenY
-                        if (bx != null && by != null && bx.size >= 16) {
+                        if (bx != null && by != null && bx.size >= 16 && by.size >= 16) {
                             boxPaint.strokeWidth = density * thicknessScale
-                            val shadowPaint = Paint(boxPaint).apply {
-                                color = 0xAA000000.toInt(); strokeWidth = 2.5f * density * thicknessScale
-                            }
                             /* Bone indices: 0=head 1=neck 2=spine_upper 3=pelvis
                              * 4=l_shoulder 5=l_elbow 6=l_hand 7=r_shoulder 8=r_elbow 9=r_hand
                              * 10=l_hip 11=l_knee 12=l_foot 13=r_hip 14=r_knee 15=r_foot */
-                            val connections = intArrayOf(
-                                0,1, 1,2, 2,3,
-                                1,4, 4,5, 5,6,
-                                1,7, 7,8, 8,9,
-                                3,10, 10,11, 11,12,
-                                3,13, 13,14, 14,15
-                            )
+                            val connections = BONE_CONNECTIONS
                             for (c in connections.indices step 2) {
                                 val a = connections[c]; val b = connections[c+1]
                                 val ax = bx[a] * width; val ay = by[a] * height
                                 val bxp = bx[b] * width; val byp = by[b] * height
-                                canvas.drawLine(ax, ay, bxp, byp, shadowPaint)
+                                canvas.drawLine(ax, ay, bxp, byp, boxShadowPaint)
                                 canvas.drawLine(ax, ay, bxp, byp, boxPaint)
                             }
                             val headR = boxH * 0.07f
@@ -258,9 +250,8 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                         }
                         val left = centerX - boxW * 0.5f
                         val right = centerX + boxW * 0.5f
-                        val boxRect = RectF(left, top, right, bottom)
-                        canvas.drawRect(boxRect, boxShadowPaint)
-                        canvas.drawRect(boxRect, boxPaint)
+                        canvas.drawRect(left, top, right, bottom, boxShadowPaint)
+                        canvas.drawRect(left, top, right, bottom, boxPaint)
                     }
                 }
                 if (drawHealth && enemy.healthKnown && enemy.maxHealth > 0f) {
@@ -268,12 +259,12 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                     val barW = 1.5f * density
                     val barGap = 2f * density
                     val barLeft = healthLeft - barW - barGap
-                    canvas.drawRect(RectF(barLeft, top, barLeft + barW, bottom), healthBgPaint)
+                    canvas.drawRect(barLeft, top, barLeft + barW, bottom, healthBgPaint)
                     val fillTop = top + (bottom - top) * (1f - hpFrac)
                     val r = ((1f - hpFrac) * 255).toInt().coerceIn(0, 255)
                     val g = (hpFrac * 255).toInt().coerceIn(0, 255)
                     healthFillPaint.color = Color.argb(220, r, g, 0)
-                    canvas.drawRect(RectF(barLeft, fillTop, barLeft + barW, bottom), healthFillPaint)
+                    canvas.drawRect(barLeft, fillTop, barLeft + barW, bottom, healthFillPaint)
                 }
             }
 
@@ -283,12 +274,11 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                 else 0.6f
                 textPaint.textSize = 9f * resources.displayMetrics.scaledDensity * labelScale
                 labelOutline.strokeWidth = density * thicknessScale
-                val metrics = textPaint.fontMetrics
+                textPaint.getFontMetrics(fontMetrics)
+                val metrics = fontMetrics
                 val scaledPadding = padding * labelScale
                 val labelHeight = metrics.descent - metrics.ascent + 2 * scaledPadding
-                val distance = if (enemy.distanceMeters < 100)
-                    String.format(Locale.US, "%.0fm", enemy.distanceMeters)
-                else "${enemy.distanceMeters.roundToInt()}m"
+                val distance = "${enemy.distanceMeters.roundToInt()}m"
                 val name = enemy.name.ifBlank { "Unknown" }
                 val nameWidth = if (drawName) textPaint.measureText(name) + 2 * scaledPadding else 0f
                 val distanceWidth = if (drawDistance) textPaint.measureText(distance) + 2 * scaledPadding else 0f
@@ -301,8 +291,8 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                 ly = ly.coerceIn(0f, (height - labelHeight).coerceAtLeast(0f))
 
                 for (attempt in 0..5) {
-                    val candidate = RectF(lx, ly, lx + rowWidth, ly + labelHeight)
-                    if (occupied.none { RectF.intersects(it, candidate) }) break
+                    candidateLabel.set(lx, ly, lx + rowWidth, ly + labelHeight)
+                    if (occupied.none { RectF.intersects(it, candidateLabel) }) break
                     ly -= labelHeight + 2 * density
                     if (ly < 0f) { ly = (labelTopY + 3 * density).coerceAtMost(height - labelHeight); break }
                 }
@@ -310,20 +300,19 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                 val occupiedRect = RectF(lx, ly, lx + rowWidth, ly + labelHeight)
                 occupied.add(occupiedRect)
                 if (drawName) {
-                    rounded.set(RectF(lx, ly, lx + nameWidth, ly + labelHeight))
+                    rounded.set(lx, ly, lx + nameWidth, ly + labelHeight)
                     canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelBgPaint)
                     canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelOutline)
                     canvas.drawText(name, lx + scaledPadding, ly + scaledPadding - metrics.ascent, textPaint)
                 }
                 if (drawDistance) {
                     val distanceLeft = lx + nameWidth + gap
-                    rounded.set(RectF(distanceLeft, ly, distanceLeft + distanceWidth, ly + labelHeight))
+                    rounded.set(distanceLeft, ly, distanceLeft + distanceWidth, ly + labelHeight)
                     canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelBgPaint)
                     canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelOutline)
                     canvas.drawText(distance, distanceLeft + scaledPadding, ly + scaledPadding - metrics.ascent, textPaint)
                 }
             }
         }
-        if (blend < 1f) postInvalidateOnAnimation()
     }
 }

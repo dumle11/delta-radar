@@ -1,6 +1,8 @@
 /* Read-only integration with the GPL-2.0 decoder in vendor/dfm-decoder.
  * All writes and simulated system calls are confined to Unicorn memory. */
 #include "vendor/dfm-decoder/sjz_dec_arm64.h"
+#include "decoder_schedule.h"
+#include "position_cache.h"
 #include <unicorn/unicorn.h>
 #include <cstdio>
 #include <cstdlib>
@@ -15,7 +17,6 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <deque>
 #include <fcntl.h>
 #include <vector>
 #include <string>
@@ -24,6 +25,7 @@ extern int emulated_target_pid,emulated_target_tid;
 static int target_pid=0;
 static uintptr_t module_base=0;
 static bool ready=false;
+static long long initialize_retry_at=0;
 // The SDK's second-stage decoder globals reside in a write-only .bss VMA.
 // Force reads are limited to that one identified VMA and 256 KiB per call.
 static uintptr_t protected_begin=0, protected_end=0;
@@ -112,21 +114,22 @@ static bool initialize(int pid,uintptr_t base) {
  fprintf(stderr,"[decoder] local emulator initialized=%d thread=%d\n",ready,emulated_target_tid);
  return ready;
 }
-enum class PositionSource : uint64_t { Transform = 0, CharacterBounds = 1 };
-// Component pointers are eight-byte aligned; reserve the low bit for the source.
-static uint64_t decode_key(uint64_t root,PositionSource source) {
- return root|static_cast<uint64_t>(source);
-}
 struct Cached {float p[3];long long at;};
 static std::unordered_map<uint64_t,Cached> cache;
 static int decode_now(int pid,uint64_t base,uint64_t root,float out[3],
-                      PositionSource source=PositionSource::Transform) {
+                      PositionSource source=PositionSource::Transform,long long *sampled_at=nullptr) {
  if(!root||(root&7))return 0;
- if(target_pid!=pid||module_base!=base){cache.clear();ready=false;}
- if(!ready&&!initialize(pid,base))return 0;
+ if(target_pid!=pid||module_base!=base){cache.clear();ready=false;initialize_retry_at=0;}
+ if(!ready) {
+  if(now_ms()<initialize_retry_at)return 0;
+  if(!initialize(pid,base)){initialize_retry_at=now_ms()+1000;return 0;}
+  initialize_retry_at=0;
+ }
  uint64_t key=decode_key(root,source);
  auto found=cache.find(key);long long now=now_ms();
- if(found!=cache.end()&&now-found->second.at<80){memcpy(out,found->second.p,12);return 1;}
+ if(found!=cache.end()&&now-found->second.at<80){
+  memcpy(out,found->second.p,12);if(sampled_at)*sampled_at=found->second.at;return 1;
+ }
  InvalidatePageCache();protected_budget=256*1024;protected_reads=0;
  uc_engine *uc=GetEmulatorUc();unsigned char blank[0x200]={};
  auto call_getter=[&]() {
@@ -140,10 +143,14 @@ static int decode_now(int pid,uint64_t base,uint64_t root,float out[3],
    if(uc_mem_write(uc,GUEST_FRAME,blank,sizeof(blank))!=UC_ERR_OK)return false;
    CallARM64(base+0x1340b508,3,root,GUEST_FRAME,GUEST_RESULT);
   }
-  return true;
+  uint64_t pc=0;
+  return uc_reg_read(uc,UC_ARM64_REG_PC,&pc)==UC_ERR_OK&&
+   (pc==0x7100000000ULL||pc==0x7100000004ULL);
  };
  long long started=now_ms();
- if(!call_getter()||!RefreshMappedSnapshot()||!call_getter())return 0;
+ if(!call_getter())return 0;
+ const long long snapshot_at=now_ms();
+ if(!RefreshMappedSnapshot()||!call_getter())return 0;
  uint64_t pc=0;uc_reg_read(uc,UC_ARM64_REG_PC,&pc);
  static long long last_report=0;
  if(now_ms()-last_report>5000) {
@@ -169,31 +176,39 @@ static int decode_now(int pid,uint64_t base,uint64_t root,float out[3],
   for(int i=0;i<3;i++)out[i]=transform[i+4];
  }
  for(int i=0;i<3;i++)if(!std::isfinite(out[i])||std::fabs(out[i])>10000000)return 0;
- if(cache.size()>512)cache.clear();
- cache[key]={{out[0],out[1],out[2]},now};
+ make_position_cache_room(cache,key,now_ms(),[](const Cached &v){return v.at;});
+ cache[key]={{out[0],out[1],out[2]},snapshot_at};
+ if(sampled_at)*sampled_at=snapshot_at;
  return 1;
 }
 
 // Camera collection must never wait for an emulated transform. A single worker
 // owns Unicorn; the scanner consumes bounded-age completed results.
-struct Request {int pid;uint64_t base,root;PositionSource source;};
 static std::mutex result_mutex;
 static std::condition_variable request_ready;
-static std::deque<Request> requests;
+static DecodeSchedule schedule;
 struct Completed {int pid;uint64_t base;Cached value;};
 static std::unordered_map<uint64_t,Completed> completed;
-static std::unordered_map<uint64_t,bool> pending;
 static std::once_flag worker_once;
 static void decoder_worker() {
  for(;;) {
-  Request r;
-  {std::unique_lock<std::mutex> lock(result_mutex);request_ready.wait(lock,[]{return !requests.empty();});r=requests.front();requests.pop_front();}
-  float p[3];bool ok=decode_now(r.pid,r.base,r.root,p,r.source)!=0;
+  DecodeSchedule::Request r;
+  {
+   std::unique_lock<std::mutex> lock(result_mutex);
+   for(;;) {
+    request_ready.wait(lock,[]{return schedule.has_queued();});
+    auto next=schedule.take(now_ms());
+    if(next){r=*next;break;}
+   }
+  }
+  float p[3];long long sampled_at=0;
+  bool ok=decode_now(r.pid,r.base,r.root,p,r.source,&sampled_at)!=0;
   uint64_t key=decode_key(r.root,r.source);
   {std::lock_guard<std::mutex> lock(result_mutex);
-   if(ok) completed[key]={r.pid,r.base,{{p[0],p[1],p[2]},now_ms()}};
-   pending.erase(key);
-   if(completed.size()>512)completed.clear();
+   if(schedule.finish(r,ok,now_ms())&&ok) {
+    make_position_cache_room(completed,key,now_ms(),[](const Completed &v){return v.value.at;});
+    completed[key]={r.pid,r.base,{{p[0],p[1],p[2]},sampled_at}};
+   }
   }
  }
 }
@@ -202,10 +217,11 @@ static int queued_position(int pid,uint64_t base,uint64_t root,float out[3],Posi
  uint64_t key=decode_key(root,source);
  std::call_once(worker_once,[]{std::thread(decoder_worker).detach();});
  std::lock_guard<std::mutex> lock(result_mutex);long long now=now_ms();
+ if(schedule.set_context(pid,base))completed.clear();
  auto found=completed.find(key);
  bool valid=found!=completed.end()&&found->second.pid==pid&&found->second.base==base&&now-found->second.value.at<750;
  bool refresh=!valid||now-found->second.value.at>=80;
- if(refresh&&!pending.count(key)&&requests.size()<64) {requests.push_back({pid,base,root,source});pending[key]=true;request_ready.notify_one();}
+ if(refresh&&schedule.request(root,source,now))request_ready.notify_one();
  if(!valid)return 0;
  memcpy(out,found->second.value.p,12);return 1;
 }

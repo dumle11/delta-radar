@@ -1826,6 +1826,27 @@ static int read_authoritative_characters(uint64_t system, uint64_t local_pawn,
     return has_local && valid >= 1 ? count : 0;
 }
 
+/* The small live combat roster can change between expensive level/loot scans.
+ * Preserve cached loot, reserving a full cache's slots for new combatants. */
+static int update_cached_combatants(uint64_t *actors, uint8_t *kinds,
+                                    uint8_t *authoritative, int count, int capacity,
+                                    const uint64_t *roster, int roster_count) {
+    for (int i = 0; i < roster_count; i++) {
+        if (!is_game_heap_ptr(roster[i])) continue;
+        int slot = -1;
+        for (int j = 0; j < count; j++)
+            if (actors[j] == roster[i]) { slot = j; break; }
+        if (slot < 0 && count < capacity) slot = count++;
+        if (slot < 0) {
+            for (int j = count - 1; j >= 0; j--)
+                if (kinds[j] != 0) { slot = j; break; }
+        }
+        if (slot < 0) continue;
+        actors[slot] = roster[i]; kinds[slot] = 0; authoritative[slot] = 1;
+    }
+    return count;
+}
+
 /* Regional FNamePool encoding currently prevents dependable Blueprint class
  * strings. These signatures come from the shipped class layouts and require
  * several independent fields, avoiding a broad scan for arbitrary AActors. */
@@ -2542,6 +2563,12 @@ camera_done:
         cache_age = 0;
     } else {
         cache_age++;
+        uint64_t current_characters[MAX_ACTORS];
+        int current_count = read_authoritative_characters(
+            battlefield_system, local_pawn, current_characters, MAX_ACTORS);
+        cached_actor_count = update_cached_combatants(
+            cached_actor_ptrs, cached_actor_kinds, cached_actor_authoritative,
+            cached_actor_count, MAX_ACTORS, current_characters, current_count);
     }
 
     uint64_t *actor_ptrs = cached_actor_ptrs;
@@ -3017,7 +3044,9 @@ static int get_radar_sock(void) {
     memcpy(addr.sun_path + 1, RADAR_SOCKET_NAME, strlen(RADAR_SOCKET_NAME));
     socklen_t addr_len = (socklen_t)(offsetof(struct sockaddr_un, sun_path) +
         1 + strlen(RADAR_SOCKET_NAME));
-    struct timeval tv = {.tv_sec = 1, .tv_usec = 0};
+    /* Do not hold the camera collector for a second behind a slow receiver.
+     * Partial/failed frames close this stream and the next scan reconnects. */
+    struct timeval tv = {.tv_sec = 0, .tv_usec = 33000};
     setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
     if (connect(sock, (struct sockaddr *)&addr, addr_len) < 0) {
         close(sock);
@@ -3038,12 +3067,14 @@ static int post_to_radar(void) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     long long now_ms = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    clock_gettime(CLOCK_BOOTTIME, &ts);
+    long long captured_elapsed_ms = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 
     char body[131072];
     int off = 0;
     off += snprintf(body + off, sizeof(body) - off,
-        "{\"self\":\"%s\",\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
-        self_entity_id[0] ? self_entity_id : "");
+        "{\"self\":\"%s\",\"capturedElapsedMs\":%lld,\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
+        self_entity_id[0] ? self_entity_id : "", captured_elapsed_ms);
     for (int i = 0; i < num_entities; i++) {
         if (off > (int)sizeof(body) - 1536) break;
         if (i > 0) body[off++] = ',';

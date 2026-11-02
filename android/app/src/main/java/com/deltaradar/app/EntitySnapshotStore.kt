@@ -20,8 +20,16 @@ class EntitySnapshotStore(private val clock: () -> Long) {
 
     @Synchronized fun ingest(line: String): Boolean {
         // Validate the entire frame before changing the visible snapshot or its age.
+        val arrivedAt = clock()
+        var capturedAt = arrivedAt
         val next = try {
             val input = JSONObject(line)
+            if (input.has("capturedElapsedMs")) {
+                // Native CLOCK_BOOTTIME and Android elapsedRealtime share the
+                // device boot clock. Socket backlog must not rejuvenate old data.
+                capturedAt = input.getLong("capturedElapsedMs")
+                require(capturedAt >= 0 && arrivedAt - capturedAt in 0 until FRESHNESS_MS)
+            }
             val list = input.getJSONArray("entities")
             val self = input.optString("self", "")
             val ids = HashSet<String>()
@@ -60,7 +68,7 @@ class EntitySnapshotStore(private val clock: () -> Long) {
         } catch (_: Exception) { return false }
         if (next.optString("self", "") != frame.optString("self", "") || !next.has("self")) worldGeneration++
         frame = next
-        receivedAtMs = clock()
+        receivedAtMs = capturedAt
         sequence++
         return true
     }

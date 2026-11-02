@@ -4,6 +4,26 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class EntitySnapshotStoreTest {
+    @Test fun transportDelayCountsAgainstFreshnessInsteadOfRenewingIt() {
+        now = 600
+        val captured = frame(entity("enemy")).replaceFirst("{", "{\"capturedElapsedMs\":100,")
+        assertTrue(store.ingest(captured))
+        assertEquals(100L, store.status().receivedAtMs)
+        now = 850
+        assertFalse(store.status().fresh)
+    }
+
+    @Test fun bufferedAndFutureFramesCannotReplaceTheCurrentSnapshot() {
+        now = 1_000
+        assertTrue(store.ingest(frame(entity("current"))))
+        val sequence = store.status().sequence
+        for (capture in listOf(250L, 1_001L, -1L)) {
+            val bad = frame(entity("old")).replaceFirst("{", "{\"capturedElapsedMs\":$capture,")
+            assertFalse(store.ingest(bad))
+            assertEquals(sequence, store.status().sequence)
+        }
+        assertTrue(store.snapshot().json.toString().contains("current"))
+    }
     private var now = 0L
     private val store = EntitySnapshotStore { now }
     private fun entity(id: String, extra: String = "") =

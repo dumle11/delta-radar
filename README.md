@@ -11,6 +11,9 @@ See [the live SDK handoff](docs/LIVE_SDK_HANDOFF.md) for current results, build
 identity and remaining human-player coordinate issues. Nearby loot alignment is
 confirmed; the full player overlay is still under verification.
 
+The [offline performance audit](docs/PERFORMANCE_AUDIT.md) describes the latest
+latency and cache fixes, regression results, and remaining device checks.
+
 ## Components
 
 - `scanner/memscan.c` — native actor, transform, health, death, and team reader.

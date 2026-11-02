@@ -21,6 +21,7 @@ def main():
     source = ROOT/'scanner/memscan.c'
     revision = git('rev-parse', 'HEAD')
     inputs = [source, ROOT/'scanner/sdk_native_classes.inc', ROOT/'scanner/decode_bridge.cpp', Path(__file__).resolve()]
+    inputs += sorted((ROOT/'scanner').glob('*.h'))
     inputs += sorted(p for p in (ROOT/'scanner/vendor/dfm-decoder').rglob('*') if p.is_file())
     input_hashes = {str(p.relative_to(ROOT)): sha(p) for p in inputs}
     source_hash = hashlib.sha256(json.dumps(input_hashes,sort_keys=True,separators=(',',':')).encode()).hexdigest()
