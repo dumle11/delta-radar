@@ -1,13 +1,4 @@
 #!/system/bin/sh
-
-# Start before the game process so memscan opens /proc/<pid>/maps during the
-# brief readable startup window, then retains that descriptor for the session.
-# A force-stop is asynchronous; do not attach to the dying previous PID.
-while [ -n "$(pidof com.proxima.dfm)" ]; do
-    sleep 0.01
-done
-while [ -z "$(pidof com.proxima.dfm)" ]; do
-    sleep 0.01
-done
-
-exec /data/local/tmp/memscan run vmreadv
+# Early-attach/debug-gate behavior is not part of the verified deployment flow.
+echo 'Legacy early launcher disabled. Start the verified scanner through the app.' >&2
+exit 64

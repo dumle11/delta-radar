@@ -1,0 +1,59 @@
+{
+  "artifact": "libUE4.so from com.proxima.dfm v1.202.37117.5601 (versionCode 2217)",
+  "device_path": "/data/app/~~a4byb-QP_b17LJPvWdSg0g==/com.proxima.dfm-l7EYS_pY_cniZTZr3rHyHA==/lib/arm64/libUE4.so",
+  "file_size_bytes": 571309672,
+  "elf": {
+    "class": "ELF64",
+    "type": "DYN",
+    "machine": "AArch64",
+    "endian": "little",
+    "program_headers": 13,
+    "section_headers": 23,
+    "section_header_offset": 571308200
+  },
+  "load_segments": [
+    {"type": "R-E", "virt_addr": "0x0", "file_size": "0x1BD0B990", "mem_size": "0x1BD0B990", "note": "code + rodata, 462 MB"},
+    {"type": "RW", "virt_addr": "0x1BD0F990", "file_size": "0x38D4A80", "mem_size": "0x38D8670", "note": "data, 59 MB"},
+    {"type": "RW", "virt_addr": "0x1F5E8410", "file_size": "0x6701A8", "mem_size": "0x152C2A8", "note": "data + BSS, 21 MB"},
+    {"type": "RW", "virt_addr": "0x20B28000", "file_size": "0x247F8A1", "mem_size": "0x247F8A1", "note": "late data, 37 MB"}
+  ],
+  "runtime_mapping": {
+    "ue4_base": "0x774a230000",
+    "ue4_end": "0x776d1d8000",
+    "span_mb": 559,
+    "game_pid": 3746
+  },
+  "gnames_analysis": {
+    "sdk_dump_offset": "0x18BACD80",
+    "sdk_dump_segment": "R-E (code/rodata) — WRONG",
+    "actual_fnamepool_offset": "0x1BEE1F60",
+    "actual_segment": "RW (data), 1.8 MB into rw section",
+    "drift_bytes": 53694944,
+    "drift_mb": 51.2,
+    "fnamepool_addr": "0x7766111f60",
+    "blocks_offset": "0x38",
+    "fname_entry_header_size": 8,
+    "found_by": "Phase 2 fallback scan (not SDK dump offset)"
+  },
+  "fname_encryption": {
+    "encrypted": true,
+    "algorithm": "Key = f(Len % 9); Data[i] = (Key & 0x80) ^ (~Data[i])",
+    "source": "MobileDumper-7 DeltaForceProfile (DeltaForce.h)",
+    "index_0_none": "plaintext (special case or different format)",
+    "impact_on_discovery": "none — discovery uses pointer comparison, not names"
+  },
+  "scanner_rw_regions_scanned": [
+    {"addr": "0x7765f3f000", "size_mb": 56, "name": "libUE4.so"},
+    {"addr": "0x7769818000", "size_mb": 6, "name": "libUE4.so"},
+    {"addr": "0x776ad4c000", "size_mb": 0, "name": "libUE4.so"},
+    {"addr": "0x776ad50000", "size_mb": 0, "name": "libUE4.so"},
+    {"addr": "0x776ad58000", "size_mb": 36, "name": "libUE4.so"}
+  ],
+  "total_scanned_mb": 98,
+  "game_heap_range": {
+    "start": "0x6e00000000",
+    "end": "0x7800000000",
+    "rw_regions_in_range": 9163,
+    "rw_total_mb": 2678
+  }
+}
