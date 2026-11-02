@@ -11,3 +11,5 @@
 /android/app/build/
 
 /android/local.properties
+
+/scanner/tools/__pycache__/

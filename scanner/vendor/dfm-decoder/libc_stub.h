@@ -317,7 +317,7 @@ public:
             // TLS — shellcode uses pthread_key for its own TLS
             {"pthread_key_create",       STUB_TYPE_RET0},
             {"pthread_key_delete",       STUB_TYPE_RET0},
-            {"pthread_getspecific",      STUB_TYPE_RET0},  // returns NULL
+            // Use real emulated pthread_getspecific: {"pthread_getspecific",      STUB_TYPE_RET0},  // returns NULL
             {"pthread_setspecific",      STUB_TYPE_RET0},
 
             // File I/O — shellcode reads /proc/self/maps, ACE cache
@@ -329,9 +329,9 @@ public:
 
             // System — sysconf(_SC_PAGESIZE) must return 4096
             {"sysconf",                  STUB_TYPE_RET_PAGESIZE},
-            {"syscall",                  STUB_TYPE_RET0},
-            {"getpid",                   STUB_TYPE_RET1},   // fake PID
-            {"gettid",                   STUB_TYPE_RET1},   // fake TID
+            // Use real emulated syscall: {"syscall",                  STUB_TYPE_RET0},
+            // Use real emulated getpid: {"getpid",                   STUB_TYPE_RET1},   // fake PID
+            // Use real emulated gettid: {"gettid",                   STUB_TYPE_RET1},   // fake TID
             {"usleep",                   STUB_TYPE_RET0},   // skip sleep
 
             // Memory management — return success

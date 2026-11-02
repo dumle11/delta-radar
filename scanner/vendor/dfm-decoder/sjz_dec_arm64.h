@@ -149,3 +149,6 @@ void EnableTrace(bool on);
 // 解析器必须返回真实跳转目标地址
 // Register a BRK indirect-jump resolver
 void SetBrkResolver(BrkResolveFunc resolver);
+
+// Refresh a bounded copied snapshot for a replay; never writes target memory.
+bool RefreshMappedSnapshot();

@@ -95,6 +95,7 @@ struct EmuCtx {
 };
 
 static EmuCtx g;
+static std::unordered_map<uint64_t, bool> lazyMappedPages;
 int emulated_target_pid=0, emulated_target_tid=0;
 
 static bool MapShellcode();
@@ -122,8 +123,30 @@ static inline uintptr_t GA(uintptr_t off) { return g.off.moduleBase + off; }
 
 // ================================================================
 //  页面缓存辅助 / Page cache helpers
+// Copy all pages used by the previous call before replaying it. Reading pages
+// lazily across a 30-Hz game frame can mix ciphertext with another frame's key.
+bool RefreshMappedSnapshot()
+{
+    if(!g.uc||lazyMappedPages.size()>512)return false;
+    std::unordered_map<uint64_t, CachePage> fresh;
+    for(const auto& entry:lazyMappedPages) {
+        uint64_t real=entry.first&0x00ffffffffffffffULL;
+        if(fresh.count(real))continue;
+        CachePage cp{};
+        if(!RdMem(real,cp.data,EMU_PAGE_SIZE))return false;
+        fresh.emplace(real,cp);
+    }
+    // No remote reads occur during the following copy-back phase.
+    for(const auto& entry:lazyMappedPages) {
+        uint64_t real=entry.first&0x00ffffffffffffffULL;
+        if(uc_mem_write(g.uc,entry.first,fresh.at(real).data,EMU_PAGE_SIZE)!=UC_ERR_OK)return false;
+        g.libcStub.OnPageMapped(entry.first,EMU_PAGE_SIZE);
+    }
+    g.cache=std::move(fresh);
+    return true;
+}
+
 // ================================================================
-static std::unordered_map<uint64_t, bool> lazyMappedPages;
 
 static bool ReadPageCached(uint64_t pageAddr, void* outBuf)
 {
@@ -447,7 +470,7 @@ bool InitEmulatorARM64(int pid, const GameOffsets& offsets)
     if (g.libcStub.Init((pid_t)pid, g.uc, elfRead)) {
         g.libcBase = g.libcStub.GetLibcBase();
         g.libcEnd  = g.libcStub.GetLibcEnd();
-        g.libcStub.PreApplyStubs();
+        // Patch selected stubs only after lazy mapping copies the real page.
         LOGI("libc stub: base=0x%lx end=0x%lx stubs=%zu",
              (unsigned long)g.libcBase,
              (unsigned long)g.libcEnd,
@@ -476,6 +499,7 @@ void CleanupEmulator()
     if (g.uc) { uc_close(g.uc); g.uc = nullptr; }
     g.mem.detach();
     g.cache.clear();
+    lazyMappedPages.clear();
     g.inited = false;
 }
 
