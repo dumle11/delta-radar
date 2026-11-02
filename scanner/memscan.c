@@ -426,12 +426,33 @@ static int is_in_ue4(uint64_t p) {
 }
 
 static int is_game_heap_ptr(uint64_t p) {
-    return (p & 7) == 0 && p >= 0x6e00000000ULL && p < 0x7800000000ULL;
+    /* From remote master 4e844f7: accept ASLR-moved object heaps while excluding
+     * the engine image. A previous process's fixed heap range is not a type. */
+    return is_any_ptr(p) && (p & 7) == 0 && !is_in_ue4(p);
 }
 
 #ifdef DELTA_WITH_DECODER
 extern int delta_decode_position(int pid, uint64_t base, uint64_t root, float out[3]);
+extern int delta_decode_character_bounds(int pid, uint64_t base, uint64_t root, float out[3]);
 #endif
+/* Remote master's enemy path reads +0x148. The matching SDK's bounds accessor
+ * confirms this is FEncBoxSphereBounds::Origin, not the loot transform. */
+static int read_character_position(uint64_t root, float out[3]) {
+    unsigned char origin[16];
+    if (read_mem(root + 0x148, origin, sizeof(origin)) != sizeof(origin)) return 0;
+    uint16_t index;
+    memcpy(&index, origin + 12, sizeof(index));
+    if (index != UINT16_MAX) {
+#ifdef DELTA_WITH_DECODER
+        return delta_decode_character_bounds(game_pid, ue4_base, root, out);
+#else
+        return 0;
+#endif
+    }
+    memcpy(out, origin, 3 * sizeof(float));
+    for (int i=0;i<3;i++) if (!isfinite(out[i]) || fabsf(out[i]) > 10000000) return 0;
+    return out[0] != 0 || out[1] != 0 || out[2] != 0;
+}
 static int read_component_position(uint64_t root, int pos_off, float out[3]) {
     if (pos_off == OFF_USCENE_WORLD_LOCATION) {
         float transform[12];
@@ -2576,10 +2597,12 @@ camera_done:
         if (!is_any_ptr(root)) continue;
         diag_root++;
 
-        /* Read the current world transform atomically. Uninitialized proxy
-         * transforms have a zero quaternion and must not produce markers. */
+        /* Keep remote enemy bounds and the verified loot transform separate. */
         float world_position[3];
-        if (!read_component_position(root, pos_off, world_position)) continue;
+        int position_valid = is_loot_actor ?
+            read_component_position(root, pos_off, world_position) :
+            read_character_position(root, world_position);
+        if (!position_valid) continue;
         float wx=world_position[0], wy=world_position[1], wz=world_position[2];
 
         if (wx != wx || wy != wy || wz != wz) continue;

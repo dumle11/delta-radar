@@ -152,3 +152,7 @@ void SetBrkResolver(BrkResolveFunc resolver);
 
 // Refresh a bounded copied snapshot for a replay; never writes target memory.
 bool RefreshMappedSnapshot();
+
+// Diagnostic-only, opt-in copied machine state export for offline replay.
+void EnableMachineCapture(bool enabled);
+bool SaveMachineCapture(const char *prefix, uint64_t root);

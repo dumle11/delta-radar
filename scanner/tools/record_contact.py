@@ -19,6 +19,8 @@ def main():
     parser.add_argument('--serial', required=True)
     parser.add_argument('--evidence', type=Path, required=True)
     parser.add_argument('--duration', type=int, default=1800)
+    parser.add_argument('--ignore-empty-feed', action='store_true',
+                        help='Record a bounded diagnostic window with the radar stopped')
     args = parser.parse_args()
     if not 5 <= args.duration <= 3600:
         parser.error('duration must be 5..3600 seconds')
@@ -49,8 +51,10 @@ def main():
                                                 stdout=log, stderr=subprocess.STDOUT)
                     try:
                         while recorder.poll() is None and time.monotonic() < deadline:
-                            frame = root('cat /data/user/0/com.deltaradar.app/files/latest-scanner-frame.json',
-                                         capture_output=True).stdout
+                            # Debug-app sandbox access avoids repeated Magisk grant toasts.
+                            frame = subprocess.run(adb + ['exec-out', 'run-as', 'com.deltaradar.app',
+                                                          'cat', 'files/latest-scanner-frame.json'],
+                                                   check=True, timeout=20, capture_output=True).stdout
                             try:
                                 obj = json.loads(frame)
                                 snapshot = json.loads(obj['rawLine'])
@@ -60,7 +64,7 @@ def main():
                                 feed.flush()
                             except (ValueError, KeyError):
                                 empty = 0
-                            if empty >= 6:
+                            if empty >= 6 and not args.ignore_empty_feed:
                                 cleared = True
                                 break
                             time.sleep(.5)

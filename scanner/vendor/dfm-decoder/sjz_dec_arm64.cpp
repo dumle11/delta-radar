@@ -97,6 +97,17 @@ struct EmuCtx {
 static EmuCtx g;
 static std::unordered_map<uint64_t, bool> lazyMappedPages;
 int emulated_target_pid=0, emulated_target_tid=0;
+// Opt-in diagnostic machine captures. Normal scanner builds leave this off.
+struct CapturedPage { uint64_t address; uint32_t protection; uint8_t data[4096]; };
+struct CapturedTick { uint64_t pc,value; };
+static bool capture_machine=false;
+static std::unordered_map<uint64_t,CapturedPage> captured_pages;
+static std::vector<CapturedTick> captured_ticks;
+static uint64_t captured_x[31]={},captured_sp=0,captured_flags=0,captured_tls=0,captured_pc=0,captured_frequency=62500000;
+static uint8_t captured_q[32][16]={};
+static void CaptureInitialMachine();
+void EnableMachineCapture(bool enabled) {capture_machine=enabled;}
+
 
 static bool MapShellcode();
 static bool ResolveShellcodeSymbols();
@@ -266,6 +277,10 @@ static bool OnUnmapped(uc_engine* uc, uc_mem_type type,
         }
     }
     g.libcStub.OnPageMapped(page, EMU_PAGE_SIZE);
+    if(capture_machine&&!captured_pages.count(page)&&captured_pages.size()<1024) {
+        CapturedPage cp{};cp.address=page;cp.protection=UC_PROT_ALL;
+        if(uc_mem_read(uc,page,cp.data,4096)==UC_ERR_OK)captured_pages.emplace(page,cp);
+    }
 
     return true;
 }
@@ -349,6 +364,20 @@ static void OnCode(uc_engine* uc, uint64_t address, uint32_t size, void* user)
     uint32_t insn = 0;
     uc_mem_read(uc, address, &insn, 4);
 
+    // CNTFRQ participates in the protected transform's key calculation. The
+    // emulator's default (62.5 MHz) differs from this device's architectural
+    // counter. The local reader runs on the same phone, so use its real value.
+    if ((insn & 0xffffffe0) == 0xd53be000) {
+        uint64_t frequency=0;
+#ifdef __aarch64__
+        asm volatile("mrs %0, cntfrq_el0" : "=r"(frequency));
+#else
+        frequency=62500000;
+#endif
+        uc_reg_write(uc,UC_ARM64_REG_X0+(insn&31),&frequency);
+        uint64_t next=address+4;uc_reg_write(uc,UC_ARM64_REG_PC,&next);return;
+    }
+
     if ((insn & 0xffffffe0) == 0xd53be040) {
         uint64_t ticks=0;
 #ifdef __aarch64__
@@ -356,6 +385,7 @@ static void OnCode(uc_engine* uc, uint64_t address, uint32_t size, void* user)
 #else
         static uint64_t fallbackTicks=1000000000; ticks=(fallbackTicks+=100);
 #endif
+        if(capture_machine)captured_ticks.push_back({address,ticks});
         uc_reg_write(uc,UC_ARM64_REG_X0+(insn&31),&ticks);
         uint64_t next=address+4;uc_reg_write(uc,UC_ARM64_REG_PC,&next);return;
     }
@@ -610,6 +640,7 @@ uint64_t CallARM64(uint64_t funcAddr, int argc, ...)
     uint64_t lr = RET_STUB_ADDR;
     uc_reg_write(g.uc, UC_ARM64_REG_LR, &lr);
 
+    if(capture_machine) {captured_pc=funcAddr;CaptureInitialMachine();}
     uc_err err = uc_emu_start(g.uc, funcAddr, RET_STUB_ADDR, EMU_TIMEOUT, 0);
     if (err != UC_ERR_OK && err != UC_ERR_FETCH_UNMAPPED)
         LOGE("CallARM64(0x%lx): %s",
@@ -974,4 +1005,48 @@ uint64_t Dec800(uint64_t rcx, uint64_t H)
     uint32_t out = (uint32_t)(rol32(ecx ^ R, 5) - S);
 
     return (rcx & 0xFFFFFFFF00000000ULL) | (uint64_t)out;
+}
+
+static void CaptureInitialMachine()
+{
+    captured_pages.clear();captured_ticks.clear();
+#ifdef __aarch64__
+    asm volatile("mrs %0, cntfrq_el0" : "=r"(captured_frequency));
+#endif
+    for(int i=0;i<29;i++)uc_reg_read(g.uc,UC_ARM64_REG_X0+i,&captured_x[i]);
+    uc_reg_read(g.uc,UC_ARM64_REG_FP,&captured_x[29]);uc_reg_read(g.uc,UC_ARM64_REG_LR,&captured_x[30]);
+    uc_reg_read(g.uc,UC_ARM64_REG_SP,&captured_sp);uc_reg_read(g.uc,UC_ARM64_REG_NZCV,&captured_flags);
+    uc_reg_read(g.uc,UC_ARM64_REG_TPIDR_EL0,&captured_tls);
+    for(int i=0;i<32;i++)uc_reg_read(g.uc,UC_ARM64_REG_Q0+i,captured_q[i]);
+    uc_mem_region *regions=nullptr;uint32_t count=0;
+    if(uc_mem_regions(g.uc,&regions,&count)!=UC_ERR_OK)return;
+    for(uint32_t i=0;i<count;i++)for(uint64_t page=regions[i].begin;page<=regions[i].end;page+=4096) {
+        if(captured_pages.size()>=1024)break;
+        CapturedPage cp{};cp.address=page;cp.protection=regions[i].perms;
+        if(uc_mem_read(g.uc,page,cp.data,4096)==UC_ERR_OK)captured_pages.emplace(page,cp);
+    }
+    uc_free(regions);
+}
+bool SaveMachineCapture(const char *prefix,uint64_t root)
+{
+    if(!capture_machine||captured_pages.empty()||captured_pages.size()>=1024)return false;
+    std::string binary=std::string(prefix)+".bin",metadata=std::string(prefix)+".json";
+    FILE *f=fopen(binary.c_str(),"wb");if(!f)return false;
+    for(const auto& e:captured_pages) {
+        uint32_t bytes=4096;
+        if(fwrite(&e.second.address,8,1,f)!=1||fwrite(&e.second.protection,4,1,f)!=1||
+           fwrite(&bytes,4,1,f)!=1||fwrite(e.second.data,4096,1,f)!=1){fclose(f);return false;}
+    }
+    fclose(f);f=fopen(metadata.c_str(),"w");if(!f)return false;
+    uint64_t stopped=0;uc_reg_read(g.uc,UC_ARM64_REG_PC,&stopped);float result[12]={};
+    uc_mem_read(g.uc,0x7200000300ULL,result,sizeof(result));
+    fprintf(f,"{\"format\":\"delta-uc-v1\",\"root\":\"0x%lx\",\"moduleBase\":\"0x%lx\",\"pid\":%d,\"tid\":%d,",root,g.off.moduleBase,emulated_target_pid,emulated_target_tid);
+    fprintf(f,"\"counterFrequency\":%lu,",captured_frequency);
+    fprintf(f,"\"pc\":\"0x%lx\",\"stoppedPc\":\"0x%lx\",\"sp\":\"0x%lx\",\"tls\":\"0x%lx\",\"nzcv\":%lu,\"x\":[",captured_pc,stopped,captured_sp,captured_tls,captured_flags);
+    for(int i=0;i<31;i++)fprintf(f,"%s\"0x%lx\"",i?",":"",captured_x[i]);
+    fprintf(f,"],\"q\":[");
+    for(int i=0;i<32;i++){fprintf(f,"%s\"",i?",":"");for(int j=15;j>=0;j--)fprintf(f,"%02x",captured_q[i][j]);fprintf(f,"\"");}
+    fprintf(f,"],\"ticks\":[");for(size_t i=0;i<captured_ticks.size();i++)fprintf(f,"%s[\"0x%lx\",%lu]",i?",":"",captured_ticks[i].pc,captured_ticks[i].value);
+    fprintf(f,"],\"pages\":%zu,\"result\":[",captured_pages.size());for(int i=0;i<12;i++)fprintf(f,"%s%.9g",i?",":"",result[i]);
+    fprintf(f,"]}\n");fclose(f);return true;
 }

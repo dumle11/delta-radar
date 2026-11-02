@@ -1,3 +1,119 @@
+## Combined enemy/loot integration — 2026-11-02 19:40 UTC
+
+The user requested the remote enemy lines combined with our verified loot lines
+on this machine. Work is checkpointed on branch `working-v1` (from `codex/enemies-and-loot`). Remote has no
+`main`: its default is `master`, fetched at
+`4e844f72eb22ad1ad314748afdf5b891a55b4f15`. This is a selective source integration,
+not a full merge. Keep our real display metrics, camera handling, asynchronous
+decoder, scanner ownership checks and app lifecycle behavior.
+
+- Ported remote's enemy root position source (`+0x148`) and ASLR-safe object
+  pointer validation. Loot still uses the existing world transform (`+0x220`).
+- `+0x148` is the matching SDK's encrypted bounds origin. Plain origins have
+  the `0xffff` index at `+0x154`; encrypted origins go through the internal bounds
+  accessor at module `+0x1ae7cdf0`, called by SDK GetComponentBounds. This uses the
+  vector accessor at `+0x2070b990`. Do not read encrypted raw coordinates as positions.
+- The new bounds path and existing loot transform path have separate request,
+  completed-result and short-term cache keys. Missing/invalid bounds omit the
+  character marker; there is no ring-center fallback or coordinate correction.
+- Before integration, read-only diagnostics sampled three living named actors
+  and an ordinary bot. Decoded bounds origins moved smoothly; the ordinary bot
+  agreed with its raw position. **No visible living-character alignment comparison
+  has passed yet.** This is candidate evidence, not proof that players are fixed.
+- New owned-memory regression checks source isolation, both encrypted decoder
+  dispatches, failure handling, invalid plain origins and ASLR heap ranges. It
+  passed, as did discovery/name/class regression checks. API-31 native build and
+  Android debug build passed; all 29 JVM tests passed (zero failures/errors).
+- Installed matching APK and content-addressed native binary, with radar off.
+  Native SHA256: `3e77827de53dcacc6eaac1a9b03174e74fb96a875d9729167d126fb78115c63f`.
+  Source SHA256: `43f9ee1f8ae8783d9f4afcde92b00dc87017af5c4f651c0a0969d5cac8cfc732`.
+  Build manifest records base revision `1967d52` plus the modified source hashes.
+  Existing `/data/local/tmp/memscan` was preserved. The branch is being prepared for a pull request against remote `master`.
+- APK, native binary, manifest, JUnit XML and deployment identity proof are in
+  ignored `evidence/local/session/resume-20261102/combined-build/`. APK is
+  `delta-radar-debug.apk`; scanner is pinned by `scanner/deployment.properties`.
+- Next live check: start this installed combined build in a fresh match; compare
+  a visible living character at close range and while moving the camera. Recheck
+  nearby loot in the same session. Stable coordinates alone are insufficient.
+
+The 19:14 match ended in death around 19:17, before this combined build. Captured
+actor pointers from that match must be rediscovered. Cached mesh world bounds,
+cached mesh inverse transform and remote movement floor hits did not provide a
+usable independent position source. Diagnostic helpers and private recordings
+remain local; never commit copied game pages or player identities.
+
+The bounded recorder has finished. All eight `second-live/recording/part-000.mp4`
+through `part-007.mp4` segments are saved. The final transfer timed out and was
+resumed, then its full size and SHA256 were verified against the device before
+removing only that recorder's temporary files. No recorder or scanner remained
+running at the final device process check.
+
+---
+
+## Earlier live resume — 2026-11-02 19:12 UTC (historical)
+
+The user returned and authorized continuation. The 18:44 match ended in death
+around 19:00 UTC. **Player placement remains incorrect.** The radar is stopped;
+build20 is being installed without the rejected spatial-center experiment. A new
+match has been requested for SDK render-cache/physics diagnostics, with radar off.
+
+- Four frozen encrypted-character machine captures now replay to the same wrong
+  outputs offline, using Python Unicorn 2.1.4. This is reproducible failure evidence,
+  not encrypted-character acceptance. The capture/replay helpers are under
+  `scanner/tools/`; captures contain copied game pages and stay ignored locally.
+- Found a real architectural mismatch: the emulator defaults CNTFRQ_EL0 to
+  62,500,000 Hz while this phone reports 19,200,000 Hz. The protected getter uses
+  CNTFRQ in its key calculation. The native hook now returns the phone's actual
+  frequency. **That alone did not resolve jumping in frozen replays.**
+- The selected transform belongs to a 14-entry spatial ring. Its entries have
+  equal quaternion/height/scale and form an approximately 49.18 m radius circle.
+  Recovering the circle's center removed jumps in the trial, but **the center is
+  NOT the true character location**. The user saw the identified player beside them while the red
+  marker was at the tunnel's far end. The death screen identifies the same player
+  and shows shots from 17 m. Never deploy the ring center as a position fix.
+- Build19 (`b658010a1edb06946b4988b0710899ea5bc0314b41708e100a2697a94c4e55d2`)
+  contained that failed trial and is superseded. Its patch and APK are preserved
+  locally. The production integration was removed. Ring measurement remains only
+  in the explicitly diagnostic `ring_probe.cpp` / `transform_ring.h` helpers.
+- Build20 native SHA is
+  `ea76eef6ad522ed254148ba6889a75395eed67c5a02ddfc27d591b5e405eb663`, source hash
+  `c7753cd97f55e3a6cc0e5cd964ca039a0fca4f0805dde55630639cc69d923ec4`, base revision
+  `1967d52d26de5ffaedf04268322b45e6cf850b53`. The content-addressed binary is deployed.
+  This contains the frequency fix and opt-in machine capture, **not a player fix**.
+- Frozen variants for clock cadence, exclusive-monitor clearing, lseek return,
+  GPU-address nibble and tagged-PC normalization have not recovered stable correct
+  positions. One broad variant batch was terminated before saving; the smaller
+  completed batch is in `decoder-A/variants.jsonl`. Do not claim all possible
+  emulator faults were ruled out.
+- The VM invokes KGSL GPU-object-info ioctl `0xc0300947`, currently stubbed to
+  success without returning its data. It uses bits of the returned GPU address.
+  This is still an incomplete emulation path, not a proven root cause. Reference:
+  [Qualcomm KGSL UAPI](https://android.googlesource.com/kernel/msm/+/android-lego-7.1.1_r0.2/include/uapi/linux/msm_kgsl.h).
+  No real GPU ioctl, ptrace, target writes, suspension, injection or kernel changes
+  were used. Device kernel is 4.14.180-perf+.
+- Next independent SDK candidates: actor+0x3d0 mesh, mesh+0x8e8
+  `USkinnedMeshComponent::CachedWorldSpaceBounds` (plain FBoxSphereBounds), and
+  mesh+0x910 `CachedWorldToLocalTransform`. Character movement at actor+0x3d8 has
+  `CurrentFloor` +0x344; its FHitResult includes plain Location/ImpactPoint/TraceStart.
+  `bounds_probe.c` reads only these known fields. They are NOT yet live-validated;
+  a lobby UI object was not a valid character and returned no usable fields.
+- Recording helper now reads feed captures through the debug app's `run-as`
+  sandbox, avoiding repeated Magisk grant toasts. Root is still needed for the
+  owned screen recorder. `--ignore-empty-feed` permits a bounded recording while
+  the radar is deliberately off.
+
+Local evidence root for this resume:
+`evidence/local/session/resume-20261102/`. `live/recording/part-000.mp4` through
+`part-005.mp4` and `feed.jsonl` include this match through the death screen, with
+short gaps while transferring segments (not a gap-free movie). `live/misplaced/`
+has the death screenshot and paired projection/feed. `live/decoder-A/` has four
+frozen captures, exact replays, instruction trace, slice notes and failed variants.
+Names/player IDs must stay out of commits/uploads. Build19 passed 29 JVM tests;
+ring geometry diagnostics passed 14 candidate indices plus 7 malformed controls,
+which proves only ring measurement, **not character placement**.
+
+---
+
 # Delta Radar handoff — 2026-11-02, 17:30 Europe/Dublin
 
 ## Stop/resume instruction

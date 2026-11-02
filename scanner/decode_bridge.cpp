@@ -112,43 +112,71 @@ static bool initialize(int pid,uintptr_t base) {
  fprintf(stderr,"[decoder] local emulator initialized=%d thread=%d\n",ready,emulated_target_tid);
  return ready;
 }
+enum class PositionSource : uint64_t { Transform = 0, CharacterBounds = 1 };
+// Component pointers are eight-byte aligned; reserve the low bit for the source.
+static uint64_t decode_key(uint64_t root,PositionSource source) {
+ return root|static_cast<uint64_t>(source);
+}
 struct Cached {float p[3];long long at;};
 static std::unordered_map<uint64_t,Cached> cache;
-static int decode_now(int pid,uint64_t base,uint64_t root,float out[3]) {
+static int decode_now(int pid,uint64_t base,uint64_t root,float out[3],
+                      PositionSource source=PositionSource::Transform) {
+ if(!root||(root&7))return 0;
  if(target_pid!=pid||module_base!=base){cache.clear();ready=false;}
  if(!ready&&!initialize(pid,base))return 0;
- auto found=cache.find(root);long long now=now_ms();
+ uint64_t key=decode_key(root,source);
+ auto found=cache.find(key);long long now=now_ms();
  if(found!=cache.end()&&now-found->second.at<80){memcpy(out,found->second.p,12);return 1;}
  InvalidatePageCache();protected_budget=256*1024;protected_reads=0;
  uc_engine *uc=GetEmulatorUc();unsigned char blank[0x200]={};
- if(uc_mem_write(uc,GUEST_FRAME,blank,sizeof(blank))!=UC_ERR_OK)return 0;
- // SDK native exec K2_GetComponentToWorld(root, empty FFrame, output) applies
- // BOTH the outer transform decoding and the nested FEncVector translation.
- // Calling only the internal +0x107bbb8c helper leaves the translation encoded.
+ auto call_getter=[&]() {
+  if(source==PositionSource::CharacterBounds) {
+   // Internal implementation called by SDK GetComponentBounds. It reads the
+   // root's FEncBoxSphereBounds (+0x148), using the vector accessor (+0x2070b990).
+   if(uc_mem_write(uc,GUEST_RESULT,blank,64)!=UC_ERR_OK)return false;
+   CallARM64(base+0x1ae7cdf0,4,root,GUEST_RESULT,GUEST_RESULT+12,GUEST_RESULT+24);
+  } else {
+   // Preserve the existing loot transform path, including nested FEncVector.
+   if(uc_mem_write(uc,GUEST_FRAME,blank,sizeof(blank))!=UC_ERR_OK)return false;
+   CallARM64(base+0x1340b508,3,root,GUEST_FRAME,GUEST_RESULT);
+  }
+  return true;
+ };
  long long started=now_ms();
- CallARM64(base+0x1340b508,3,(uint64_t)root,GUEST_FRAME,GUEST_RESULT);
- if(!RefreshMappedSnapshot())return 0;
- if(uc_mem_write(uc,GUEST_FRAME,blank,sizeof(blank))!=UC_ERR_OK)return 0;
- CallARM64(base+0x1340b508,3,(uint64_t)root,GUEST_FRAME,GUEST_RESULT);
+ if(!call_getter()||!RefreshMappedSnapshot()||!call_getter())return 0;
  uint64_t pc=0;uc_reg_read(uc,UC_ARM64_REG_PC,&pc);
  static long long last_report=0;
  if(now_ms()-last_report>5000) {
-  fprintf(stderr,"[decoder] complete getter pc=%llx elapsed=%lldms protectedPages=%zu\n",
+  fprintf(stderr,"[decoder] %s pc=%llx elapsed=%lldms protectedPages=%zu\n",
+   source==PositionSource::CharacterBounds?"character bounds":"loot transform",
    (unsigned long long)pc,now_ms()-started,protected_reads);last_report=now_ms();
  }
  if(pc!=0x7100000000ULL&&pc!=0x7100000004ULL)return 0;
- float transform[12]={};
- if(uc_mem_read(uc,GUEST_RESULT,transform,sizeof(transform))!=UC_ERR_OK)return 0;
- float norm=0;for(int i=0;i<4;i++){if(!std::isfinite(transform[i]))return 0;norm+=transform[i]*transform[i];}
- if(norm<0.5f||norm>1.5f)return 0;
- for(int i=0;i<3;i++){out[i]=transform[i+4];if(!std::isfinite(out[i])||std::fabs(out[i])>10000000)return 0;}
- if(cache.size()>512)cache.clear();Cached next={{out[0],out[1],out[2]},now};cache[root]=next;
+ if(source==PositionSource::CharacterBounds) {
+  float bounds[7]={};
+  if(uc_mem_read(uc,GUEST_RESULT,bounds,sizeof(bounds))!=UC_ERR_OK)return 0;
+  for(float value:bounds)if(!std::isfinite(value))return 0;
+  // Missing or implausibly sized character bounds must never produce a marker.
+  if(bounds[3]<1||bounds[3]>300||bounds[4]<1||bounds[4]>300||
+     bounds[5]<10||bounds[5]>300||bounds[6]<10||bounds[6]>500)return 0;
+  for(int i=0;i<3;i++)out[i]=bounds[i];
+ } else {
+  float transform[12]={};
+  if(uc_mem_read(uc,GUEST_RESULT,transform,sizeof(transform))!=UC_ERR_OK)return 0;
+  float norm=0;
+  for(int i=0;i<4;i++){if(!std::isfinite(transform[i]))return 0;norm+=transform[i]*transform[i];}
+  if(norm<0.5f||norm>1.5f)return 0;
+  for(int i=0;i<3;i++)out[i]=transform[i+4];
+ }
+ for(int i=0;i<3;i++)if(!std::isfinite(out[i])||std::fabs(out[i])>10000000)return 0;
+ if(cache.size()>512)cache.clear();
+ cache[key]={{out[0],out[1],out[2]},now};
  return 1;
 }
 
 // Camera collection must never wait for an emulated transform. A single worker
 // owns Unicorn; the scanner consumes bounded-age completed results.
-struct Request {int pid;uint64_t base,root;};
+struct Request {int pid;uint64_t base,root;PositionSource source;};
 static std::mutex result_mutex;
 static std::condition_variable request_ready;
 static std::deque<Request> requests;
@@ -160,21 +188,31 @@ static void decoder_worker() {
  for(;;) {
   Request r;
   {std::unique_lock<std::mutex> lock(result_mutex);request_ready.wait(lock,[]{return !requests.empty();});r=requests.front();requests.pop_front();}
-  float p[3];bool ok=decode_now(r.pid,r.base,r.root,p)!=0;
+  float p[3];bool ok=decode_now(r.pid,r.base,r.root,p,r.source)!=0;
+  uint64_t key=decode_key(r.root,r.source);
   {std::lock_guard<std::mutex> lock(result_mutex);
-   if(ok) completed[r.root]={r.pid,r.base,{{p[0],p[1],p[2]},now_ms()}};
-   pending.erase(r.root);
+   if(ok) completed[key]={r.pid,r.base,{{p[0],p[1],p[2]},now_ms()}};
+   pending.erase(key);
    if(completed.size()>512)completed.clear();
   }
  }
 }
-extern "C" int delta_decode_position(int pid,uint64_t base,uint64_t root,float out[3]) {
+static int queued_position(int pid,uint64_t base,uint64_t root,float out[3],PositionSource source) {
+ if(!root||(root&7))return 0;
+ uint64_t key=decode_key(root,source);
  std::call_once(worker_once,[]{std::thread(decoder_worker).detach();});
  std::lock_guard<std::mutex> lock(result_mutex);long long now=now_ms();
- auto found=completed.find(root);
+ auto found=completed.find(key);
  bool valid=found!=completed.end()&&found->second.pid==pid&&found->second.base==base&&now-found->second.value.at<750;
  bool refresh=!valid||now-found->second.value.at>=80;
- if(refresh&&!pending.count(root)&&requests.size()<64) {requests.push_back({pid,base,root});pending[root]=true;request_ready.notify_one();}
+ if(refresh&&!pending.count(key)&&requests.size()<64) {requests.push_back({pid,base,root,source});pending[key]=true;request_ready.notify_one();}
  if(!valid)return 0;
  memcpy(out,found->second.value.p,12);return 1;
+}
+
+extern "C" int delta_decode_position(int pid,uint64_t base,uint64_t root,float out[3]) {
+ return queued_position(pid,base,root,out,PositionSource::Transform);
+}
+extern "C" int delta_decode_character_bounds(int pid,uint64_t base,uint64_t root,float out[3]) {
+ return queued_position(pid,base,root,out,PositionSource::CharacterBounds);
 }
