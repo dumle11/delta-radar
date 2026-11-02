@@ -181,4 +181,3 @@ static void reference_scan_for_gworld(void) {
         }
     }
 }
-
