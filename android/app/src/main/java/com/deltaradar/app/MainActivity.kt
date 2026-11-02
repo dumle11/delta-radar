@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -41,9 +42,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         findViewById<TextView>(R.id.btnStart).setOnClickListener { toggleRadar() }
-        if (Settings.canDrawOverlays(this) && entityFeed?.isFeedRunning != true) {
-            handler.postDelayed({ if (!starting && entityFeed?.isFeedRunning != true) toggleRadar() }, 500)
-        }
     }
 
     override fun onStart() {
@@ -105,6 +103,7 @@ class MainActivity : AppCompatActivity() {
                         feedOk && scannerOk && receiving -> "Overlay feed: receiving (reader PID ${status.scannerPid})"
                         feedOk && scannerOk -> "Overlay feed: reader running; waiting for match"
                         feedOk -> "Overlay feed: waiting for scanner"
+                        scannerOk -> "Overlay stopped; reader still running (PID ${status.scannerPid})"
                         else -> "Overlay feed: stopped"
                     }
                     setTextColor(if (feedOk && scannerOk) 0xFF4fd08a.toInt() else 0xFF5c6b78.toInt())
@@ -117,6 +116,7 @@ class MainActivity : AppCompatActivity() {
                     text = if (starting) "Starting..." else if (feedOk) "Stop Overlay" else "Start Overlay"
                     isEnabled = !starting
                 }
+                findViewById<CheckBox>(R.id.useLegacyReader).isEnabled = !starting && !feedOk
             }
         }
     }
@@ -135,6 +135,12 @@ class MainActivity : AppCompatActivity() {
         }
         starting = true
         findViewById<TextView>(R.id.btnStart).apply { text = "Starting..."; isEnabled = false }
+        val mode = if (findViewById<CheckBox>(R.id.useLegacyReader).isChecked) {
+            ScannerMode.LEGACY
+        } else {
+            ScannerMode.CURRENT
+        }
+        findViewById<CheckBox>(R.id.useLegacyReader).isEnabled = false
 
         EntityFeedService.start(this)
         OverlayService.show(this)
@@ -148,7 +154,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 for (attempt in 0 until 20) {
                     if (RootUtils.getFullStatus().gamePid != null) {
-                        scannerStarted = RootUtils.startScanner(this)
+                        scannerStarted = RootUtils.startScanner(this, mode)
                         break
                     }
                     Thread.sleep(250)
@@ -166,12 +172,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopRadar() {
+        starting = true
+        findViewById<TextView>(R.id.btnStart).isEnabled = false
+        findViewById<CheckBox>(R.id.useLegacyReader).isEnabled = false
         if (bound) { try { unbindService(connection) } catch (_: Exception) {}; bound = false; entityFeed = null }
         EntityFeedService.stop(this)
         OverlayService.stop(this)
-        thread(name = "scanner-stop") { RootUtils.exec("killall ue_telemetry 2>/dev/null || true") }
-        toast("Radar stopped")
-        handler.postDelayed(::refreshStatus, 1000)
+        thread(name = "scanner-stop") {
+            val stopped = RootUtils.stopScanner()
+            handler.post {
+                starting = false
+                toast(if (stopped) "Radar stopped" else "Reader failed to stop; check device log")
+                refreshStatus()
+            }
+        }
     }
 
     private fun toast(msg: String) { Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() }

@@ -2,11 +2,25 @@ package com.deltaradar.app
 
 import android.os.SystemClock
 import android.content.Context
+import android.util.Log
 import java.io.BufferedReader
 import java.io.DataOutputStream
 import java.io.InputStreamReader
 
+internal enum class ScannerMode(val asset: String, val path: String, val arguments: String) {
+    CURRENT("ue_telemetry", "/data/local/tmp/ue_telemetry", "run"),
+    LEGACY("memscan_legacy", "/data/local/tmp/delta_radar_legacy/memscan", "run vmreadv")
+}
+
 object RootUtils {
+
+    private const val TAG = "DeltaRadar"
+    private val scannerPidsCommand =
+        "for pid in \$(pidof ue_telemetry memscan 2>/dev/null); do " +
+            "exe=\$(readlink /proc/\$pid/exe 2>/dev/null); " +
+            "case \"\$exe\" in " +
+            "/data/local/tmp/ue_telemetry|/data/local/tmp/delta_radar_legacy/memscan) " +
+            "echo \"\$pid\";; esac; done"
 
     private var suProcess: Process? = null
     private var suStdin: DataOutputStream? = null
@@ -77,23 +91,37 @@ object RootUtils {
         } catch (_: Exception) { false }
     }
 
-    fun startScanner(context: Context): Boolean {
-        val binary = java.io.File(context.noBackupFilesDir, "ue_telemetry")
-        context.assets.open("ue_telemetry").use { input ->
+    internal fun startScanner(context: Context, mode: ScannerMode): Boolean {
+        if (!stopScanner()) return false
+        val binary = java.io.File(context.noBackupFilesDir, mode.asset)
+        context.assets.open(mode.asset).use { input ->
             binary.outputStream().use { output -> input.copyTo(output) }
         }
-        // Replace stale helpers and old installed versions without restarting
-        // the game or changing Android's debugger settings.
+        val directory = mode.path.substringBeforeLast('/')
         val result = exec(
-            "killall ue_telemetry 2>/dev/null; " +
-                "cp '${binary.absolutePath}' /data/local/tmp/ue_telemetry.next && " +
-                "chmod 755 /data/local/tmp/ue_telemetry.next && " +
-                "mv /data/local/tmp/ue_telemetry.next /data/local/tmp/ue_telemetry && " +
-                "(nohup /data/local/tmp/ue_telemetry run " +
-                ">/data/local/tmp/memscan.log 2>&1 </dev/null &); " +
-                "sleep 1; pidof ue_telemetry"
+            "mkdir -p '$directory' && " +
+                "cp '${binary.absolutePath}' '${mode.path}.next' && " +
+                "chmod 755 '${mode.path}.next' && " +
+                "mv '${mode.path}.next' '${mode.path}' && " +
+                "(nohup '${mode.path}' ${mode.arguments} " +
+                ">/data/local/tmp/memscan.log 2>&1 </dev/null &) && " +
+                "sleep 1 && $scannerPidsCommand"
         )
         return result.lines().any { it.trim().toIntOrNull() != null }
+    }
+
+    fun stopScanner(): Boolean {
+        val result = exec(
+            "failed=0; for pid in \$($scannerPidsCommand); do " +
+                "kill \"\$pid\" || failed=1; done; " +
+                "for attempt in 1 2 3 4 5 6 7 8 9 10; do " +
+                "[ -z \"\$($scannerPidsCommand)\" ] && break; sleep 0.1; done; " +
+                "if [ \"\$failed\" = 0 ] && [ -z \"\$($scannerPidsCommand)\" ]; " +
+                "then echo STOPPED; else echo STOP_FAILED; fi"
+        )
+        val stopped = result.lines().lastOrNull() == "STOPPED"
+        if (!stopped) Log.e(TAG, "Failed to stop reader: $result")
+        return stopped
     }
 
     data class StatusInfo(
@@ -111,7 +139,7 @@ object RootUtils {
             val out = exec(
                 "echo ROOT_OK; " +
                     "echo GAME=\$(pidof com.proxima.dfm 2>/dev/null); " +
-                    "echo SCANNER=\$(pidof ue_telemetry 2>/dev/null)"
+                    "echo SCANNER=\$($scannerPidsCommand)"
             )
             if (out.isEmpty()) return cachedStatus ?: StatusInfo(false, null)
             val rootLines = out.lines()
