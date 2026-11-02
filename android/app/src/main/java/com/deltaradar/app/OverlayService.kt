@@ -128,7 +128,9 @@ class OverlayService : Service() {
         }
 
         val hfovDeg = cameraFov
-        val metrics = resources.displayMetrics
+        val metrics = android.util.DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealMetrics(metrics)
         val screenAspect = metrics.widthPixels.toDouble() / metrics.heightPixels.coerceAtLeast(1)
         // Tracer lines originate from the top-centre of the viewport. Entity
         // boxes and labels continue to use their projected world positions.
@@ -260,7 +262,11 @@ class OverlayService : Service() {
         }
         handler.post {
             if (!lifecycle.accepts(generation) || EntityFeedService.instance !== service) return@post
-            if (!service.isCurrent(snapshot.status)) { enemyLinesView?.clear(); return@post }
+            if (!service.canRender(snapshot.status)) {
+                if (!service.feedStatus.hasCamera) enemyLinesView?.clear()
+                return@post
+            }
+            if (snapshot.status.sequence < lastPublishedSequence) return@post
             ensureEnemyLinesWindow()
             val view = enemyLinesView ?: return@post
             if (isMenuOpen) { view.clear(); return@post }

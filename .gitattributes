@@ -1,0 +1,3 @@
+
+# Preserve upstream vendor formatting, including CRLF headers.
+scanner/vendor/** whitespace=-blank-at-eol,cr-at-eol

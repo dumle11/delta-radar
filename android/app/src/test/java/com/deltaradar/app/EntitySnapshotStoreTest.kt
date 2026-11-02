@@ -90,4 +90,38 @@ class EntitySnapshotStoreTest {
         assertFalse(store.isCurrent(old))
         assertTrue(store.isCurrent(store.status()))
     }
+    @Test fun newerSameWorldSampleDoesNotStarveQueuedRendering() {
+        store.ingest(frame(entity("enemy")))
+        val queued = store.status()
+        now = 10
+        store.ingest(frame(entity("enemy")))
+        assertFalse(store.isCurrent(queued))
+        assertTrue(store.canRender(queued))
+    }
+    @Test fun loadingAndDisconnectInvalidateOldWorkEvenAfterFreshInput() {
+        store.ingest(frame(entity("old")))
+        val queued = store.status()
+        store.ingest("""{"self":"","entities":[]}""")
+        store.ingest(frame(entity("new")))
+        assertFalse(store.canRender(queued))
+        val beforeDisconnect = store.status()
+        store.clear()
+        store.ingest(frame(entity("new")))
+        assertFalse(store.canRender(beforeDisconnect))
+    }
+    @Test fun cameraReplacementInvalidatesQueuedRendering() {
+        store.ingest(frame(entity("enemy")))
+        val queued = store.status()
+        store.ingest("""{"self":"replacement","entities":[${entity("replacement")}]}""")
+        assertFalse(store.canRender(queued))
+    }
+    @Test fun freshIncomingFramesCannotRenewAnOldProjection() {
+        store.ingest(frame(entity("enemy")))
+        val queued = store.status()
+        now = EntitySnapshotStore.FRESHNESS_MS
+        store.ingest(frame(entity("enemy")))
+        assertTrue(store.status().hasCamera)
+        assertFalse(store.canRender(queued))
+    }
+
 }

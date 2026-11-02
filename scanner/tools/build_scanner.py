@@ -19,21 +19,36 @@ def main():
     if not compiler.is_file(): parser.error('API-31 Linux NDK compiler not found')
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
     source = ROOT/'scanner/memscan.c'
-    revision, source_hash = git('rev-parse', 'HEAD'), sha(source)
+    revision = git('rev-parse', 'HEAD')
+    inputs = [source, ROOT/'scanner/sdk_native_classes.inc', ROOT/'scanner/decode_bridge.cpp', Path(__file__).resolve()]
+    inputs += sorted(p for p in (ROOT/'scanner/vendor/dfm-decoder').rglob('*') if p.is_file())
+    input_hashes = {str(p.relative_to(ROOT)): sha(p) for p in inputs}
+    source_hash = hashlib.sha256(json.dumps(input_hashes,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     flags = ['-std=gnu11', '-O2', '-Wall', '-Wextra', '-Werror', '-fPIE', '-pie',
              '-fstack-protector-strong', '-D_FORTIFY_SOURCE=2', '-Wl,--build-id=sha1',
              '-Wl,-z,relro,-z,now', '-ffile-prefix-map='+str(ROOT)+'=.',
              '-DDELTA_SOURCE_REVISION="'+revision+'"',
              '-DDELTA_SOURCE_SHA256="'+source_hash+'"']
     binary = output/'delta-radar-scanner-api31'
-    command = [str(compiler), *flags, 'scanner/memscan.c', '-lm', '-o', str(binary)]
-    subprocess.run(command, cwd=ROOT, check=True, env={**os.environ, 'SOURCE_DATE_EPOCH':'0'})
+    scanner_object=output/'memscan.o'
+    compile_command=[str(compiler), *[f for f in flags if f not in ('-pie','-Wl,--build-id=sha1','-Wl,-z,relro,-z,now')], '-DDELTA_WITH_DECODER', '-c', 'scanner/memscan.c', '-o', str(scanner_object)]
+    subprocess.run(compile_command, cwd=ROOT, check=True, env={**os.environ,'SOURCE_DATE_EPOCH':'0'})
+    vendor=ROOT/'scanner/vendor/dfm-decoder'
+    cpp=compiler.with_name('aarch64-linux-android31-clang++')
+    libraries=vendor/'libs/arm64-v8a'
+    command=[str(cpp), '-std=c++17','-O2','-fPIE','-pie','-fstack-protector-strong',
+             '-Wl,--build-id=sha1','-Wl,-z,relro,-z,now','-I'+str(vendor/'include'),
+             str(scanner_object),'scanner/decode_bridge.cpp',str(vendor/'sjz_dec_arm64.cpp'),
+             '-Wl,--start-group',str(libraries/'libunicorn-static.a'),str(libraries/'libunicorn-common.a'),
+             '-Wl,--whole-archive',str(libraries/'libaarch64-softmmu.a'),'-Wl,--no-whole-archive','-Wl,--end-group',
+             '-static-libstdc++','-llog','-lm','-o',str(binary)]
+    subprocess.run(command,cwd=ROOT,check=True,env={**os.environ,'SOURCE_DATE_EPOCH':'0'})
     binary_hash = sha(binary)
     deployment = '/data/local/tmp/delta-radar/scanner-api31-'+binary_hash[:16]
     manifest = {'baseRevision':revision, 'sourceSha256':source_hash,
                 'scannerSourceModified': bool(git('diff', '--', 'scanner/memscan.c')),
                 'scannerDiffSha256':hashlib.sha256(subprocess.check_output(['git','-C',str(ROOT),'diff','--','scanner/memscan.c'])).hexdigest(),
-                'buildScriptSha256':sha(Path(__file__)), 'target':'aarch64-linux-android31', 'targetApi':31,
+                'buildScriptSha256':sha(Path(__file__)), 'inputSha256':input_hashes, 'compileCommand':compile_command, 'target':'aarch64-linux-android31', 'targetApi':31,
                 'compilerVersion':subprocess.check_output([str(compiler),'--version'],text=True).splitlines()[0],
                 'ndkProperties':(ndk/'source.properties').read_text(), 'command':command,
                 'binary':str(binary), 'binarySha256':binary_hash, 'deploymentPath':deployment}

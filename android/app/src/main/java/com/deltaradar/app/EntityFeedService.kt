@@ -45,6 +45,8 @@ class EntityFeedService : Service() {
         private const val TAG = "DeltaRadar"
         private const val CHANNEL_ID = "delta_radar_service"
         private const val SOCKET_NAME = "delta_radar_feed"
+        const val ACTION_START_SCANNER = "com.deltaradar.app.START_SCANNER"
+        const val ACTION_STOP_SCANNER = "com.deltaradar.app.STOP_SCANNER"
         @Volatile var instance: EntityFeedService? = null; private set
 
         fun start(ctx: Context) {
@@ -71,7 +73,17 @@ class EntityFeedService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP_SCANNER) {
+            ScannerRuntime.stop()
+            OverlayService.stop(this)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (running.compareAndSet(false, true)) startListener()
+        if (intent?.action == ACTION_START_SCANNER) {
+            OverlayService.show(this)
+            ScannerRuntime.start(this)
+        }
         return START_STICKY
     }
 
@@ -171,6 +183,7 @@ class EntityFeedService : Service() {
 
     fun getSnapshot(): EntitySnapshotStore.Snapshot = snapshots.snapshot()
     fun isCurrent(status: EntitySnapshotStore.Status): Boolean = running.get() && snapshots.isCurrent(status)
+    fun canRender(status: EntitySnapshotStore.Status): Boolean = running.get() && snapshots.canRender(status)
     fun clearEntities() = snapshots.clear()
 
     private val logLines = mutableListOf<String>()

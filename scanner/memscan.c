@@ -64,19 +64,19 @@ static int session_active(void) {
 #define READ_BUF_SIZE (4 * 1024 * 1024)
 #define MAX_REGIONS 16384
 
-/* Live-probed offsets (Proxima v1.202, match_probe2 on OnePlus 7T, 2026-11) */
-#define OFF_UWORLD_PERSISTENT_LEVEL   0x430
+/* Proxima v1.202.37117.5601: matching CppSDK/SDK layouts. */
+#define OFF_UWORLD_PERSISTENT_LEVEL   0xF8
 #define OFF_UWORLD_GAME_STATE         0x140
 #define OFF_UWORLD_LEVELS             0x158
 #define OFF_ULEVEL_ACTOR_CLUSTER      0xC8
 #define OFF_ACTOR_CONTAINER_ACTORS    0x28
-#define OFF_AACTOR_ROOT_COMPONENT     0x108
+#define OFF_AACTOR_ROOT_COMPONENT     0x180
 #define OFF_AACTOR_CHILDREN           0x170
-#define OFF_USCENE_RELATIVE_LOCATION  0x150
-#define OFF_USCENE_COMPONENT_TO_WORLD 0x1C0
+#define OFF_USCENE_RELATIVE_LOCATION  0x168
+#define OFF_USCENE_COMPONENT_TO_WORLD 0x210
 #define OFF_TRANSFORM_TRANSLATION      0x10
 #define OFF_USCENE_WORLD_LOCATION      (OFF_USCENE_COMPONENT_TO_WORLD + OFF_TRANSFORM_TRANSLATION)
-#define OFF_PROXIMA_ROOT_WORLD_LOCATION 0x150
+#define OFF_PROXIMA_ROOT_WORLD_LOCATION OFF_USCENE_WORLD_LOCATION
 #define OFF_UOBJECT_CLASS             0x8
 #define OFF_UOBJECT_NAME              0x1C
 #define OFF_UOBJECT_OUTER             0x10
@@ -91,8 +91,8 @@ static int session_active(void) {
 
 /* Proxima v1.202: actor arrays move within ULevel between matches.
  * Scan a range of the level object for TArray patterns instead. */
-#define ULEVEL_SCAN_START 0x800
-#define ULEVEL_SCAN_END   0x2000
+#define ULEVEL_SCAN_START 0x98
+#define ULEVEL_SCAN_END   0x300
 #define ULEVEL_SCAN_STEP  8
 
 typedef struct {
@@ -107,7 +107,8 @@ static uint64_t ue4_base = 0, ue4_end = 0;
 static MemRegion regions[MAX_REGIONS];
 static int num_regions = 0;
 static uint8_t *read_buf = NULL;
-static int use_vm_readv = 0;
+static int use_vm_readv = 1;
+static int compatibility_scan = 0;
 static FILE *maps_file = NULL;
 
 /* Observational discovery diagnostics: fixed storage, no additional game reads.
@@ -428,6 +429,30 @@ static int is_game_heap_ptr(uint64_t p) {
     return (p & 7) == 0 && p >= 0x6e00000000ULL && p < 0x7800000000ULL;
 }
 
+#ifdef DELTA_WITH_DECODER
+extern int delta_decode_position(int pid, uint64_t base, uint64_t root, float out[3]);
+#endif
+static int read_component_position(uint64_t root, int pos_off, float out[3]) {
+    if (pos_off == OFF_USCENE_WORLD_LOCATION) {
+        float transform[12];
+        if (read_mem(root + OFF_USCENE_COMPONENT_TO_WORLD, transform, sizeof(transform)) != sizeof(transform)) return 0;
+        const uint8_t *handler = ((const uint8_t*)transform)+0x28;
+        if (handler[2]) {
+#ifdef DELTA_WITH_DECODER
+            return delta_decode_position(game_pid, ue4_base, root, out);
+#else
+            return 0;
+#endif
+        }
+        float norm = 0;
+        for (int i=0;i<4;i++) { if (!isfinite(transform[i])) return 0; norm += transform[i]*transform[i]; }
+        if (norm < 0.5f || norm > 1.5f) return 0;
+        memcpy(out, transform+4, 3*sizeof(float));
+    } else if (read_mem(root + pos_off, out, 3*sizeof(float)) != 3*sizeof(float)) return 0;
+    for (int i=0;i<3;i++) if (!isfinite(out[i]) || fabsf(out[i]) > 10000000) return 0;
+    return out[0] != 0 || out[1] != 0 || out[2] != 0;
+}
+
 #define OFF_APAWN_CONTROLLER 0x3a8
 #define OFF_APAWN_PLAYER_STATE 0x390
 #define OFF_PLAYER_CONTROLLER_ACKNOWLEDGED_PAWN 0x3F0
@@ -435,7 +460,7 @@ static int is_game_heap_ptr(uint64_t p) {
 #define OFF_PLAYER_STATE_NAME_PRIVATE 0x470
 #define OFF_PLAYER_STATE_BOT_FLAGS 0x39e
 #define OFF_PLAYER_STATE_PAWN_PRIVATE 0x3F8
-#define OFF_GP_PLAYER_STATE_TEAM_ID 0x664
+#define OFF_GP_PLAYER_STATE_TEAM_ID 0x658
 #define OFF_CHARACTER_HEALTH_COMPONENT 0x10B8
 #define OFF_HEALTH_COMPONENT_SET 0x280
 #define OFF_HEALTH_SET_CURRENT 0x3C
@@ -443,8 +468,8 @@ static int is_game_heap_ptr(uint64_t p) {
 #define OFF_HEALTH_SET_IS_ALIVE 0x134
 #define OFF_CHARACTER_LAST_IS_DEAD 0xE35
 #define OFF_PLAYER_STATE_DEAD 0x4AC
-#define OFF_CHARACTER_CAPSULE_HALF_HEIGHT 0xCB0
-#define OFF_CAPSULE_COMPONENT_HALF_HEIGHT 0x580
+#define OFF_CHARACTER_CAPSULE_HALF_HEIGHT 0xE68
+#define OFF_CAPSULE_COMPONENT_HALF_HEIGHT 0x5C0
 
 static int read_fstring(uint64_t addr, char *out, int out_size) {
     out[0] = 0;
@@ -605,6 +630,7 @@ static int is_character_class(uint64_t cls, uint64_t local_class);
 /* FName resolution state (used in scan and run modes) */
 static uint64_t fname_pool_addr = 0;
 static int fname_blocks_off = OFF_FNAME_POOL_BLOCKS;
+static uint64_t fname_block_cache[8192];
 static int fname_entry_hdr_size = 2; /* bytes before the ASCII string in FNameEntry */
 
 /* Try to validate a UWorld pointer using SDK dump offsets.
@@ -680,7 +706,7 @@ static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
         ssize_t lread = read_mem(level, lbuf, sizeof(lbuf));
         if (lread >= (ssize_t)(ULEVEL_SCAN_START + 16)) {
             int scan_path = 0;
-            for (int off = ULEVEL_SCAN_START; off + 16 <= lread; off += ULEVEL_SCAN_STEP) {
+            for (int off = 0x98; off == 0x98 && off + 16 <= lread; off += ULEVEL_SCAN_STEP) {
                 if (scan_path < 4) diag_path(scan_path + 1);
                 diag_stage(DS_ARRAY_FIELDS);
                 uint64_t actor_data;
@@ -756,16 +782,12 @@ static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
                 uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
                 uint64_t root = read_ptr(actor + OFF_AACTOR_ROOT_COMPONENT);
                 if (!D_CHECK(DC_ROOT_POINTER, is_any_ptr(root))) continue;
-                if (is_any_ptr(local_class)) {
-                    D_CHECK(DC_LOCAL_CLASS, 1);
-                    if (actor != pawn &&
-                        !D_CHECK(DC_CHARACTER_CLASS, is_character_class(cls, local_class)))
-                        continue;
-                }
+                if (!D_CHECK(DC_LOCAL_CLASS, is_any_ptr(local_class))) continue;
+                if (actor != pawn && !D_CHECK(DC_CHARACTER_CLASS, is_character_class(cls, local_class))) continue;
                 diag_stage(DS_POSITION);
-                float x = read_float(root + OFF_USCENE_RELATIVE_LOCATION);
-                float y = read_float(root + OFF_USCENE_RELATIVE_LOCATION + 4);
-                float z = read_float(root + OFF_USCENE_RELATIVE_LOCATION + 8);
+                float world_position[3];
+                if (!read_component_position(root, OFF_USCENE_WORLD_LOCATION, world_position)) continue;
+                float x = world_position[0], y = world_position[1], z = world_position[2];
                 if (!D_CHECK(DC_X_FINITE, x == x) || !D_CHECK(DC_Y_FINITE, y == y) || !D_CHECK(DC_Z_FINITE, z == z) ||
                     !D_CHECK(DC_X_BOUND, fabsf(x) <= 10000000) || !D_CHECK(DC_Y_BOUND, fabsf(y) <= 10000000) ||
                     !D_CHECK(DC_Z_BOUND, fabsf(z) <= 10000000) ||
@@ -831,7 +853,7 @@ static void scan_for_gworld(void) {
         return;
     }
 
-    if (++direct_misses < 8) {
+    if (!compatibility_scan || ++direct_misses < 8) {
         fprintf(stderr, "[*] Static GWorld slot is invalid; deferring fallback scan (%d/8)\n",
                 direct_misses);
         return;
@@ -1168,13 +1190,37 @@ static void probe_positions(GWorldCandidate *cand) {
  * FNamePool has blocks at fname_blocks_off. Block index = idx >> BlocksBit(18).
  * Entry offset = (idx & ((1<<18)-1)) * Stride(2).
  * Each FNameEntry: 2-byte header (length = hdr >> 6), then ASCII string. */
+/* Delta Force name encoding, verified against the matching SDK dump.
+ * Reference: MobileDumper-7 DeltaForceProfile at 595655004a8e1d56fd0e708fe64649f1864d7066.
+ * Only the string bytes are encoded; the two-byte entry header is ordinary UE4. */
+static void decode_name_bytes(char *data, int len) {
+    unsigned n = (unsigned)len, key;
+    switch (n % 9) {
+        case 0: key = (n & 0x1f) + n; break;
+        case 1: key = (n ^ 0xdf) + n; break;
+        case 2: key = (n | 0xcf) + n; break;
+        case 3: key = 33 * n; break;
+        case 4: key = n + (n >> 2); break;
+        case 5: key = 3 * n + 5; break;
+        case 6: key = ((4 * n) | 5) + n; break;
+        case 7: key = ((n >> 4) | 7) + n; break;
+        default: key = (n ^ 0xc) + n; break;
+    }
+    for (int i = 0; i < len; i++) data[i] = (char)((key & 0x80) ^ (uint8_t)~data[i]);
+}
+
 static int resolve_fname(int32_t idx, char *out, int out_size) {
     if (fname_pool_addr == 0 || idx < 0) { out[0] = 0; return 0; }
 
     int block_idx = idx >> 18;
     int entry_off = (idx & ((1 << 18) - 1)) * 2;
 
-    uint64_t block_ptr = read_ptr(fname_pool_addr + fname_blocks_off + block_idx * 8);
+    if (block_idx < 0 || block_idx >= 8192) { out[0] = 0; return 0; }
+    uint64_t block_ptr = fname_block_cache[block_idx];
+    if (!block_ptr) {
+        block_ptr = read_ptr(fname_pool_addr + fname_blocks_off + block_idx * 8);
+        if (is_any_ptr(block_ptr)) fname_block_cache[block_idx] = block_ptr;
+    }
     if (!is_any_ptr(block_ptr)) { out[0] = 0; return 0; }
 
     int hdr_sz = fname_entry_hdr_size;
@@ -1204,13 +1250,35 @@ static int resolve_fname(int32_t idx, char *out, int out_size) {
     }
     if (len <= 0 || len >= out_size) { out[0] = 0; return 0; }
 
+    if (hdr_buf[0] & 1) { out[0] = 0; return 0; } /* Class identifiers are ANSI. */
     if (read_mem(block_ptr + entry_off + hdr_sz, out, len) != len) { out[0] = 0; return 0; }
+    decode_name_bytes(out, len);
     for (int i = 0; i < len; i++) {
         unsigned char c = (unsigned char)out[i];
         if (c < 0x20 || c > 0x7e) { out[0] = 0; return 0; }
     }
     out[len] = 0;
     return len;
+}
+
+/* Reflection names may be unreadable. The matching SDK dump also supplies
+ * native registration indices. Cross-check their immediate parent before
+ * using these exact-build anchors; never label dynamic Blueprint indices. */
+static int resolve_class_name(uint64_t cls, char *out, int size) {
+    if (fname_pool_addr && resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), out, size)) return 1;
+    static const struct { int index, parent; const char *name; } anchors[] = {
+#include "sdk_native_classes.inc"
+    };
+    int index = read_i32(cls + 0x24);
+    for (unsigned i = 0; i < sizeof(anchors)/sizeof(anchors[0]); i++) {
+        if (anchors[i].index != index) continue;
+        uint64_t parent = read_ptr(cls + 0x40);
+        if (!is_any_ptr(parent) || read_i32(parent + 0x24) != anchors[i].parent) break;
+        snprintf(out, (size_t)size, "%s", anchors[i].name);
+        return 1;
+    }
+    out[0] = 0;
+    return 0;
 }
 
 /* ========== RUNNING MODE: Read actors and POST to radar ========== */
@@ -1535,12 +1603,12 @@ static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root, int mesh
 #define OFF_PC_CONTROL_PITCH 0x3D8
 #define OFF_PC_CONTROL_YAW   0x3DC
 #define OFF_PC_CAMERA_MANAGER 0x408
-#define OFF_CAMERA_CACHE_PRIVATE 0x37B0
+#define OFF_CAMERA_CACHE_PRIVATE 0x2D60
 #define OFF_CAMERA_CACHE_POV 0x10
-#define OFF_GP_CAMERA_FPP_FOV 0x4C00
+#define OFF_GP_CAMERA_FPP_FOV 0x4FD0
 #define OFF_POV_LOCATION 0x0
 #define OFF_POV_ROTATION 0x10
-#define OFF_POV_FOV 0x20
+#define OFF_POV_FOV 0x1C
 
 static char self_entity_id[32] = {0};
 /* Loading/lobby worlds can contain pawn-shaped preview actors. Only publish
@@ -1561,19 +1629,18 @@ static int camera_candidate_count = 0;
  * direct parent is the common character base used by human and AI pawns. */
 static int is_character_class(uint64_t cls, uint64_t local_class) {
     if (!is_any_ptr(cls) || !is_any_ptr(local_class)) return 0;
-    uint64_t local_chain[5] = {0};
-    uint64_t current = local_class;
-    for (int i = 0; i < 5 && is_any_ptr(current); i++) {
-        local_chain[i] = current;
-        current = read_ptr(current + 0x40); /* UStruct::SuperStruct */
+    {
+        uint64_t current = cls;
+        for (int depth = 0; depth < 16 && is_any_ptr(current); depth++) {
+            char name[96] = {0};
+            resolve_class_name(current, name, sizeof(name));
+            if (!strcmp(name, "GPCharacterBase") || !strcmp(name, "GPCharacter")) return 1;
+            uint64_t parent = read_ptr(current + 0x40);
+            if (parent == current) break;
+            current = parent;
+        }
     }
-    for (int depth = 0; depth < 12 && is_any_ptr(cls); depth++) {
-        for (int i = 0; i < 5; i++)
-            if (local_chain[i] != 0 && cls == local_chain[i]) return 1;
-        uint64_t next = read_ptr(cls + 0x40);
-        if (next == cls) break;
-        cls = next;
-    }
+
     return 0;
 }
 
@@ -1588,7 +1655,7 @@ static int loot_class_cache_count = 0;
 /* Return the display kind from the reflected class hierarchy:
  * 0=not loot, 1=item, 2=container, 3=stash/interactable, 4=death box. */
 static int loot_kind_from_class(uint64_t cls) {
-    if (!is_any_ptr(cls) || !fname_pool_addr) return 0;
+    if (!is_any_ptr(cls)) return 0;
     for (int i = 0; i < loot_class_cache_count; i++)
         if (loot_class_cache[i].cls == cls) return loot_class_cache[i].kind;
 
@@ -1596,7 +1663,7 @@ static int loot_kind_from_class(uint64_t cls) {
     int result = 0;
     for (int depth = 0; depth < 16 && is_any_ptr(cls); depth++) {
         char name[96] = {0};
-        resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name));
+        resolve_class_name(cls, name, sizeof(name));
         if (strstr(name, "InventoryPickup_DeadBody")) result = 4;
         else if (!result && (strstr(name, "SingleItemContainer") ||
                  strstr(name, "ChangeableContainer"))) result = 3;
@@ -1657,7 +1724,7 @@ static uint64_t find_battlefield_system(uint64_t uworld, uint64_t local_pc,
      * padded subsystem-collection portion of UWorld. */
     for (int pass = 0; pass < 2; pass++) {
         int first = pass == 0 ? 0 : 0x228 / 8;
-        int last = pass == 0 ? (int)(sizeof(world_fields) / sizeof(world_fields[0])) : 0x660 / 8;
+        int last = (int)(sizeof(world_fields) / sizeof(world_fields[0]));
         for (int wi = first; wi < last; wi++) {
             uint64_t root = world_fields[wi];
             if (!is_game_heap_ptr(root)) continue;
@@ -1827,7 +1894,7 @@ static int find_object_field(uint64_t owner, int start, int end, const char *cla
         uint64_t cls = read_ptr(object + OFF_UOBJECT_CLASS);
         if (!is_any_ptr(cls)) continue;
         char class_name[96] = {0};
-        resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), class_name, sizeof(class_name));
+        resolve_class_name(cls, class_name, sizeof(class_name));
         if (class_name[0] && strstr(class_name, class_fragment)) return off;
     }
     return -1;
@@ -2124,10 +2191,11 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
                             local_class = read_ptr(pawn + OFF_UOBJECT_CLASS);
                             uint64_t pawn_root = read_ptr(pawn + root_off);
                             if (is_any_ptr(pawn_root)) {
-                                local_root = pawn_root;
-                                cached_self_pos[0] = read_float(pawn_root + pos_off) / 100.0f;
-                                cached_self_pos[1] = read_float(pawn_root + pos_off + 4) / 100.0f;
-                                cached_self_pos[2] = read_float(pawn_root + pos_off + 8) / 100.0f;
+                                float position[3];
+                                if (read_component_position(pawn_root, pos_off, position)) {
+                                    local_root = pawn_root;
+                                    for (int axis=0;axis<3;axis++) cached_self_pos[axis] = position[axis]/100.0f;
+                                }
                             }
                             cached_local_class = local_class;
                         }
@@ -2190,12 +2258,8 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             camera_pitch = read_float(pov + OFF_POV_ROTATION);
             camera_yaw = read_float(pov + OFF_POV_ROTATION + 4);
             camera_fov = read_float(pov + OFF_POV_FOV);
-            /* Delta Force applies weapon ADS through its derived camera
-             * manager and can leave FMinimalViewInfo::FOV at the base 90°.
-             * FPPCameraFOV is the effective first-person projection angle. */
-            float fpp_camera_fov = read_float(camera_manager + OFF_GP_CAMERA_FPP_FOV);
-            if (fpp_camera_fov >= 5.0f && fpp_camera_fov <= 180.0f)
-                camera_fov = fpp_camera_fov;
+            /* FMinimalViewInfo::FOV is the final rendered horizontal angle.
+             * +0x20 is DesiredFOV; FPPCameraFOV is a derived setting, not it. */
             camera_valid = camera_x == camera_x && camera_y == camera_y && camera_z == camera_z &&
                 camera_pitch == camera_pitch && camera_yaw == camera_yaw &&
                 fabsf(camera_x) < 100000.0f && fabsf(camera_y) < 100000.0f &&
@@ -2237,7 +2301,7 @@ camera_done:
     if (!is_game_heap_ptr(battlefield_system) && is_game_heap_ptr(local_pawn) &&
         (battlefield_attempt_tick++ % 300) == 0) {
         battlefield_system = find_battlefield_system(uworld, local_pc, local_pawn);
-        if (!is_game_heap_ptr(battlefield_system))
+        if (!is_game_heap_ptr(battlefield_system) && compatibility_scan)
             battlefield_system = scan_battlefield_system(local_pc, local_pawn);
         if (is_game_heap_ptr(battlefield_system))
             fprintf(stderr, "\n[+] GPBattleFieldSystem=0x%lx (authoritative roster)\n",
@@ -2246,7 +2310,7 @@ camera_done:
     int refresh_cache = cached_uworld != uworld || cached_actor_data != actor_data ||
                         cached_actor_count == 0 || cache_age >= 20;
     if (refresh_cache) {
-        uint64_t levels[128] = {0};
+        uint64_t levels[2048] = {0};
         int level_count = 1;
         levels[0] = level;
 
@@ -2255,11 +2319,11 @@ camera_done:
          * merge their actor arrays into one deduplicated transform cache. */
         uint64_t levels_data = read_ptr(uworld + OFF_UWORLD_LEVELS);
         int32_t world_level_count = read_i32(uworld + OFF_UWORLD_LEVELS + 8);
-        if (is_any_ptr(levels_data) && world_level_count > 0 && world_level_count <= 127) {
-            uint64_t streamed[127] = {0};
+        if (is_any_ptr(levels_data) && world_level_count > 0 && world_level_count <= 2047) {
+            uint64_t streamed[2047] = {0};
             if (read_mem(levels_data, streamed, (size_t)world_level_count * 8) ==
                 (ssize_t)((size_t)world_level_count * 8)) {
-                for (int li = 0; li < world_level_count && level_count < 128; li++) {
+                for (int li = 0; li < world_level_count && level_count < 2048; li++) {
                     if (!is_any_ptr(streamed[li])) continue;
                     int duplicate = 0;
                     for (int existing = 0; existing < level_count; existing++)
@@ -2350,7 +2414,7 @@ camera_done:
                      * moving pawn with a pickup merely because their large
                      * derived layouts contain similar-looking bytes. */
                     loot_kind = loot_kind_from_class(cls);
-                    if (!loot_kind && !fname_pool_addr)
+                    if (!loot_kind && !fname_pool_addr && compatibility_scan)
                         loot_kind = classify_loot_actor(actor);
                 }
                 int is_loot = loot_kind != 0;
@@ -2497,14 +2561,26 @@ camera_done:
             if (is_game_heap_ptr(active_pawn) && active_pawn != actor_ptrs[i]) continue;
         }
 
+        // Dead characters do not produce an overlay and need no emulation.
+        if (!is_loot_actor && !is_self_pawn) {
+            uint8_t actor_hidden=0, actor_dead=0, ps_dead=0;
+            // AActor::bHidden is bit 0 at +0x90 in the matching SDK.
+            // Extracted/inactive pawns can retain plausible cached health.
+            read_mem(actor_ptrs[i]+0x90,&actor_hidden,1);
+            if(actor_hidden&1)continue;
+            read_mem(actor_ptrs[i]+OFF_CHARACTER_LAST_IS_DEAD,&actor_dead,1);
+            if(has_playerstate)read_mem(player_state+OFF_PLAYER_STATE_DEAD,&ps_dead,1);
+            if((actor_dead&1)||(ps_dead&1))continue;
+        }
         uint64_t root = read_ptr(actor_ptrs[i] + root_off);
         if (!is_any_ptr(root)) continue;
         diag_root++;
 
-        /* Read the verified Proxima live world vector. */
-        float wx = read_float(root + pos_off);
-        float wy = read_float(root + pos_off + 4);
-        float wz = read_float(root + pos_off + 8);
+        /* Read the current world transform atomically. Uninitialized proxy
+         * transforms have a zero quaternion and must not produce markers. */
+        float world_position[3];
+        if (!read_component_position(root, pos_off, world_position)) continue;
+        float wx=world_position[0], wy=world_position[1], wz=world_position[2];
 
         if (wx != wx || wy != wy || wz != wz) continue;
         if (fabsf(wx) > 10000000 || fabsf(wy) > 10000000 || fabsf(wz) > 10000000) continue;
@@ -3053,6 +3129,7 @@ int main(int argc, char **argv) {
             use_ctw = 1;
         else if (strcmp(argv[i], "vmreadv") == 0)
             use_vm_readv = 1;
+        else if (strcmp(argv[i], "compat-scan") == 0) compatibility_scan = 1;
     }
 
     if (!mode_scan && !mode_run && !mode_regions && !mode_dump) {
@@ -3102,171 +3179,16 @@ int main(int argc, char **argv) {
             num_regions, (unsigned long)ue4_base, (unsigned long)ue4_end,
             (unsigned long)((ue4_end - ue4_base) / (1024*1024)));
 
-    /* Try to set up FName resolution from known GNames offset.
-     * The FNamePool::Blocks offset varies between UE4 builds; probe several. */
-    if (ue4_base > 0) {
-        uint64_t gnames_base = ue4_base +
-            (use_vm_readv ? OFF_GNAMES_READABLE_ALIAS : OFF_GNAMES_FROM_UE4_BASE);
-        static const int blocks_offsets[] = {0x38, 0x10, 0x18, 0x20, 0x28, 0x30, 0x40, 0x48, 0x50};
-        int found_blocks = 0;
-        for (int bi = 0; bi < (int)(sizeof(blocks_offsets)/sizeof(blocks_offsets[0])) && !found_blocks; bi++) {
-            uint64_t block0 = read_ptr(gnames_base + blocks_offsets[bi]);
-            if (!is_any_ptr(block0)) continue;
-            char test[16];
-            if (read_mem(block0, test, 16) != 16) continue;
-            for (int no = 2; no <= 8; no += 2) {
-                if (memcmp(test + no, "None", 4) == 0) {
-                    fname_pool_addr = gnames_base;
-                    fname_blocks_off = blocks_offsets[bi];
-                    fname_entry_hdr_size = no;
-                    fprintf(stderr, "[+] GNames validated at 0x%lx (blocks@+0x%x, hdr=%d)\n",
-                            (unsigned long)fname_pool_addr, fname_blocks_off, no);
-                    found_blocks = 1;
-                    break;
-                }
-            }
-        }
-        if (!found_blocks) {
-            /* Scan the three large UE4 rw data sections for any pointer
-             * whose target starts with the "None" FNameEntry. Read in
-             * 64KB chunks; only valid-looking pointers get a remote
-             * verify, so the costly read_mem calls stay proportional to
-             * pointer density, not region size. */
-            fprintf(stderr, "[*] Scanning UE4 data sections for FNamePool block0...\n");
-            fname_pool_addr = 0;
-            for (int ri = 0; ri < num_regions && !found_blocks; ri++) {
-                if (regions[ri].perms[1] != 'w') continue;
-                if (strstr(regions[ri].name, "libUE4") == NULL) continue;
-                uint64_t sz = regions[ri].end - regions[ri].start;
-                if (sz < 65536) continue; /* only the 3 big data sections */
-                fprintf(stderr, "  [*] 0x%lx (%lu MB)\n",
-                        (unsigned long)regions[ri].start, (unsigned long)(sz / (1024*1024)));
-                for (uint64_t off = 0; off < sz && !found_blocks; off += 65536) {
-                    uint64_t chunk_sz = sz - off;
-                    if (chunk_sz > 65536) chunk_sz = 65536;
-                    uint8_t buf[65536];
-                    if (read_mem(regions[ri].start + off, buf, (size_t)chunk_sz) != (ssize_t)chunk_sz)
-                        continue;
-                    /* Scan for consecutive valid heap pointers where the
-                     * first one leads to "None" — that's the blocks array. */
-                    for (uint64_t p = 0; p + 16 <= chunk_sz && !found_blocks; p += 8) {
-                        uint64_t ptr0, ptr1;
-                        memcpy(&ptr0, buf + p, 8);
-                        if (!is_any_ptr(ptr0)) continue;
-                        memcpy(&ptr1, buf + p + 8, 8);
-                        if (!is_any_ptr(ptr1)) continue;
-                        /* Two consecutive heap pointers — check if ptr0 → "None"
-                         * at various header sizes (2, 4, 6, 8 bytes) */
-                        char test[16];
-                        if (read_mem(ptr0, test, 16) != 16) continue;
-                        int none_off = -1;
-                        for (int no = 2; no <= 8; no += 2)
-                            if (memcmp(test + no, "None", 4) == 0) { none_off = no; break; }
-                        if (none_off < 0) continue;
-                        /* Found block0! The blocks array is at this position.
-                         * FNamePool structure starts some offset before. */
-                        uint64_t blocks_addr = regions[ri].start + off + p;
-                        /* Determine the offset from FNamePool start to blocks.
-                         * Read backwards to find the pool header. For now, try
-                         * common offsets by calculating the pool start. */
-                        for (int bi = 0; bi < (int)(sizeof(blocks_offsets)/sizeof(blocks_offsets[0])); bi++) {
-                            if ((int64_t)(off + p) - blocks_offsets[bi] < 0) continue;
-                            fname_pool_addr = blocks_addr - blocks_offsets[bi];
-                            fname_blocks_off = blocks_offsets[bi];
-                            /* Verify: re-read block0 from our pool address */
-                            uint64_t v = read_ptr(fname_pool_addr + fname_blocks_off);
-                            if (v == ptr0) {
-                                fname_entry_hdr_size = none_off;
-                                fprintf(stderr, "[+] FNamePool at 0x%lx (blocks@+0x%x=%0lx, hdr=%d)\n",
-                                        (unsigned long)fname_pool_addr, fname_blocks_off,
-                                        (unsigned long)blocks_addr, none_off);
-                                found_blocks = 1;
-                                break;
-                            }
-                        }
-                        if (!found_blocks) {
-                            /* Direct: treat blocks_addr as pool + blocks_off=0 */
-                            fname_pool_addr = blocks_addr;
-                            fname_blocks_off = 0;
-                            fname_entry_hdr_size = none_off;
-                            fprintf(stderr, "[+] FNamePool blocks at 0x%lx (blocks@+0x0, hdr=%d)\n",
-                                    (unsigned long)blocks_addr, none_off);
-                            found_blocks = 1;
-                        }
-                    }
-                }
-            }
-            /* Phase 3: Search ALL writable heap pages for the "None" string.
-             * FNamePool block[0] is a heap allocation starting with a small header
-             * then "None\0" as the very first FName entry (index 0). */
-            if (!found_blocks) {
-                fprintf(stderr, "[*] Phase 3: Searching heap for 'None' FNameEntry...\n");
-                for (int ri = 0; ri < num_regions && !found_blocks; ri++) {
-                    if (regions[ri].perms[0] != 'r' || regions[ri].perms[1] != 'w') continue;
-                    uint64_t sz = regions[ri].end - regions[ri].start;
-                    if (sz < 4096 || sz > 128 * 1024 * 1024) continue;
-                    /* Skip libUE4 code sections (already scanned data above) */
-                    if (strstr(regions[ri].name, "libUE4") != NULL && regions[ri].perms[2] == 'x') continue;
-                    /* Read first 4KB of each region — block[0] is typically at the start of its page */
-                    uint8_t page[4096];
-                    if (read_mem(regions[ri].start, page, 4096) != 4096) continue;
-                    for (int no = 2; no <= 8; no += 2) {
-                        if (memcmp(page + no, "None", 4) == 0 && page[no + 4] == 0) {
-                            /* This page starts with a FNameEntry for "None"!
-                             * This is block[0]. Now find who points to it. */
-                            uint64_t block0_addr = regions[ri].start;
-                            fprintf(stderr, "[+] Found 'None' FNameEntry at 0x%lx+%d\n",
-                                    (unsigned long)block0_addr, no);
-                            /* Search UE4 data sections for a pointer to this block0 */
-                            for (int ri2 = 0; ri2 < num_regions && !found_blocks; ri2++) {
-                                if (regions[ri2].perms[1] != 'w') continue;
-                                if (strstr(regions[ri2].name, "libUE4") == NULL) continue;
-                                uint64_t sz2 = regions[ri2].end - regions[ri2].start;
-                                if (sz2 < 65536) continue;
-                                for (uint64_t off2 = 0; off2 < sz2 && !found_blocks; off2 += 65536) {
-                                    uint64_t chunk2 = sz2 - off2;
-                                    if (chunk2 > 65536) chunk2 = 65536;
-                                    uint8_t buf2[65536];
-                                    if (read_mem(regions[ri2].start + off2, buf2, (size_t)chunk2) != (ssize_t)chunk2)
-                                        continue;
-                                    for (uint64_t p2 = 0; p2 + 8 <= chunk2; p2 += 8) {
-                                        uint64_t val;
-                                        memcpy(&val, buf2 + p2, 8);
-                                        if (val == block0_addr) {
-                                            uint64_t ptr_addr = regions[ri2].start + off2 + p2;
-                                            /* This pointer points to block0. Try different pool offsets. */
-                                            for (int bi = 0; bi < (int)(sizeof(blocks_offsets)/sizeof(blocks_offsets[0])); bi++) {
-                                                fname_pool_addr = ptr_addr - blocks_offsets[bi];
-                                                fname_blocks_off = blocks_offsets[bi];
-                                                fname_entry_hdr_size = no;
-                                                uint64_t v = read_ptr(fname_pool_addr + fname_blocks_off);
-                                                if (v == block0_addr) {
-                                                    fprintf(stderr, "[+] FNamePool at 0x%lx (blocks@+0x%x, hdr=%d) [Phase 3]\n",
-                                                            (unsigned long)fname_pool_addr, fname_blocks_off, no);
-                                                    found_blocks = 1;
-                                                    break;
-                                                }
-                                            }
-                                            if (!found_blocks) {
-                                                fname_pool_addr = ptr_addr;
-                                                fname_blocks_off = 0;
-                                                fname_entry_hdr_size = no;
-                                                fprintf(stderr, "[+] FNamePool blocks at 0x%lx (blocks@+0x0, hdr=%d) [Phase 3]\n",
-                                                        (unsigned long)ptr_addr, no);
-                                                found_blocks = 1;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if (found_blocks) break;
-                        }
-                    }
-                }
-            }
-            if (!found_blocks)
-                fprintf(stderr, "[!] FNamePool not found after all phases\n");
-        }
+    /* This build's pool is known. Never search the whole heap for a plaintext
+     * sentinel: Delta Force encodes its names and that search selects unrelated
+     * text buffers. Unreadable data remains unavailable. */
+    fname_pool_addr = ue4_base + OFF_GNAMES_FROM_UE4_BASE;
+    char pool_name[16] = {0};
+    if (resolve_fname(0, pool_name, sizeof(pool_name)) && !strcmp(pool_name, "None"))
+        fprintf(stderr, "[+] SDK FNamePool validated at 0x%lx\n", (unsigned long)fname_pool_addr);
+    else {
+        fname_pool_addr = 0;
+        fprintf(stderr, "[!] SDK name pool unavailable; no compatibility heap scan\n");
     }
 
     if (mode_regions) {
@@ -3501,7 +3423,14 @@ int main(int argc, char **argv) {
                  * and wait for gameplay instead of exiting after startup. */
                 while (running && num_candidates == 0) {
                     fprintf(stderr, "[*] No active gameplay world; waiting for a match...\n");
-                    sleep(15);
+                    for (int wait = 0; wait < 30 && session_active(); wait++) usleep(100000);
+                    if (!session_active()) break;
+                    int latest_pid = find_game_pid();
+                    if (latest_pid > 0 && latest_pid != game_pid) {
+                        fprintf(stderr, "[+] Game restarted while waiting; reattaching\n");
+                        execv(argv[0], argv);
+                        break;
+                    }
                     parse_maps();
                     scan_for_gworld();
                     keep_gameplay_candidates_only();
@@ -3635,10 +3564,10 @@ int main(int argc, char **argv) {
                 consecutive_failures = 0;
             } else {
                 consecutive_failures++;
-                /* Preserve the last verified snapshot across short streaming
-                 * gaps so Android does not time out and clear every line. */
-                if (self_verified && num_entities > 0 && consecutive_failures <= 45)
-                    post_to_radar();
+                num_entities = 0;
+                self_entity_id[0] = 0;
+                self_verified = 0;
+                post_to_radar();
             }
             uint64_t selected_world = read_ptr(use_gworld);
             uint64_t selected_level = is_any_ptr(selected_world) ?

@@ -72,7 +72,7 @@ class OverlayWindowDeviceTest {
             val service = EntityFeedService.instance!!
             val raw = """{"self":"TEST-camera","entities":[{"id":"TEST-camera","x":0,"y":0,"z":1.6,"yaw":0,"pitch":0,"fov":80},{"id":"TEST-enemy","name":"TEST FIXTURE","kind":"player","team":2,"x":10,"y":0,"z":1.0,"healthKnown":true,"health":75,"maxHealth":100}]}"""
             feeder = thread(isDaemon = true) {
-                while (keepFeeding.get()) { service.ingest(raw); SystemClock.sleep(100) }
+                while (keepFeeding.get()) { service.ingest(raw); SystemClock.sleep(10) }
             }
             await("actual overlay did not draw") {
                 OverlayService.instance?.overlayVisible == true && OverlayService.instance!!.overlayDrawnFrames > 0

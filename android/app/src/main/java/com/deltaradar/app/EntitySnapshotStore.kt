@@ -9,13 +9,14 @@ class EntitySnapshotStore(private val clock: () -> Long) {
 
     data class Status(
         val receivedAtMs: Long, val sequence: Long, val fresh: Boolean,
-        val hasCamera: Boolean, val entityCount: Int
+        val hasCamera: Boolean, val entityCount: Int, val worldGeneration: Long = 0
     )
     data class Snapshot(val json: JSONObject, val status: Status)
 
     private var frame = JSONObject().put("entities", JSONArray())
     private var receivedAtMs = -1L
     private var sequence = 0L
+    private var worldGeneration = 0L
 
     @Synchronized fun ingest(line: String): Boolean {
         // Validate the entire frame before changing the visible snapshot or its age.
@@ -57,6 +58,7 @@ class EntitySnapshotStore(private val clock: () -> Long) {
             require((list.length() == 0 && self.isEmpty()) || (self.isNotEmpty() && cameraFound))
             JSONObject().put("entities", accepted).also { if (self.isNotEmpty()) it.put("self", self) }
         } catch (_: Exception) { return false }
+        if (next.optString("self", "") != frame.optString("self", "") || !next.has("self")) worldGeneration++
         frame = next
         receivedAtMs = clock()
         sequence++
@@ -67,7 +69,7 @@ class EntitySnapshotStore(private val clock: () -> Long) {
         val age = clock() - receivedAtMs
         val fresh = receivedAtMs >= 0 && age >= 0 && age < FRESHNESS_MS
         return Status(receivedAtMs, sequence, fresh,
-            fresh && frame.has("self"), if (fresh) frame.getJSONArray("entities").length() else 0)
+            fresh && frame.has("self"), if (fresh) frame.getJSONArray("entities").length() else 0, worldGeneration)
     }
 
     @Synchronized fun snapshot(): Snapshot {
@@ -82,9 +84,19 @@ class EntitySnapshotStore(private val clock: () -> Long) {
         return current.fresh && current.hasCamera && current.sequence == candidate.sequence
     }
 
+    /** A newer camera sample from this world must not starve an in-flight draw.
+     * Empty frames, disconnects and a different camera identity invalidate it. */
+    @Synchronized fun canRender(candidate: Status): Boolean {
+        val current = status()
+        val age = clock() - candidate.receivedAtMs
+        return current.hasCamera && candidate.hasCamera && age in 0 until FRESHNESS_MS &&
+            current.worldGeneration == candidate.worldGeneration && candidate.sequence <= current.sequence
+    }
+
     @Synchronized fun clear() {
         frame = JSONObject().put("entities", JSONArray())
         receivedAtMs = -1
         sequence++
+        worldGeneration++
     }
 }

@@ -126,6 +126,12 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         }
         val me = data.me ?: return
         drawnFrames++
+        CaptureDiagnostics.record(context, "latest-overlay-draw.json") {
+            org.json.JSONObject().put("drawnFrames", drawnFrames).put("width", width).put("height", height)
+                .put("sourceAgeMs", SystemClock.elapsedRealtime() - receivedAt)
+                .put("entities", data.enemies.size).put("playerFeatures", playerFeatures)
+                .put("botFeatures", botFeatures).put("lootFeatures", lootFeatures)
+        }
         val padding = 2f * density
         val occupied = mutableListOf<RectF>()
         val blend = ((SystemClock.elapsedRealtime() - transitionStartedAt) / 50f).coerceIn(0f, 1f)

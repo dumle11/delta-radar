@@ -5,6 +5,12 @@ the local UE4 actor state and sends complete snapshots over an abstract Unix
 domain socket directly to the Android foreground service. No HTTP server, LAN
 listener, browser UI, SSE endpoint, or web assets are included.
 
+## Current live repair
+
+See [the live SDK handoff](docs/LIVE_SDK_HANDOFF.md) for current results, build
+identity and remaining human-player coordinate issues. Nearby loot alignment is
+confirmed; the full player overlay is still under verification.
+
 ## Components
 
 - `scanner/memscan.c` — native actor, transform, health, death, and team reader.
@@ -18,8 +24,8 @@ listener, browser UI, SSE endpoint, or web assets are included.
 ./android/gradlew -p android assembleDebug
 ```
 
-Configure your local SDK location in `android/local.properties`. That file and
-old build/cache output are tracked in this upstream checkout; keep local SDK
+Configure your local SDK location in `android/local.properties`. Local SDK configuration is ignored. Old build/cache output is tracked in this
+upstream checkout; keep local SDK
 paths and regenerated artifacts out of source changes.
 
 The scanner and Android app must use the same abstract socket name:

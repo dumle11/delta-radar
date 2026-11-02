@@ -1,5 +1,9 @@
 # Verified scanner deployment and startup — 2026-11-02
 
+Historical baseline: the current SDK repair changes offsets, decoding and binary
+identity. See [the current handoff](LIVE_SDK_HANDOFF.md) and
+scanner/deployment.properties for the installed version.
+
 ## Identity and reproduction
 
 Base repository revision: `a448200d0e645dab34c920ae3a4f7e8f14ef7d0e` plus
