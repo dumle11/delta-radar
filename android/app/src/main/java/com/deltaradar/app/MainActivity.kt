@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import java.util.concurrent.atomic.AtomicBoolean
 import android.provider.Settings
 import android.widget.TextView
 import android.widget.Toast
@@ -21,19 +22,22 @@ class MainActivity : AppCompatActivity() {
     private var entityFeed: EntityFeedService? = null
     private var bound = false
     private var statusRunnable: Runnable? = null
-    private var starting = false
+    private val starting get() = ScannerRuntime.state.phase == ScannerRuntime.Phase.STARTING
+    private var startupSession: ScannerSession? = null
+    private var binding = false
     private var pendingOverlayPermission = false
+    private val statusQueryInFlight = AtomicBoolean(false)
+    private var rootStatusRequested = false
 
-    private val DFM_PKG = "com.proxima.dfm"
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             entityFeed = (binder as EntityFeedService.LocalBinder).service
-            bound = true
+            bound = true; binding = false
             updateUi()
         }
         override fun onServiceDisconnected(name: ComponentName?) {
-            entityFeed = null; bound = false
+            entityFeed = null; bound = false; binding = false
         }
     }
 
@@ -41,13 +45,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         findViewById<TextView>(R.id.btnStart).setOnClickListener { toggleRadar() }
-        if (Settings.canDrawOverlays(this) && entityFeed?.isFeedRunning != true) {
-            handler.postDelayed({ if (!starting && entityFeed?.isFeedRunning != true) toggleRadar() }, 500)
-        }
+
     }
 
     override fun onStart() {
         super.onStart()
+        rootStatusRequested = false
         tryBindService()
         startStatusLoop()
     }
@@ -55,7 +58,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         stopStatusLoop()
-        if (bound) { try { unbindService(connection) } catch (_: Exception) {}; bound = false }
+        if (binding || bound) { try { unbindService(connection) } catch (_: Exception) {}; bound = false; binding = false; entityFeed = null }
     }
 
     override fun onResume() {
@@ -67,12 +70,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun tryBindService() {
-        try { bindService(Intent(this, EntityFeedService::class.java), connection, 0) } catch (_: Exception) {}
+        if (bound || binding) return
+        try { binding = bindService(Intent(this, EntityFeedService::class.java), connection, 0) }
+        catch (_: Exception) { binding = false }
+    }
+
+    override fun onDestroy() {
+        if (ScannerRuntime.cancelPending(startupSession)) {
+            EntityFeedService.stop(this)
+            OverlayService.stop(this)
+        }
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
     }
 
     private fun startStatusLoop() {
         val r = object : Runnable {
-            override fun run() { refreshStatus(); handler.postDelayed(this, 3000) }
+            override fun run() { tryBindService(); refreshStatus(); handler.postDelayed(this, 250) }
         }
         statusRunnable = r; r.run()
     }
@@ -82,50 +96,50 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshStatus() {
-        thread {
-            val status = RootUtils.getFullStatus()
-            val feedOk = entityFeed?.isFeedRunning == true
-            val entityCount = entityFeed?.entityCount ?: 0
-
-            handler.post {
-                findViewById<TextView>(R.id.txtRoot).apply {
-                    text = "Root: ${if (status.hasRoot) "granted" else "not available"}"
-                    setTextColor(if (status.hasRoot) 0xFF4fd08a.toInt() else 0xFFe5534b.toInt())
-                }
-                findViewById<TextView>(R.id.txtGame).apply {
-                    text = "Delta Force: ${if (status.gamePid != null) "running (PID ${status.gamePid})" else "not running"}"
-                    setTextColor(if (status.gamePid != null) 0xFF4fd08a.toInt() else 0xFF5c6b78.toInt())
-                }
-                findViewById<TextView>(R.id.txtFeed).apply {
-                    val scannerOk = status.scannerPid != null
-                    val receiving = entityFeed?.lastUpdateTs?.let {
-                        it > 0 && System.currentTimeMillis() - it < 5000
-                    } == true
-                    text = when {
-                        feedOk && scannerOk && receiving -> "Overlay feed: receiving (reader PID ${status.scannerPid})"
-                        feedOk && scannerOk -> "Overlay feed: reader running; waiting for match"
-                        feedOk -> "Overlay feed: waiting for scanner"
-                        else -> "Overlay feed: stopped"
-                    }
-                    setTextColor(if (feedOk && scannerOk) 0xFF4fd08a.toInt() else 0xFF5c6b78.toInt())
-                }
-                findViewById<TextView>(R.id.txtEntities).apply {
-                    text = "Entities: $entityCount"
-                    setTextColor(0xFF5c6b78.toInt())
-                }
-                findViewById<TextView>(R.id.btnStart).apply {
-                    text = if (starting) "Starting..." else if (feedOk) "Stop Overlay" else "Start Overlay"
-                    isEnabled = !starting
-                }
+        // Feed health must not wait for su or inherit its cached PID state.
+        val feedOk = entityFeed?.isFeedRunning == true
+        val feedStatus = entityFeed?.feedStatus
+        val connected = feedOk && feedStatus?.hasCamera == true
+        findViewById<TextView>(R.id.txtFeed).apply {
+            text = when {
+                connected -> "Overlay feed: connected (fresh frame)"
+                ScannerRuntime.state.phase == ScannerRuntime.Phase.FAILED -> "Scanner: ${ScannerRuntime.state.message}"
+                !feedOk -> "Overlay feed: stopped"
+                feedStatus?.fresh == true -> "Overlay feed: idle (no active camera)"
+                (feedStatus?.receivedAtMs ?: -1) >= 0 -> "Overlay feed: stale"
+                else -> "Overlay feed: waiting for valid frame"
             }
+            setTextColor(if (connected) 0xFF4fd08a.toInt() else 0xFF5c6b78.toInt())
+        }
+        findViewById<TextView>(R.id.txtEntities).text = "Entities: ${feedStatus?.entityCount ?: 0}"
+        findViewById<TextView>(R.id.btnStart).apply {
+            text = if (starting) "Cancel Start" else if (feedOk || ScannerRuntime.state.phase == ScannerRuntime.Phase.RUNNING) "Stop Overlay" else "Start Overlay"
+            isEnabled = ScannerRuntime.state.phase != ScannerRuntime.Phase.STOPPING
+        }
+        if (rootStatusRequested || !statusQueryInFlight.compareAndSet(false, true)) return
+        rootStatusRequested = true
+        thread(name = "root-status") {
+            try {
+                val status = RootUtils.getFullStatus()
+                handler.post {
+                    if (isDestroyed) return@post
+                    findViewById<TextView>(R.id.txtRoot).apply {
+                        text = "Root: ${if (status.hasRoot) "granted" else "not available"}"
+                        setTextColor(if (status.hasRoot) 0xFF4fd08a.toInt() else 0xFFe5534b.toInt())
+                    }
+                    findViewById<TextView>(R.id.txtGame).apply {
+                        text = "Delta Force: ${if (status.gamePid != null) "running (PID ${status.gamePid})" else "not running"}"
+                        setTextColor(if (status.gamePid != null) 0xFF4fd08a.toInt() else 0xFF5c6b78.toInt())
+                    }
+                }
+            } finally { statusQueryInFlight.set(false) }
         }
     }
 
     private fun updateUi() { refreshStatus() }
 
     private fun toggleRadar() {
-        if (starting) return
-        if (entityFeed?.isFeedRunning == true) {
+        if (starting || EntityFeedService.instance?.isFeedRunning == true || ScannerRuntime.state.phase == ScannerRuntime.Phase.RUNNING) {
             stopRadar(); return
         }
         if (!Settings.canDrawOverlays(this)) {
@@ -133,45 +147,21 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
             return
         }
-        starting = true
-        findViewById<TextView>(R.id.btnStart).apply { text = "Starting..."; isEnabled = false }
-
         EntityFeedService.start(this)
         OverlayService.show(this)
-
-        val game = packageManager.getLaunchIntentForPackage(DFM_PKG)
-        if (game != null) startActivity(game)
-        else toast("Delta Force is not installed")
-
-        thread(name = "scanner-launch") {
-            var scannerStarted = false
-            try {
-                for (attempt in 0 until 20) {
-                    if (RootUtils.getFullStatus().gamePid != null) {
-                        scannerStarted = RootUtils.startScanner(this)
-                        break
-                    }
-                    Thread.sleep(250)
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("DeltaRadar", "Reader startup failed", e)
-            }
-            handler.post {
-                tryBindService()
-                starting = false
-                if (!scannerStarted) toast("Reader failed to start; see /data/local/tmp/memscan.log")
-                refreshStatus()
-            }
-        }
+        startupSession = ScannerRuntime.start(this)
+        // Start never launches/restarts the game. The user controls gameplay.
+        tryBindService()
+        refreshStatus()
     }
 
     private fun stopRadar() {
-        if (bound) { try { unbindService(connection) } catch (_: Exception) {}; bound = false; entityFeed = null }
+        if (binding || bound) { try { unbindService(connection) } catch (_: Exception) {}; bound = false; binding = false; entityFeed = null }
+        ScannerRuntime.stop()
         EntityFeedService.stop(this)
         OverlayService.stop(this)
-        thread(name = "scanner-stop") { RootUtils.exec("killall ue_telemetry 2>/dev/null || true") }
         toast("Radar stopped")
-        handler.postDelayed(::refreshStatus, 1000)
+        refreshStatus()
     }
 
     private fun toast(msg: String) { Toast.makeText(this, msg, Toast.LENGTH_SHORT).show() }

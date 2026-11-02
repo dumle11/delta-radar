@@ -11,7 +11,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View(context) {
-    companion object { const val FRESHNESS_MS = 1200L }
+    companion object { const val FRESHNESS_MS = EntitySnapshotStore.FRESHNESS_MS }
 
     data class Enemy(
         val id: String,
@@ -34,6 +34,8 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     )
     data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>)
 
+    @Volatile var drawnFrames = 0L
+        private set
     private var frame: Frame? = null
     private var receivedAt = 0L
     private var transitionStartedAt = 0L
@@ -123,6 +125,13 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
             post(expire); return
         }
         val me = data.me ?: return
+        drawnFrames++
+        CaptureDiagnostics.record(context, "latest-overlay-draw.json") {
+            org.json.JSONObject().put("drawnFrames", drawnFrames).put("width", width).put("height", height)
+                .put("sourceAgeMs", SystemClock.elapsedRealtime() - receivedAt)
+                .put("entities", data.enemies.size).put("playerFeatures", playerFeatures)
+                .put("botFeatures", botFeatures).put("lootFeatures", lootFeatures)
+        }
         val padding = 2f * density
         val occupied = mutableListOf<RectF>()
         val blend = ((SystemClock.elapsedRealtime() - transitionStartedAt) / 50f).coerceIn(0f, 1f)
