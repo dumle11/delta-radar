@@ -3,8 +3,9 @@
 The user requested the remote enemy lines combined with our verified loot lines
 on this machine. Work is checkpointed on branch `working-v1` (from `codex/enemies-and-loot`). Remote has no
 `main`: its default is `master`, fetched at
-`4e844f72eb22ad1ad314748afdf5b891a55b4f15`. This is a selective source integration,
-not a full merge. Keep our real display metrics, camera handling, asynchronous
+`4e844f72eb22ad1ad314748afdf5b891a55b4f15`. Enemy positioning was selectively integrated first. The `working-v1` PR
+then reconciles remote `master`, retaining the tested app/native sources and
+remote historical reader files. Keep our real display metrics, camera handling, asynchronous
 decoder, scanner ownership checks and app lifecycle behavior.
 
 - Ported remote's enemy root position source (`+0x148`) and ASLR-safe object
