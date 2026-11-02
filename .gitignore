@@ -1,2 +1,15 @@
 *.apk
-*.apk
+
+# Local evidence may contain screenshots/player identities. Never commit it.
+/evidence/local/
+# Reproducible native outputs are local artifacts.
+/scanner/build/
+
+# Ignore additional generated files in the upstream tracked build trees.
+/android/.gradle/
+/android/.kotlin/
+/android/app/build/
+
+/android/local.properties
+
+/scanner/tools/__pycache__/

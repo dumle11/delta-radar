@@ -70,12 +70,15 @@ replicated-actor stream: each entity = an actor with id/class, transform
 ingestion schema mirrors exactly that model, and its 5-second drop-out mirrors
 relevancy culling.
 
-## 4. delta-radar implementation (this project)
+## 4. Current delta-radar implementation
 
-* `server.js` — zero-dep Node server: `POST /api/state` ingestion,
-  `GET /api/stream` (SSE), `GET /api/state`, mod pipeline, 5 s relevancy prune.
-* `public/` — canvas radar (pan/zoom, touch), entity list, mod panels.
-* `mods/server/` — feed-transform mods (hot-reloaded).
-* `mods/client/` — drop-in render mods.
-* Verified locally: 21 simulated entities streamed over SSE, mod toggle
-  `hostiles-only` filtered feed 21 → 17 entities, all endpoints 200.
+The current checkout is Android-only: `scanner/memscan.c` publishes complete
+newline-delimited JSON frames to the abstract Unix socket `delta_radar_feed`;
+`EntityFeedService` validates/ages them, and `OverlayService`/`EnemyLinesView`
+render the on-device overlay. There is no Node server, SSE route, or browser UI
+in this checkout.
+
+Earlier simulated Node/SSE endpoint and mod-toggle checks describe a removed
+implementation and do not validate the current scanner or overlay. See
+[the baseline review](BASELINE_REVIEW.md) for source-versus-historical claims,
+device identity, the first Android lifecycle repair, and validation limits.

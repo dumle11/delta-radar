@@ -34,7 +34,12 @@ class OverlayService : Service() {
     private var selectedTab = 0
     private var bubbleHidden = false
     private var overlaysHidden = false
+    private val lifecycle = OverlayLifecycle()
     private var enemyLinesView: EnemyLinesView? = null
+    val overlayDrawnFrames: Long get() = enemyLinesView?.drawnFrames ?: 0L
+    val overlayVisible: Boolean get() = enemyLinesView?.visibility == View.VISIBLE
+    @Volatile var lastPublishedSequence: Long = -1L
+        private set
     private var bubbleX = 0; private var bubbleY = 0
 
     private val logLines = mutableListOf<String>()
@@ -59,9 +64,9 @@ class OverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_SHOW -> { overlaysHidden = false; if (bubbleView == null && !isMenuOpen) showBubble() }
-            ACTION_HIDE -> { overlaysHidden = true; enemyLinesView?.clear(); removeBubble(); if (isMenuOpen) closeMenu(false) }
-            else -> { overlaysHidden = false; if (bubbleView == null && !isMenuOpen) showBubble() }
+            ACTION_SHOW -> { lifecycle.show(); overlaysHidden = false; if (bubbleView == null && !isMenuOpen) showBubble() }
+            ACTION_HIDE -> { lifecycle.hide(); stopOverlayRefresh(); overlaysHidden = true; enemyLinesView?.clear(); removeBubble(); if (isMenuOpen) closeMenu(false) }
+            else -> { lifecycle.show(); overlaysHidden = false; if (bubbleView == null && !isMenuOpen) showBubble() }
         }
         return START_NOT_STICKY
     }
@@ -88,20 +93,20 @@ class OverlayService : Service() {
     @Volatile private var refreshCount = 0L
 
     fun refreshEnemyLines() {
+        val generation = lifecycle.capture() ?: return
         refreshCount++
         val service = EntityFeedService.instance
-        if (service == null) { if (refreshCount % 300 == 1L) android.util.Log.w("DeltaRadar", "refresh: no EntityFeedService instance"); return }
-        if (service.lastUpdateTs == 0L || System.currentTimeMillis() - service.lastUpdateTs > 750L) {
-            handler.post { enemyLinesView?.clear() }
+        if (service == null) {
+            handler.post { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
             return
         }
-        val selfId = service.selfId
-        if (selfId.isNullOrEmpty()) {
-            if (refreshCount % 300 == 1L) android.util.Log.w("DeltaRadar", "refresh: no selfId, entities=${service.entityCount}")
-            handler.post { enemyLinesView?.clear() }
+        val snapshot = service.getSnapshot()
+        val selfId = snapshot.json.optString("self", "")
+        if (!snapshot.status.hasCamera || selfId.isEmpty()) {
+            handler.post { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
             return
         }
-        val entities = service.getSnapshot().optJSONArray("entities") ?: return
+        val entities = snapshot.json.getJSONArray("entities")
         val byId = HashMap<String, org.json.JSONObject>(entities.length())
 
         var mx = 0.0; var my = 0.0; var mz = 0.0; var myYaw = 0.0; var myPitch = 0.0
@@ -118,12 +123,14 @@ class OverlayService : Service() {
             }
         }
         if (!foundSelf) {
-            handler.post { enemyLinesView?.clear() }
+            handler.post { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
             return
         }
 
         val hfovDeg = cameraFov
-        val metrics = resources.displayMetrics
+        val metrics = android.util.DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealMetrics(metrics)
         val screenAspect = metrics.widthPixels.toDouble() / metrics.heightPixels.coerceAtLeast(1)
         // Tracer lines originate from the top-centre of the viewport. Entity
         // boxes and labels continue to use their projected world positions.
@@ -254,6 +261,12 @@ class OverlayService : Service() {
             )
         }
         handler.post {
+            if (!lifecycle.accepts(generation) || EntityFeedService.instance !== service) return@post
+            if (!service.canRender(snapshot.status)) {
+                if (!service.feedStatus.hasCamera) enemyLinesView?.clear()
+                return@post
+            }
+            if (snapshot.status.sequence < lastPublishedSequence) return@post
             ensureEnemyLinesWindow()
             val view = enemyLinesView ?: return@post
             if (isMenuOpen) { view.clear(); return@post }
@@ -267,7 +280,20 @@ class OverlayService : Service() {
                 com.deltaradar.app.Settings.teammateDrawMode(this),
                 com.deltaradar.app.Settings.lootDrawMode(this),
                 com.deltaradar.app.Settings.lineThicknessPercent(this) / 100f)
-            view.submit(frame, android.os.SystemClock.elapsedRealtime())
+            view.submit(frame, snapshot.status.receivedAtMs)
+            lastPublishedSequence = snapshot.status.sequence
+            CaptureDiagnostics.record(this, "latest-overlay-frame.json") {
+                org.json.JSONObject().put("sequence", snapshot.status.sequence)
+                    .put("dataReceivedElapsedMs", snapshot.status.receivedAtMs)
+                    .put("aspect", screenAspect).put("cameraX", mx).put("cameraY", my).put("cameraZ", mz)
+                    .put("yaw", myYaw).put("pitch", myPitch).put("fov", hfovDeg)
+                    .put("projected", org.json.JSONArray().also { list ->
+                        enemyFrames.forEach { e -> list.put(org.json.JSONObject()
+                            .put("id", e.id).put("kind", e.kind).put("team", e.team)
+                            .put("x", e.screenX.toDouble()).put("y", e.screenY.toDouble())
+                            .put("onScreen", e.onScreen).put("distance", e.distanceMeters)) }
+                    }).put("rejected", org.json.JSONArray(rejected))
+            }
         }
     }
 
@@ -275,6 +301,7 @@ class OverlayService : Service() {
         stopOverlayRefresh()
         val r = object : Runnable {
             override fun run() {
+                if (lifecycle.capture() == null) return
                 if (projectionInFlight.compareAndSet(false, true)) {
                     projectionExecutor.execute {
                         try { refreshEnemyLines() } finally { projectionInFlight.set(false) }
@@ -711,6 +738,7 @@ class OverlayService : Service() {
     }
 
     override fun onDestroy() {
+        lifecycle.destroy()
         stopOverlayRefresh()
         projectionExecutor.shutdownNow()
         enemyLinesView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
