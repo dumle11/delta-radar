@@ -48,8 +48,13 @@
 #define OFF_UOBJECT_CLASS             0x8
 #define OFF_UOBJECT_NAME              0x1C
 #define OFF_UOBJECT_OUTER             0x10
-#define OFF_GNAMES_FROM_UE4_BASE      0x18bacd80
-#define OFF_GUOBJECTARRAY_FROM_BASE   0x18bca1a0
+#define OFF_GNAMES_FROM_UE4_BASE      0x20744AC0
+/* The canonical FNamePool page above is mapped write-only in this regional
+ * build, so process_vm_readv cannot inspect it.  This read/write UE4 alias
+ * references the same pool and avoids a 56 MB discovery scan on every start. */
+#define OFF_GNAMES_READABLE_ALIAS     0x1BEE1F60
+#define OFF_GUOBJECTARRAY_FROM_BASE   0x2076B8F8
+#define OFF_GWORLD_FROM_UE4_BASE      0x20AA87A0
 #define OFF_FNAME_POOL_BLOCKS         0x38
 
 /* Standard UE4 ULevel::Actors offsets (hidden in pad area) */
@@ -195,12 +200,12 @@ static int is_game_heap_ptr(uint64_t p) {
 #define OFF_PLAYER_STATE_BOT_FLAGS 0x39e
 #define OFF_PLAYER_STATE_PAWN_PRIVATE 0x3F8
 #define OFF_GP_PLAYER_STATE_TEAM_ID 0x664
-#define OFF_CHARACTER_HEALTH_COMPONENT 0xEC8
-#define OFF_HEALTH_COMPONENT_SET 0x248
+#define OFF_CHARACTER_HEALTH_COMPONENT 0x10B8
+#define OFF_HEALTH_COMPONENT_SET 0x280
 #define OFF_HEALTH_SET_CURRENT 0x3C
 #define OFF_HEALTH_SET_MAX 0x54
 #define OFF_HEALTH_SET_IS_ALIVE 0x134
-#define OFF_CHARACTER_LAST_IS_DEAD 0xC81
+#define OFF_CHARACTER_LAST_IS_DEAD 0xE35
 #define OFF_PLAYER_STATE_DEAD 0x4AC
 #define OFF_CHARACTER_CAPSULE_HALF_HEIGHT 0xCB0
 #define OFF_CAPSULE_COMPONENT_HALF_HEIGHT 0x580
@@ -431,8 +436,46 @@ static void scan_for_gworld(void) {
 
     num_candidates = 0;
 
-    /* First try GWorld at known offset from libUE4.so base (if we had it).
-     * The SDK dump doesn't include GWorld offset (World=0x0), so scan. */
+    /* The live SDK dump supplies the actual static GWorld slot.  Checking it
+     * is constant-time and avoids walking hundreds of megabytes every 15
+     * seconds while the user is in menus.  Retain a rare bounded fallback for
+     * a future game build whose offset has changed. */
+    static int direct_misses = 0;
+    uint64_t direct_addr = ue4_base + OFF_GWORLD_FROM_UE4_BASE;
+    uint64_t direct_world = read_ptr(direct_addr);
+    if (is_any_ptr(direct_world)) {
+        GWorldCandidate direct = {0};
+        int score = try_validate_uworld(direct_world, &direct);
+        if (score >= 70) {
+            direct.gworld_addr = direct_addr;
+            direct.uworld = direct_world;
+            candidates[num_candidates++] = direct;
+            direct_misses = 0;
+            fprintf(stderr,
+                    "[+] Static GWorld@0x%lx -> UWorld=0x%lx actors=%d players=%d score=%d%%\n",
+                    (unsigned long)direct_addr, (unsigned long)direct_world,
+                    direct.actor_count, direct.plausible_players, direct.score);
+            return;
+        }
+
+        /* A valid slot commonly points at the login/loading/front-end world.
+         * That is not evidence that the SDK offset changed.  Waiting here is
+         * effectively free and prevents a multi-hundred-megabyte compatibility
+         * scan from starving the game while it loads resources. */
+        direct_misses = 0;
+        fprintf(stderr,
+                "[*] Static GWorld@0x%lx is a non-gameplay world; waiting for match\n",
+                (unsigned long)direct_addr);
+        return;
+    }
+
+    if (++direct_misses < 8) {
+        fprintf(stderr, "[*] Static GWorld slot is invalid; deferring fallback scan (%d/8)\n",
+                direct_misses);
+        return;
+    }
+    direct_misses = 0;
+    fprintf(stderr, "[!] Static GWorld did not validate; running compatibility fallback scan\n");
 
     for (int i = 0; i < num_regions && num_candidates < 64; i++) {
         if (regions[i].perms[0] != 'r' || regions[i].perms[1] != 'w') continue;
@@ -1165,33 +1208,36 @@ static int is_character_class(uint64_t cls, uint64_t local_class) {
  * character-shaped, so they must be admitted explicitly from the level actor
  * arrays. Matching the parent chain also covers map-specific Blueprint classes
  * such as bird nests and stashes. */
-typedef struct { uint64_t cls; int is_loot; } LootClassCache;
+typedef struct { uint64_t cls; int kind; } LootClassCache;
 static LootClassCache loot_class_cache[256];
 static int loot_class_cache_count = 0;
 
-static int is_loot_class(uint64_t cls) {
+/* Return the display kind from the reflected class hierarchy:
+ * 0=not loot, 1=item, 2=container, 3=stash/interactable, 4=death box. */
+static int loot_kind_from_class(uint64_t cls) {
     if (!is_any_ptr(cls) || !fname_pool_addr) return 0;
     for (int i = 0; i < loot_class_cache_count; i++)
-        if (loot_class_cache[i].cls == cls) return loot_class_cache[i].is_loot;
+        if (loot_class_cache[i].cls == cls) return loot_class_cache[i].kind;
 
     uint64_t original = cls;
     int result = 0;
     for (int depth = 0; depth < 16 && is_any_ptr(cls); depth++) {
         char name[96] = {0};
         resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name));
-        if (strstr(name, "InventoryPickup") || strstr(name, "PickupBase") ||
-            strstr(name, "SingleItemContainer") || strstr(name, "ChangeableContainer") ||
-            strstr(name, "PlunderPickup")) {
-            result = 1;
-            break;
-        }
+        if (strstr(name, "InventoryPickup_DeadBody")) result = 4;
+        else if (!result && (strstr(name, "SingleItemContainer") ||
+                 strstr(name, "ChangeableContainer"))) result = 3;
+        else if (!result && (strstr(name, "InventoryPickup_Container") ||
+                 strstr(name, "InventoryPickup_OpenBox"))) result = 2;
+        else if (!result && (strstr(name, "InventoryPickup") ||
+                 strstr(name, "PickupBase") || strstr(name, "PlunderPickup"))) result = 1;
         uint64_t next = read_ptr(cls + 0x40); /* UStruct::SuperStruct */
         if (next == cls) break;
         cls = next;
     }
     if (loot_class_cache_count < (int)(sizeof(loot_class_cache) / sizeof(loot_class_cache[0]))) {
         loot_class_cache[loot_class_cache_count].cls = original;
-        loot_class_cache[loot_class_cache_count].is_loot = result;
+        loot_class_cache[loot_class_cache_count].kind = result;
         loot_class_cache_count++;
     }
     return result;
@@ -1329,14 +1375,14 @@ static int classify_loot_actor(uint64_t actor) {
      * APickupBase inventory descriptor (AI boxes commonly do not). Test the
      * derived-class fields independently of the generic pickup score. */
     char dead_player_name[64] = {0};
-    read_fstring(actor + 0x1D10, dead_player_name, sizeof(dead_player_name));
-    uint64_t dead_mesh = read_ptr(actor + 0x1D60);
-    uint64_t looting_owner = read_ptr(actor + 0x1DA8);
-    int camp_id = read_i32(actor + 0x1D48);
-    float dead_currency = read_float(actor + 0x1D50);
+    read_fstring(actor + 0x2638, dead_player_name, sizeof(dead_player_name));
+    uint64_t dead_mesh = read_ptr(actor + 0x2688);
+    uint64_t looting_owner = read_ptr(actor + 0x2780);
+    int camp_id = read_i32(actor + 0x2670);
+    float dead_currency = read_float(actor + 0x2678);
     uint8_t dead_flags[2] = {0};
-    read_mem(actor + 0x1DA0, &dead_flags[0], 1); /* bIsAI */
-    read_mem(actor + 0x1DB0, &dead_flags[1], 1); /* bLooted */
+    read_mem(actor + 0x277A, &dead_flags[0], 1); /* bIsAI */
+    read_mem(actor + 0x2790, &dead_flags[1], 1); /* bLooted */
     int deadbox_score = 0;
     if (dead_player_name[0]) deadbox_score += 3;
     if (is_game_heap_ptr(dead_mesh)) deadbox_score += 3;
@@ -1901,8 +1947,41 @@ camera_done:
                 } else {
                     is_character = actor == local_pawn || is_character_class(cls, local_class);
                 }
-                int loot_kind = !is_character ? classify_loot_actor(actor) : 0;
-                if (!loot_kind && !is_character && is_loot_class(cls)) loot_kind = 1;
+
+                /* Never infer loot solely from bytes inside a pawn-sized
+                 * object.  Character and pickup subclasses have large,
+                 * overlapping layouts in this title, so a character can
+                 * accidentally satisfy the old death-box/pickup score.  A
+                 * capsule root plus APawn ownership is independent structural
+                 * evidence and takes precedence over all loot heuristics. */
+                int looks_like_pawn = 0;
+                uint64_t possible_root = read_ptr(actor + root_off);
+                if (is_game_heap_ptr(possible_root)) {
+                    float hh = read_float(possible_root +
+                        OFF_CAPSULE_COMPONENT_HALF_HEIGHT) / 100.0f;
+                    uint64_t state = read_ptr(actor + OFF_APAWN_PLAYER_STATE);
+                    uint64_t controller = read_ptr(actor + OFF_APAWN_CONTROLLER);
+                    if (isfinite(hh) && hh >= 0.4f && hh <= 3.0f &&
+                        (is_game_heap_ptr(state) || is_game_heap_ptr(controller))) {
+                        looks_like_pawn = 1;
+
+                        /* A currently possessed pawn is authoritative even if
+                         * the subsystem array is between replication updates. */
+                        uint64_t active_pawn = is_game_heap_ptr(state) ?
+                            read_ptr(state + OFF_PLAYER_STATE_PAWN_PRIVATE) : 0;
+                        if (active_pawn == actor) is_character = 1;
+                    }
+                }
+
+                int loot_kind = 0;
+                if (!is_character && !looks_like_pawn) {
+                    /* Reflected inheritance is definitive and cannot confuse a
+                     * moving pawn with a pickup merely because their large
+                     * derived layouts contain similar-looking bytes. */
+                    loot_kind = loot_kind_from_class(cls);
+                    if (!loot_kind && !fname_pool_addr)
+                        loot_kind = classify_loot_actor(actor);
+                }
                 int is_loot = loot_kind != 0;
 
                 /* Human operators do not always share the local pawn's concrete
@@ -2115,7 +2194,7 @@ camera_done:
         if (is_loot_actor) {
             if (loot_kind == 4) {
                 char owner_name[48] = {0};
-                read_fstring(actor_ptrs[i] + 0x1D10, owner_name, sizeof(owner_name));
+                read_fstring(actor_ptrs[i] + 0x2638, owner_name, sizeof(owner_name));
                 snprintf(e->name, sizeof(e->name), "%s%s%s", "Death Box",
                          owner_name[0] ? ": " : "", owner_name);
             } else if (loot_kind == 3) {
@@ -2644,7 +2723,8 @@ int main(int argc, char **argv) {
     /* Try to set up FName resolution from known GNames offset.
      * The FNamePool::Blocks offset varies between UE4 builds; probe several. */
     if (ue4_base > 0) {
-        uint64_t gnames_base = ue4_base + OFF_GNAMES_FROM_UE4_BASE;
+        uint64_t gnames_base = ue4_base +
+            (use_vm_readv ? OFF_GNAMES_READABLE_ALIAS : OFF_GNAMES_FROM_UE4_BASE);
         static const int blocks_offsets[] = {0x38, 0x10, 0x18, 0x20, 0x28, 0x30, 0x40, 0x48, 0x50};
         int found_blocks = 0;
         for (int bi = 0; bi < (int)(sizeof(blocks_offsets)/sizeof(blocks_offsets[0])) && !found_blocks; bi++) {

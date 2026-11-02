@@ -3223,6 +3223,16 @@ id listMode
 id list_item
 id logScroll
 id logText
+id lootColorCyan
+id lootColorGreen
+id lootColorOrange
+id lootColorRed
+id lootColorYellow
+id lootFeatureContainer
+id lootModeBoxes
+id lootModeLines
+id lootModeMarker
+id lootModeOff
 id m3_side_sheet
 id marquee
 id masked

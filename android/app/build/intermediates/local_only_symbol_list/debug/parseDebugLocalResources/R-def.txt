@@ -24,6 +24,16 @@ id lineThicknessSeek
 id lineThicknessValue
 id logScroll
 id logText
+id lootColorCyan
+id lootColorGreen
+id lootColorOrange
+id lootColorRed
+id lootColorYellow
+id lootFeatureContainer
+id lootModeBoxes
+id lootModeLines
+id lootModeMarker
+id lootModeOff
 id menuBackground
 id playerColorCyan
 id playerColorPurple

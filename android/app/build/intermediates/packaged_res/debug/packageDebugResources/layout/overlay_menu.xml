@@ -533,6 +533,68 @@
                             android:textColor="#0a0e12" android:background="#FF8C42"
                             android:clickable="true" android:focusable="true" />
                     </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#1E2940" android:layout_marginBottom="8dp" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="LOOT / INTERACTABLES" android:textColor="#4fd08a"
+                        android:textSize="10sp" android:textStyle="bold"
+                        android:letterSpacing="0.1" android:paddingLeft="4dp"
+                        android:layout_marginBottom="6dp" />
+
+                    <LinearLayout android:id="@+id/lootFeatureContainer"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="6dp" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"
+                        android:orientation="horizontal" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="6dp">
+                        <TextView android:id="@+id/lootModeOff"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Off" android:textSize="10sp"
+                            android:textColor="#c8d6e0" android:background="#1E2940" />
+                        <TextView android:id="@+id/lootModeLines"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Lines" android:textSize="10sp"
+                            android:textColor="#c8d6e0" android:background="#1E2940" />
+                        <TextView android:id="@+id/lootModeBoxes"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Boxes" android:textSize="10sp"
+                            android:textColor="#0a0e12" android:background="#4fd08a" />
+                        <TextView android:id="@+id/lootModeMarker"
+                            android:layout_width="0dp" android:layout_weight="0"
+                            android:layout_height="match_parent" android:visibility="gone" />
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="28dp"
+                        android:orientation="horizontal" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="8dp">
+                        <TextView android:id="@+id/lootColorGreen"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="Green"
+                            android:textSize="9sp" android:textColor="#0a0e12" android:background="#4fd08a" />
+                        <TextView android:id="@+id/lootColorCyan"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="Cyan"
+                            android:textSize="9sp" android:textColor="#0a0e12" android:background="#46D9FF" />
+                        <TextView android:id="@+id/lootColorYellow"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="Yellow"
+                            android:textSize="9sp" android:textColor="#0a0e12" android:background="#FFE066" />
+                        <TextView android:id="@+id/lootColorRed"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="Red"
+                            android:textSize="9sp" android:textColor="#0a0e12" android:background="#e5534b" />
+                        <TextView android:id="@+id/lootColorOrange"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="Orange"
+                            android:textSize="9sp" android:textColor="#0a0e12" android:background="#FF8C42" />
+                    </LinearLayout>
                 </LinearLayout>
             </ScrollView>
 

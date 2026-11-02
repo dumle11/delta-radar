@@ -1,0 +1,503 @@
+=== Dumper Info ===
+Dumper Name: MobileDumper-7
+Dumper Version: 1.2.1
+Dumper Repo: https://github.com/MJx0/MobileDumper-7
+==================
+=== Profile Info ===
+Game: com.proxima.dfm
+Version: 1.202.37117.5601
+Output: /data/local/tmp/dfm-fixed-pread2/MobileDumper-7/com.proxima.dfm_v1.202.37117.5601_20261102-152210
+==================
+Initializing Unreal Module...
+=== Unreal Module ===
+Path: /data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so
+Start: 0x7744507000
+End: 0x77674AF000
+Base: 0x7744507000
+Segments (48):
+[00]: 0x0000007744507000 - 0x000000774d034000 | 0x00000000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[01]: 0x000000774d034000 - 0x000000774d035000 | 0x08b2d000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[02]: 0x000000774d035000 - 0x000000774e47e000 | 0x08b2e000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[03]: 0x000000774e47e000 - 0x000000774e47f000 | 0x09f77000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[04]: 0x000000774e47f000 - 0x000000774facf000 | 0x09f78000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[05]: 0x000000774facf000 - 0x000000774fad0000 | 0x0b5c8000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[06]: 0x000000774fad0000 - 0x000000774fc60000 | 0x0b5c9000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[07]: 0x000000774fc60000 - 0x000000774fc61000 | 0x0b759000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[08]: 0x000000774fc61000 - 0x0000007754995000 | 0x0b75a000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[09]: 0x0000007754995000 - 0x0000007754996000 | 0x1048e000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[10]: 0x0000007754996000 - 0x0000007754c29000 | 0x1048f000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[11]: 0x0000007754c29000 - 0x0000007754c2a000 | 0x10722000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[12]: 0x0000007754c2a000 - 0x0000007754cae000 | 0x10723000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[13]: 0x0000007754cae000 - 0x0000007754caf000 | 0x107a7000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[14]: 0x0000007754caf000 - 0x000000775596f000 | 0x107a8000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[15]: 0x000000775596f000 - 0x0000007755970000 | 0x11468000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[16]: 0x0000007755970000 - 0x0000007755aa8000 | 0x11469000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[17]: 0x0000007755aa8000 - 0x0000007755aa9000 | 0x115a1000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[18]: 0x0000007755aa9000 - 0x0000007755dc4000 | 0x115a2000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[19]: 0x0000007755dc4000 - 0x0000007755dc5000 | 0x118bd000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[20]: 0x0000007755dc5000 - 0x0000007756590000 | 0x118be000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[21]: 0x0000007756590000 - 0x0000007756591000 | 0x12089000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[22]: 0x0000007756591000 - 0x000000775681b000 | 0x1208a000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[23]: 0x000000775681b000 - 0x000000775681c000 | 0x12314000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[24]: 0x000000775681c000 - 0x0000007757950000 | 0x12315000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[25]: 0x0000007757950000 - 0x0000007757951000 | 0x13449000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[26]: 0x0000007757951000 - 0x000000775f585000 | 0x1344a000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[27]: 0x000000775f585000 - 0x000000775f586000 | 0x1b07e000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[28]: 0x000000775f586000 - 0x000000775f7e4000 | 0x1b07f000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[29]: 0x000000775f7e4000 - 0x000000775f7e5000 | 0x1b2dd000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[30]: 0x000000775f7e5000 - 0x000000775f7e9000 | 0x1b2de000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[31]: 0x000000775f7e9000 - 0x000000775f7ea000 | 0x1b2e2000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[32]: 0x000000775f7ea000 - 0x000000775f7eb000 | 0x1b2e3000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[33]: 0x000000775f7eb000 - 0x000000775f7ec000 | 0x1b2e4000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[34]: 0x000000775f7ec000 - 0x000000775fba0000 | 0x1b2e5000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[35]: 0x000000775fba0000 - 0x000000775fba1000 | 0x1b699000 | RWX | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[36]: 0x000000775fba1000 - 0x0000007760213000 | 0x1b69a000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[37]: 0x0000007760213000 - 0x0000007760216000 | 0x00000000 | ---
+[38]: 0x0000007760216000 - 0x0000007763aec000 | 0x1bd0b000 | RW- | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[39]: 0x0000007763aec000 - 0x0000007763aef000 | 0x00000000 | RW- | [[anon:.bss]]
+[40]: 0x0000007763aef000 - 0x0000007764160000 | 0x1f5e0000 | RW- | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[41]: 0x0000007764160000 - 0x000000776501c000 | 0x00000000 | RW- | [[anon:.bss]]
+[42]: 0x000000776501c000 - 0x000000776501f000 | 0x00000000 | ---
+[43]: 0x000000776501f000 - 0x0000007765023000 | 0x1fc54000 | R-X | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[44]: 0x0000007765023000 - 0x0000007765027000 | 0x1fc54000 | RW- | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[45]: 0x0000007765027000 - 0x000000776502c000 | 0x1fc54000 | RW- | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+[46]: 0x000000776502c000 - 0x000000776502f000 | 0x00000000 | ---
+[47]: 0x000000776502f000 - 0x00000077674af000 | 0x1fc58000 | RW- | [/data/app/com.proxima.dfm-6F6RDR6Fv9qtBJt0vamLcQ==/lib/arm64/libUE4.so]
+==================
+Initializing UEAnalyzerKitty...
+=== UEAnalyzerKitty ===
+UE Engine TChar: UTF16
+UE Engine Version: 4.24.2-0+++UE4+Release-4.24
+==================
+Initializing Decrypt Callbacks...
+==================
+Initializing Objects...
+=== Objects ===
+InitObjects: Resolving GObjects...
+GetGObjects: Delta Force signature resolved module offset 0x2076B8F8
+InitObjects: Trying candidate 0x7764C728F8 from IProfile::GetGObjects (100.0% confidence)
+ResolveGObjectsLayout: Delta Force 50/50 sampled slots held a valid object (100.0%)
+InitObjects: [Direct] Applied FChunkedFixedUObjectArray: Objects@+0x20 -> 0x76EBBA2080, NumElements@+0x14=116282, EPC=0x10000, Item(+0x0, stride 0x18)
+InitObjects: [Direct] Verified: 50/50 sampled slots held a valid object (100.0%)
+InitObjects: GObjects at 0x7764C728F8, module offset 0x2076B8F8
+InitObjects: Layout FChunkedFixedUObjectArray
+InitObjects:   Objects +0x020 -> 0x76EBBA2080
+InitObjects:   NumElements +0x014 -> 116282
+InitObjects:   ElementsPerChunk = 0x10000
+InitObjects:   FUObjectItem::Object +0x000
+InitObjects:   FUObjectItem::Size = 0x18
+==================
+Initializing Names...
+=== Names ===
+InitNames: Resolving GNames...
+InitNames: IProfile::GetGNames() returned unreadable address 0x0 - falling back to UEAnalyzerKitty
+InitNames: UEAnalyzerKitty offered 1 candidate(s)
+InitNames: Trying candidate 0x7764C4BAC0 from UEAnalyzerKitty (82.5% confidence)
+ResolveGNamesLayout: Array: No pointer run at root 0x7764C4BAC0 led to an entry starting with "None"
+ResolveGNamesLayout: [best] Pool: Blocks@+0x38 BlocksBit=0x12 (FName voting) Entry(header +0x0, string +0x2, stride 2), 64/64 entries decoded, 8 known - 100.0% confidence
+ResolveGNamesLayout: Detected FNamePool at 0x7764C4BAC0, 64/64 entries decoded (100.0% confidence, 1 candidate(s) considered)
+InitNames: [Direct] Applied FNamePool: Blocks@+0x38 -> 0x7742BC0000, BlocksBit=0x12, Entry(header +0x0, string +0x2, stride 2)
+InitNames: [Direct] Verified: Entry 0 reads "None", 50/50 sampled names decoded, 8 matched known engine names
+InitNames: GNames at 0x7764C4BAC0, module offset 0x20744AC0
+InitNames: Layout FNamePool
+InitNames:   Blocks +0x038 -> 0x7742BC0000
+InitNames:   BlocksBit = 0x12
+InitNames:   FNameEntry::Header +0x000
+InitNames:   FNameEntry::String +0x002
+InitNames:   FNameEntry::Stride = 0x2
+InitNames:   FNameEntry::LengthShift = 0x6 (optional)
+InitNames:   FNameEntry::WideMask = 0x1 (optional)
+InitNames: Testing IProfile::GetNameEntryByIndex and GetNameEntryString...
+InitNames: Printing first 10 name entries...
+[00] None
+[03] N0ne
+[06] Nome
+[09] 30949b77fd7e7042
+[18] SHVector
+[23] 992e7de5ca74c4d4
+[32] Color
+[36] e80c4d39f32503c7
+[45] Plane
+[49] f325031e27a4a292
+==================
+Initializing Settings...
+=== Settings ===
+General::MaxFNameLen: 512
+Generator::ZipCompressionLevel: 6
+EngineCore::bEnableEncryptedObjectPropertySupport: false
+CppGenerator::UseMemberCustomSpacing: false
+CppGenerator::SDKNamespaceName: SDK
+CppGenerator::XORString: (none)
+CppGenerator::bForceNoGWorldInSDK: false
+CppGenerator::bAddManualOverrideOptions: true
+CppGenerator::bAddFinalSpecifier: true
+MappingGenerator::bShouldCheckForDuplicatedNames: true
+MappingGenerator::bExcludeEditorOnlyProperties: true
+Debug::bGenerateAssertionFile: true
+==================
+Initializing Offsets...
+=== Offsets ===
+InitOffsets: Initializing FInGenOffsets...
+Finding UObject.Index...
+UObject.Index = 0x24
+Initializing UObject.Flags...
+UObject.Flags = 0x18
+Initializing UObject.Class...
+UObject.Class = 0x8
+Initializing UObject.Outer...
+UObject.Outer = 0x10
+Initializing UObject.Name...
+UObject.Name = 0x1C
+(Early) Initializing FName...
+(Early) FName.CompIdx = 0x0
+(Early) FName.Number = 0x4
+(Early) FName.SizeOf = 0x8
+(Early) initializing UClass.CastFlags for UStruct.Children...
+(Early) UClass.CastFlags = 0xD8
+Initializing UStruct.Children...
+UStruct.Children = 0x50
+Initializing UField.Next...
+UField.Next = 0x28
+Initializing UStruct.SuperStruct...
+UStruct.SuperStruct = 0x40
+Initializing UStruct.Size...
+UStruct.Size = 0x3C
+Initializing UStruct.MinAlignment...
+UStruct.MinAlignment = 0x48
+Initializing UClass.CastFlags...
+UClass.CastFlags = 0xD8
+Initializing UStruct.StructBaseChain...
+UStruct.StructBaseChain = 0x30
+Game uses FProperty system
+Initializing UStruct.ChildProperties...
+UStruct.ChildProperties = 0x68
+Initializing FField.Class...
+FField.Class = 0x20
+Initializing FField.Owner...
+FField.Owner = 0x8
+Initializing FField.Next...
+FField.Next = 0x18
+Initializing FField.Name...
+FField.Name = 0x28
+Initializing FField.EditorOnlyMetadata...
+Couldn't find "FField.EditorOnlyMetadata" but it's not required.
+Initializing FFieldClass.CastFlags...
+FFieldClass.CastFlags = 0x10
+Initializing FFieldClass.Name...
+FFieldClass.Name = 0x0
+Initializing UClass.ClassDefaultObject...
+UClass.ClassDefaultObject = 0x138
+Initializing UClass.ImplementedInterfaces...
+UClass.ImplementedInterfaces = 0x228
+Initializing UEnum.Names...
+UEnum.Names = 0x40
+Initializing UEnum.UnderlyingType...
+Couldn't find "UEnum.UnderlyingType" but it's not required.
+Initializing UFunction.FunctionFlags...
+UFunction.FunctionFlags = 0xB8
+Initializing UFunction.NumParams...
+UFunction.NumParams = 0xB0
+Initializing UFunction.ParamSize...
+UFunction.ParamSize = 0xB2
+Initializing UFunction.ExecFunction...
+UFunction.ExecFunction = 0xD8
+Initializing Property.ElementSize...
+Property.ElementSize = 0x3C
+Initializing Property.ArrayDim...
+Property.ArrayDim = 0x34
+Initializing Property.Offset_Internal...
+Property.Offset_Internal = 0x4C
+Initializing Property.PropertyFlags...
+Property.PropertyFlags = 0x40
+Initializing BoolProperty.Base...
+BoolProperty.Base = 0x81
+Initializing EnumProperty.Base...
+EnumProperty.Base = 0x80
+Property.SizeOf = 0x80
+Initializing ObjectProperty.PropertyClass...
+ObjectProperty.PropertyClass = 0x88
+Initializing ByteProperty.Enum...
+ByteProperty.Enum = 0x88
+Initializing StructProperty.Struct...
+StructProperty.Struct = 0x88
+Initializing DelegateProperty.SignatureFunction...
+DelegateProperty.SignatureFunction = 0x80
+Initializing ArrayProperty.Inner...
+ArrayProperty.Inner = 0x88
+Initializing SetProperty.ElementProp...
+SetProperty.ElementProp = 0x80
+Initializing MapProperty.Base...
+MapProperty.Base = 0x88
+(Late) Initializing FName...
+PostInit_FName: FName.SizeOf is already correct, nothing to do.
+FieldPathProperty.FieldClass = 0x80
+OptionalProperty.ValueProperty = 0x80
+ClassProperty.MetaClass = 0x90
+=== FInGenOffsets ===
+FField::Vft: 0x0
+FField::Class: 0x20
+FField::Owner: 0x8
+FField::Next: 0x18
+FField::Name: 0x28
+FFieldClass::Name: 0x0
+FFieldClass::CastFlags: 0x10
+FName::CompIdx: 0x0
+FName::Number: 0x4
+FName::SizeOf: 0x8
+UObject::Vft: 0x0
+UObject::Flags: 0x18
+UObject::Index: 0x24
+UObject::Class: 0x8
+UObject::Name: 0x1C
+UObject::Outer: 0x10
+UField::Next: 0x28
+UEnum::Names: 0x40
+UStruct::StructBaseChain: 0x30
+UStruct::SuperStruct: 0x40
+UStruct::Children: 0x50
+UStruct::ChildProperties: 0x68
+UStruct::Size: 0x3C
+UStruct::MinAlignment: 0x48
+UFunction::FunctionFlags: 0xB8
+UFunction::NumParams: 0xB0
+UFunction::ParamSize: 0xB2
+UFunction::ExecFunction: 0xD8
+UClass::CastFlags: 0xD8
+UClass::ClassDefaultObject: 0x138
+UClass::ImplementedInterfaces: 0x228
+Property::ArrayDim: 0x34
+Property::ElementSize: 0x3C
+Property::PropertyFlags: 0x40
+Property::Offset_Internal: 0x4C
+ByteProperty::Enum: 0x88
+BoolProperty::Base: 0x81
+ObjectProperty::PropertyClass: 0x88
+ClassProperty::MetaClass: 0x90
+StructProperty::Struct: 0x88
+ArrayProperty::Inner: 0x88
+DelegateProperty::SignatureFunction: 0x80
+MapProperty::Base: 0x88
+SetProperty::ElementProp: 0x80
+EnumProperty::Base: 0x80
+FieldPathProperty::FieldClass: 0x80
+OptionalProperty::ValueProperty: 0x80
+FInstancedStruct::ScriptStruct: 0x0
+FInstancedStruct::StructMemory: 0x8
+Property::SizeOf: 0x80
+==================
+InitOffsets: Initializing FInSKOffsets...
+Finding ULevel.Actors...
+ULevel.Actors = 0x98
+Finding UDataTable.RowMap...
+UDataTable.RowMap = 0x30
+Finding GEngine & GWorld Offsets...
+FindStaticOffsets: Found 'World' instance at 0x7701f6d580.
+FindStaticOffsets: Found 'Engine' instance at 0x770204b780.
+FindStaticOffsets: Found 1 candidates for 'World'.
+FindStaticOffsets: 'World' offset at 0x20AA87A0.
+FindStaticOffsets: Found 1 candidates for 'Engine'.
+FindStaticOffsets: 'Engine' offset at 0x20AA4290.
+GEngine Offset: 0x20AA4290
+GWorld Offset: 0x20AA87A0
+Finding ProcessEvent...
+InitProcessEvent: Scanning UEngine vtable at 0x776385C398.
+InitProcessEvent: Resolved 1 memset and 1 memcpy import slot(s).
+InitProcessEvent: [  0] 0x774FA2AE8C score=0 walk=1024/0x400 (reached end of window) stp=2 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [  1] 0x775FBAEAFC score=2 walk=772/0x400 (stopped at next function) stp=7 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=true)
+InitProcessEvent: [  2] 0x774D040F90 score=0 walk=220/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [  3] 0x77556DF1E0 score=4 >=kMinScore walk=428/0x400 (stopped at next function) stp=3 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [  4] 0x774D040F94 score=0 walk=216/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [  5] 0x774D040F9C score=0 walk=208/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [  6] 0x7755239D80 score=0 walk=44/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [  7] 0x775523B984 score=4 >=kMinScore walk=796/0x400 (stopped at next function) stp=12 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [  8] 0x774D040FA4 score=0 walk=200/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [  9] 0x774D040FA8 score=0 walk=196/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 10] 0x7755ABA0B0 score=0 walk=52/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 11] 0x7754E1BD8C score=0 walk=4/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 12] 0x774D04101C score=0 walk=80/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 13] 0x774D041024 score=0 walk=72/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 14] 0x775DE2C71C score=0 walk=12/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 15] 0x774D041028 score=0 walk=68/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 16] 0x7754EC4ED0 score=3 walk=200/0x400 (stopped at next function) stp=1 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 17] 0x7755109210 score=0 walk=132/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 18] 0x7754E23BD8 score=2 walk=572/0x400 (stopped at next function) stp=4 (Objs=false Idx=true Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 19] 0x7754ED0224 score=0 walk=8/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 20] 0x775F7CC150 score=4 >=kMinScore walk=472/0x400 (stopped at next function) stp=4 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 21] 0x775F7CC1D4 score=1 walk=340/0x400 (stopped at next function) stp=3 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 22] 0x775FBAEAF0 score=2 walk=784/0x400 (stopped at next function) stp=7 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=true)
+InitProcessEvent: [ 23] 0x774D041030 score=0 walk=60/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 24] 0x774D041034 score=0 walk=56/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 25] 0x7754E2A534 score=1 walk=1024/0x400 (reached end of window) stp=9 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 26] 0x7754EE3188 score=0 walk=148/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 27] 0x7754EE3174 score=0 walk=168/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 28] 0x7754E67B0C score=1 walk=1016/0x400 (stopped at next function) stp=4 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 29] 0x7754E67264 score=0 walk=40/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 30] 0x775DE2C584 score=0 walk=8/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 31] 0x774D041038 score=0 walk=52/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 32] 0x7754E67B04 score=0 walk=8/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 33] 0x774D041040 score=0 walk=44/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 34] 0x774FA26EBC score=1 walk=980/0x400 (stopped at next function) stp=11 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 35] 0x775DE2C728 score=1 walk=212/0x400 (stopped at next function) stp=2 (Objs=false Idx=false Item=false Flags1=false Size=true Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 36] 0x774D041048 score=0 walk=36/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 37] 0x774D04104C score=0 walk=32/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 38] 0x774D041050 score=0 walk=28/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 39] 0x774D041054 score=0 walk=24/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 40] 0x774D041058 score=0 walk=20/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 41] 0x7754E29FB4 score=2 walk=1024/0x400 (reached end of window) stp=9 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 42] 0x774D04105C score=0 walk=16/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 43] 0x7754E22CE4 score=0 walk=752/0x400 (stopped at next function) stp=2 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 44] 0x77552F177C score=4 >=kMinScore walk=460/0x400 (stopped at next function) stp=5 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 45] 0x774D041064 score=0 walk=8/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 46] 0x775523A904 score=2 walk=556/0x400 (stopped at next function) stp=7 (Objs=false Idx=false Item=false Flags1=false Size=true Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 47] 0x774D04106C score=3 walk=1024/0x400 (reached end of window) stp=10 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=true TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 48] 0x7754EDA33C score=0 walk=8/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 49] 0x774D0410C4 score=3 walk=940/0x400 (stopped at next function) stp=9 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=true TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 50] 0x77569F0558 score=3 walk=1024/0x400 (reached end of window) stp=12 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=true TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 51] 0x775DE2CBEC score=4 >=kMinScore walk=348/0x400 (stopped at next function) stp=5 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 52] 0x77569F0CFC score=0 walk=68/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 53] 0x775DE2CD48 score=1 walk=120/0x400 (stopped at next function) stp=3 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 54] 0x7755B33410 score=3 walk=112/0x400 (stopped at next function) stp=1 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 55] 0x775DE2CDC0 score=4 >=kMinScore walk=348/0x400 (stopped at next function) stp=5 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 56] 0x775DE2DCF8 score=0 walk=108/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 57] 0x7755253EB0 score=4 >=kMinScore walk=788/0x400 (stopped at next function) stp=4 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 58] 0x7754C6ED5C score=0 walk=88/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 59] 0x775DE2DCFC score=0 walk=104/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 60] 0x774D0410CC score=3 walk=932/0x400 (stopped at next function) stp=9 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=true TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 61] 0x7755EA9E8C score=1 walk=788/0x400 (stopped at next function) stp=4 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 62] 0x775524AC54 score=1 walk=36/0x400 (stopped at next function) stp=6 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 63] 0x774D0410D0 score=3 walk=928/0x400 (stopped at next function) stp=9 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=true TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 64] 0x775524BB98 score=0 walk=4/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 65] 0x775DE2C7FC score=1 walk=160/0x400 (stopped at next function) stp=4 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 66] 0x77555C91A4 score=0 walk=8/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 67] 0x7754C60B24 score=0 walk=8/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 68] 0x7754C5F494 score=0 walk=4/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 69] 0x7754DA6264 score=10 >=kMinScore walk=1024/0x400 (reached end of window) stp=5 (Objs=true Idx=true Item=true Flags1=true Size=true Parms1=true Parms2=true Children1=true Flags2=true Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 70] 0x7754DB0A5C score=0 walk=8/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 71] 0x774D0410D4 score=3 walk=924/0x400 (stopped at next function) stp=9 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=true TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 72] 0x775630F72C score=5 >=kMinScore walk=1024/0x400 (reached end of window) stp=5 (Objs=false Idx=false Item=false Flags1=true Size=false Parms1=true Parms2=false Children1=true Flags2=false Children2=true TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 73] 0x774D0410DC score=3 walk=916/0x400 (stopped at next function) stp=9 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=true TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 74] 0x774D0410E4 score=3 walk=908/0x400 (stopped at next function) stp=9 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=true TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 75] 0x775DE2C89C score=2 walk=684/0x400 (stopped at next function) stp=8 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=true Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 76] 0x775F7CDCD4 score=1 walk=368/0x400 (stopped at next function) stp=5 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 77] 0x77559494CC score=1 walk=440/0x400 (stopped at next function) stp=3 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 78] 0x774FA26EC4 score=1 walk=972/0x400 (stopped at next function) stp=11 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 79] 0x774FA26ECC score=1 walk=964/0x400 (stopped at next function) stp=11 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 80] 0x77560252E4 score=4 >=kMinScore walk=1024/0x400 (reached end of window) stp=8 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 81] 0x775F7CABB0 score=0 walk=4/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 82] 0x775F7CAC54 score=4 >=kMinScore walk=572/0x400 (stopped at next function) stp=3 (Objs=true Idx=true Item=true Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 83] 0x775F7CABB4 score=0 walk=160/0x400 (stopped at next function) stp=2 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 84] 0x77559AFB8C score=1 walk=1024/0x400 (reached end of window) stp=8 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 85] 0x775FBAEB20 score=2 walk=736/0x400 (stopped at next function) stp=6 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=true)
+InitProcessEvent: [ 86] 0x774FA26ED8 score=1 walk=952/0x400 (stopped at next function) stp=11 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 87] 0x775513319C score=1 walk=1024/0x400 (reached end of window) stp=7 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 88] 0x775F7CB27C score=0 walk=76/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 89] 0x775F7CD2A4 score=1 walk=1024/0x400 (reached end of window) stp=4 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 90] 0x775F7CD658 score=0 walk=76/0x400 (stopped at next function) stp=1 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 91] 0x77578C79DC score=1 walk=288/0x400 (stopped at next function) stp=3 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 92] 0x775F7CD1C4 score=1 walk=1024/0x400 (reached end of window) stp=4 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 93] 0x775F7CD1B0 score=0 walk=24/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 94] 0x775F7CD0F0 score=1 walk=216/0x400 (stopped at next function) stp=3 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 95] 0x775F7CD824 score=0 walk=8/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: [ 96] 0x774FA26EDC score=1 walk=948/0x400 (stopped at next function) stp=11 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 97] 0x774FA26EE4 score=1 walk=940/0x400 (stopped at next function) stp=11 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 98] 0x774FA26EEC score=1 walk=932/0x400 (stopped at next function) stp=11 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+InitProcessEvent: [ 99] 0x775F7CCDE4 score=0 walk=16/0x400 (stopped at next function) stp=0 (Objs=false Idx=false Item=false Flags1=false Size=false Parms1=false Parms2=false Children1=false Flags2=false Children2=false TestBit=false StorePairs=false MemSet=false MemCopy=false)
+InitProcessEvent: Scanned 100 of 100 VTable slots (100 scored, 0 unreadable, 0 not code), stopped because every slot up to the cap was scanned.
+InitProcessEvent: VTable index 69 scored 10 (Objs=true Idx=true Item=true Flags1=true Size=true Parms1=true Parms2=true Children1=true Flags2=true Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+ProcessEvent Index: 69
+ProcessEvent Offset: 0x1089F264
+Finding FText Offsets...
+InitFText: 618 Populated FText instance(s) from 95486 objects across 315 class(es), 76 after excluding the shared empty value (seen 542 times)
+InitFText: TextData+0x0, InTextDataString+0x48 decoded 29/76 instance(s) as UTF16.
+InitFText: Sample text "Text"
+FText.SizeOf: 0x18
+FText.TextData: 0x0
+FText.InTextDataString: 0x48
+InternalSettings::bUseChar16String: true
+Finding size of WeakObjectProperty...
+WeakObjectProperty.SizeOf = 0x8
+Finding size of DelegateProperty...
+DelegateProperty.SizeOf = 0x10
+Finding size of FieldPathProperty...
+FieldPathProperty.SizeOf = 0x8
+Finding size of MulticastInlineDelegateProperty...
+MulticastInlineDelegateProperty.SizeOf = 0x10
+=== FInSKOffsets ===
+GEngine: 0x20AA4290
+GWorld: 0x20AA87A0
+GObjects: 0x2076B8F8
+GNames: 0x20744AC0
+PEIndex: 69
+PEOffset: 0x1089F264
+FText::TextData: 0x0
+FText::SizeOf: 0x18
+FText::InTextDataString: 0x48
+ULevel::Actors: 0x98
+UDataTable::RowMap: 0x30
+WeakObjectProperty::SizeOf: 0x8
+DelegateProperty::SizeOf: 0x10
+FieldPathProperty::SizeOf: 0x8
+MulticastInlineDelegateProperty::SizeOf: 0x10
+==================
+InitOffsets: Printing first 10 objects entries...
+[00] CoreUObject
+[01] Object
+[02] Engine
+[03] BlueprintFunctionLibrary
+[04] UE4Singletons
+[05] ComponentBookKeeper
+[06] ComponentRegistryLib
+[07] ObjectRegistrys
+[08] E4Singletons
+[09] AnimNotify
+==================
+Initializing Internal Settings...
+=== Internal Settings ===
+GameName: com.proxima.dfm
+GameVersion: 1.202.37117.5601
+EngineVersion: 4.24.2
+EngineVersionString: 4.24.2-0+++UE4+Release-4.24
+UnrealModuleFileName: libUE4.so
+bIsEnumNameOnly: false
+bIsSmallEnumValue: false
+bHasUnderlayingTypeInUEnum: false
+bIsNewUE5EnumNamesContainer: false
+bIsWeakObjectPtrWithoutTag: false
+bUseFProperty: true
+bUseNamePool: true
+bIsObjectNameBeforeClass: false
+bUseCasePreservingName: false
+bUseOutlineNumberName: false
+bIsObjPtrInsteadOfFieldPathProperty: true
+bUseMaskForFieldOwner: false
+bUseLargeWorldCoordinates: false
+bUseUint8ArrayDim: true
+bUseChar16String: true
+bIsGObjectsPointer: false
+bIsGNamesPointer: false
+==================
+Initializing Managers...
+=== Managers ===
+(Early) Initializing PackageManager...
+Initializing StructManager...
+Initializing EnumManager...
+Initializing MemberManager...
+(Late) Initializing PackageManager...
+Managers Initialized.
+==================
+=== Generating Dumps ===
+Generating GObjects Dump...
+Generated in 11.07 sec
+Generating GObjects With Props Dump...
+Generated in 25.16 sec
+Generating C++ SDK Dump...
+Generated in 1.33 min
+Generating Mappings Dump...
+Generated in 25.44 sec
+Generating IDA Mappings Dump...
+Generated in 44.27 sec
+Generating Dumpspace Dump...
+Generated in 36.74 sec
+Dumping completed in 8.31 min
+Dump Folder: /data/local/tmp/dfm-fixed-pread2/MobileDumper-7/com.proxima.dfm_v1.202.37117.5601_20261102-152210
+==================
