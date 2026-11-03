@@ -1,5 +1,8 @@
 ## Auto-pickup development — 2026-11-03 (latest)
 
+Future request: [enhanced aim assist](FEATURE_BACKLOG.md), recorded as deferred
+only. Auto-pickup remains the current priority; no aim-assist work has started.
+
 The user paused pre-opening container research and selected a manual **Take
 best loot** button in an open container. Phone is reconnected; the user expects
 to be ready to play about 30 minutes after their latest connection message. Continue
