@@ -1,6 +1,7 @@
 /* Read-only loot metadata for Proxima 1.202.37117.5601.
- * Lua structures were validated against the live main-thread registry; prices
- * must come from AuctionServer's runtime cache, never static guide prices. */
+ * Lua structures were validated against the live main-thread registry. Ordinary
+ * collectibles use ShopServer's normal dynamic guide prices, the source used
+ * by ItemBase.GetSingleSellPrice. Never substitute static guide/auction prices. */
 #ifndef DELTA_LOOT_VALUE_H
 #define DELTA_LOOT_VALUE_H
 #include <stdint.h>
@@ -10,6 +11,7 @@
 
 #define LV_MAX_NODES 8192
 #define LV_ACTORS 512
+#define LV_PRICE_SOURCE "shop-dynamic-guide"
 typedef int (*LVRead)(void *, uint64_t, void *, size_t);
 typedef struct { uint64_t value; int32_t tag, padding; } LVValue;
 typedef struct { LVValue value; uint64_t key; int32_t key_tag, next; } LVNode;
@@ -98,8 +100,13 @@ static void lv_refresh(LootValueReader *r, uint64_t now) {
             !lv_read(r, lv_ptr(r, registry.value + 16), roots, sizeof(roots)) ||
             roots[0].tag != 72 || roots[0].value != vm || roots[1].tag != 69) { r->map = 0; return; }
         uint64_t server = lv_table_field(r, roots[1].value, "Server");
-        uint64_t auction = lv_table_field(r, server, "AuctionServer");
-        r->map = lv_table_field(r, auction, "_mapItemId2AuctionPrice");
+        uint64_t shop = lv_table_field(r, server, "ShopServer");
+        LVValue shop_type;
+        if (!lv_find(r, shop, "_shopType", 0, &shop_type) ||
+            !lv_string_equal(r, shop_type.value, shop_type.tag, "Normal")) { r->map = 0; return; }
+        uint64_t data = lv_table_field(r, shop, "_data");
+        uint64_t normal = lv_table_field(r, data, "Normal");
+        r->map = lv_table_field(r, normal, "_mapItemId2DynamicGuidePrice");
     }
     unsigned count = 0; uint64_t nodes = 0;
     if (lv_table_header(r, r->map, &count, &nodes) &&
@@ -109,13 +116,8 @@ static void lv_refresh(LootValueReader *r, uint64_t now) {
 static int lv_unit_price(LootValueReader *r, uint64_t id, int64_t *price) {
     for (unsigned i = 0; i < r->node_count; i++) {
         LVNode *node = &r->nodes[i]; uint64_t key = 0;
-        if (node->value.tag != 69 || !lv_key_id(node, &key) || key != id) continue;
-        LVValue currency, condition, amount;
-        if (!lv_find(r, node->value.value, "currencyClientType", 0, &currency) ||
-            currency.tag != 19 || currency.value != 1) return 0;
-        uint64_t map = lv_table_field(r, node->value.value, "mapAucitonPrice");
-        if (!lv_find(r, map, NULL, 1, &condition) || condition.tag != 69 ||
-            !lv_find(r, condition.value, "auctionPrice", 0, &amount)) return 0;
+        if (!lv_key_id(node, &key) || key != id) continue;
+        LVValue amount = node->value;
         if (amount.tag == 19 && amount.value > 0 && amount.value <= 1000000000) {
             *price = (int64_t)amount.value; return 1;
         }
@@ -135,9 +137,15 @@ static void lv_consider_item(LootValueReader *r, uint64_t item, LootValue *out) 
     if (!lv_read(r, item + 0x10, pair, sizeof(pair)) || !pair[0] || pair[1] >= 10000 ||
         !lv_read(r, item + 0x38, &count, sizeof(count)) || count <= 0 || count > 100000) return;
     uint64_t id = (uint64_t)pair[0] * 10000 + pair[1]; int64_t price;
+    if (!out->item_id) out->item_id = id;
+    /* Runtime enums: CollectableItem=15; ordinary subtypes 1..9; Key=5.
+     * Keys, equipment and special collectibles may need durability, attachment
+     * or currency adjustments. Keep those unknown until independently verified. */
+    unsigned subtype = (pair[0] / 1000) % 100;
+    if (pair[0] / 100000 != 15 || subtype < 1 || subtype > 9 || subtype == 5) return;
     if (lv_unit_price(r, id, &price) && (!out->value_known || price > out->unit_value)) {
         out->item_id = id; out->unit_value = price; out->value_known = 1;
-    } else if (!out->item_id) out->item_id = id;
+    }
 }
 static LootValue lv_actor(LootValueReader *r, uint64_t actor, int kind, uint64_t now) {
     LVActor *slot = NULL;

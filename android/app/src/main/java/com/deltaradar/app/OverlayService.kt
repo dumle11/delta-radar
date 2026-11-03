@@ -769,7 +769,7 @@ class OverlayService : Service() {
             })
         })
         container.addView(TextView(this).apply {
-            text = "Uses each item's value. Unknown contents/prices are hidden when the filter is on."
+            text = "Filters ordinary collectibles by individual value. Keys, gear and unknown contents/prices are hidden when ON."
             textSize = 10f
             setTextColor(0xFF9AAAB8.toInt())
         })

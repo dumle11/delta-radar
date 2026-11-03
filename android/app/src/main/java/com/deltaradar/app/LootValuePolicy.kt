@@ -9,7 +9,7 @@ object LootValuePolicy {
     const val MAXIMUM_PRICE = 1_000_000_000.0
 
     fun knownValue(known: Boolean, source: String, value: Double): Boolean =
-        known && source == "auction-cache" && value.isFinite() &&
+        known && source == "shop-dynamic-guide" && value.isFinite() &&
             value > 0 && value <= MAXIMUM_PRICE && floor(value) == value
 
     fun passes(enabled: Boolean, minimum: Int, known: Boolean, source: String, value: Double): Boolean =

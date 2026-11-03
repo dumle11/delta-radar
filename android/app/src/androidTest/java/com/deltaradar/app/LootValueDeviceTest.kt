@@ -44,10 +44,10 @@ class LootValueDeviceTest {
             await("services not ready") { EntityFeedService.instance?.isFeedRunning == true && OverlayService.instance != null }
             val raw = """{"self":"TEST-value-camera","entities":[
                 {"id":"TEST-value-camera","x":0,"y":0,"z":1.6,"yaw":0,"pitch":0,"fov":80},
-                {"id":"TEST-value-cheap-stack","name":"TEST CHEAP STACK","kind":"loot","x":10,"y":0,"z":1,"lootUnitValue":2798,"lootValueKnown":true,"lootValueSource":"auction-cache","count":99},
-                {"id":"TEST-value-boundary","name":"TEST BOUNDARY","kind":"loot","x":11,"y":0,"z":1,"lootUnitValue":20000,"lootValueKnown":true,"lootValueSource":"auction-cache"},
-                {"id":"TEST-value-high","name":"TEST HIGH","kind":"loot","x":12,"y":0,"z":1,"lootUnitValue":20001,"lootValueKnown":true,"lootValueSource":"auction-cache"},
-                {"id":"TEST-value-container","name":"TEST CONTAINER ITEM","kind":"loot","x":13,"y":0,"z":1,"lootUnitValue":25000,"lootValueKnown":true,"lootValueSource":"auction-cache","lootContainer":true},
+                {"id":"TEST-value-cheap-stack","name":"TEST CHEAP STACK","kind":"loot","x":10,"y":0,"z":1,"lootUnitValue":2798,"lootValueKnown":true,"lootValueSource":"shop-dynamic-guide","count":99},
+                {"id":"TEST-value-boundary","name":"TEST BOUNDARY","kind":"loot","x":11,"y":0,"z":1,"lootUnitValue":20000,"lootValueKnown":true,"lootValueSource":"shop-dynamic-guide"},
+                {"id":"TEST-value-high","name":"TEST GOLD PRICE","kind":"loot","x":12,"y":0,"z":1,"lootUnitValue":57757,"lootValueKnown":true,"lootValueSource":"shop-dynamic-guide"},
+                {"id":"TEST-value-container","name":"TEST CONTAINER ITEM","kind":"loot","x":13,"y":0,"z":1,"lootUnitValue":25000,"lootValueKnown":true,"lootValueSource":"shop-dynamic-guide","lootContainer":true},
                 {"id":"TEST-value-unknown","name":"TEST UNKNOWN","kind":"loot","x":14,"y":0,"z":1,"lootUnitValue":90000,"lootValueKnown":false,"lootValueSource":"unknown"},
                 {"id":"TEST-value-static","name":"TEST STATIC PRICE","kind":"loot","x":15,"y":0,"z":1,"lootUnitValue":90000,"lootValueKnown":true,"lootValueSource":"initial-guide"}] }""".trimIndent()
             val service = EntityFeedService.instance!!
@@ -68,7 +68,7 @@ class LootValueDeviceTest {
             await("all-loot mode did not preserve unknown/cheap items") { projected()?.size == 6 }
             Settings.setLootValueFilter(context, true)
             Settings.setLootMinimumValue(context, 50_000)
-            await("adjusted threshold did not remove lower-valued items") { projected() == emptySet<String>() }
+            await("50k threshold did not keep only the gold-price fixture") { projected() == setOf("TEST-value-high") }
         } finally {
             keepFeeding.set(false); feeder?.join(1000)
             instrumentation.runOnMainSync { OverlayService.stop(context); EntityFeedService.stop(context) }

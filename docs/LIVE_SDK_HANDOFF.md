@@ -1,28 +1,35 @@
-## Loot-value investigation — 2026-11-03 (latest status)
+## Loot-value filter — 2026-11-03 (latest status)
 
-Current development branch: `codex/loot-value-investigation`. The working remote
-checkpoint remains unchanged. User feedback now confirms
-alignment, close/far tracking and camera responsiveness; full-match/SIGBUS
-acceptance is still outstanding.
+Development branch: `codex/loot-value-investigation`. Preserve
+`OnePlus-all-working-lines` and `working-v1-2026-11-03` as the working baseline.
+Alignment, close/far tracking and responsiveness were previously reported good;
+full-match/SIGBUS acceptance remains outstanding.
 
-See [loot-value findings](LOOT_VALUE_INVESTIGATION.md). A matched live clothing
-container comparison showed no readable item entries before search, two after
-search, then one after picking up only the photo. Runtime auction-cache prices
-now match three captured UI displays; static guide prices do not. The user
-lowered the default/test threshold to **20k per individual item**.
+The first live integrated value-filter check exposed an empty auction cache.
+Item IDs and searched container contents were readable, but the initial filter
+hid everything as unknown. The user supplied Trade Documents (**8,005**) and a
+Pirate Gold Coin (**57,757**) before dying. No game crash was reported.
 
-The candidate with optional value filtering and an adjustable minimum is now
-installed: native `6cbc42d4...`, APK `e2812155...`; see the linked findings for full
-hashes and the exact runtime path. Forty JVM tests, native regressions, lint and
-two on-phone service/window tests passed. The game PID was unchanged. The filter
-defaults OFF; Visual → Loot → Valuable loot only enables it. Radar is stopped
-between matches, awaiting the integrated scanner's first live metadata/performance
-check. The second match ended in death after the loose-item samples; rediscover
-actors in the next match. Private captures remain ignored. Full-match/SIGBUS
-acceptance is outstanding.
+The correction uses
+`Server.ShopServer._data.Normal._mapItemId2DynamicGuidePrice[itemId]`, which
+matches those two displays and all three previously captured prices. The old
+auction cache is no longer accepted. Eligibility is limited to ordinary
+collectible items (runtime EItemType 15, subtypes 1–9 except keys/5); special
+types and gear/condition/attachment adjustments
+remain unknown. See [the latest findings](LOOT_VALUE_INVESTIGATION.md) for proof,
+scope, complete identities and validation.
 
-The user chose to resume later and requested that progress be saved. Leave the
-radar stopped; no further match or device work is pending for this session.
+Installed candidate: native `de99f1ca...`, APK `7e584957...`. Build/native fixtures,
+40 JVM tests, lint and both on-phone tests passed. Installed APK/native hashes
+and embedded pin match; the game PID was unchanged. Exact artifacts and proof
+are saved under ignored local `loot-guide-collectibles-build-20261103`. The filter
+defaults OFF. Visual → Loot → Valuable loot only enables it; minimum defaults to
+strictly over **20k per individual item**, adjustable through 500k.
+
+The scanner is stopped between matches. Next: a new-match integrated comparison
+of displayed item values, filtered markers and pickup/empty behavior. Rediscover
+all actors from that match. No expensive item needs to be bought. Private runtime
+dumps, addresses, screenshots and player/account information stay ignored.
 
 ---
 

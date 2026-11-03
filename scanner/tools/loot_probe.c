@@ -331,6 +331,41 @@ static void lua_print_value(const char *name, int tag, uint64_t value, int numbe
     printf("}\n");
 }
 
+/* Lua 5.3 layouts: lua/lua v5.3.6 lobject.h. This diagnostic reads a single
+ * validated closure/prototype; it never calls Lua or changes the VM. */
+static int lua_function(uint64_t closure) {
+    unsigned char head[32];
+    if (!is_game_heap_ptr(closure) || read_mem(closure, head, sizeof(head)) != sizeof(head) ||
+        head[8] != 6 || head[10] > 64) return 0;
+    uint64_t proto = read_ptr(closure + 24);
+    unsigned char p[112];
+    if (!is_game_heap_ptr(proto) || read_mem(proto, p, sizeof(p)) != sizeof(p) || p[8] != 9) return 0;
+    int nk = 0, nc = 0, nu = 0; uint64_t constants = 0, code = 0;
+    memcpy(&nu, p + 16, 4); memcpy(&nk, p + 20, 4); memcpy(&nc, p + 24, 4);
+    memcpy(&constants, p + 48, 8); memcpy(&code, p + 56, 8);
+    if (nu < 0 || nu > 64 || nk < 0 || nk > 512 || nc < 0 || nc > 4096 || nu != head[10]) return 0;
+    printf("lua-function parameters=%u upvalues=%d constants=%d instructions=%d\n", p[10], nu, nk, nc);
+    for (int i = 0; i < nk; i++) {
+        uint64_t value = read_ptr(constants + (uint64_t)i * 16);
+        int tag = read_i32(constants + (uint64_t)i * 16 + 8);
+        char key[32], text[256]; snprintf(key, sizeof(key), "constant_%d", i);
+        lua_print_value(key, tag, value, 1);
+        if (lua_read_string(value, tag, text, sizeof(text))) {
+            char escaped[512]; json_escape(text, escaped, sizeof(escaped));
+            printf("{\"constant\":%d,\"text\":\"%s\"}\n", i, escaped);
+        }
+    }
+    for (int i = 0; i < nu; i++) {
+        uint64_t upval = read_ptr(closure + 32 + (uint64_t)i * 8), slot = read_ptr(upval);
+        if (!is_game_heap_ptr(upval) || !is_game_heap_ptr(slot)) continue;
+        char key[32]; snprintf(key, sizeof(key), "upvalue_%d", i);
+        lua_print_value(key, read_i32(slot + 8), read_ptr(slot), 1);
+    }
+    for (int i = 0; i < nc; i++) printf("lua-instruction index=%d word=%08x\n", i, (unsigned)read_i32(code + (uint64_t)i * 4));
+    puts("lua-function-complete");
+    return 1;
+}
+
 static int lua_table(uint64_t table, const char *wanted, int exact) {
     unsigned char type = 0, log_count = 0;
     if (!is_game_heap_ptr(table) || read_mem(table + 8, &type, 1) != 1 || type != 5 ||
@@ -371,7 +406,7 @@ static int lua_table(uint64_t table, const char *wanted, int exact) {
         memcpy(&key, bytes + 16, 8); memcpy(&value, bytes, 8);
         if (!tag) continue;
         char name[256] = {0};
-        if (wanted && exact && wanted[0] == '#') {
+        if ((!wanted || wanted[0] == '#') && (key_tag == 19 || key_tag == 3)) {
             if (key_tag == 19) snprintf(name, sizeof(name), "#%ld", (int64_t)key);
             else if (key_tag == 3) {
                 double number = 0; memcpy(&number, &key, 8);
@@ -402,6 +437,9 @@ int main(int argc, char **argv) {
         tables();
     } else if (!strcmp(argv[1], "lua-price-metadata")) {
         lua_price_metadata();
+    } else if (!strcmp(argv[1], "lua-function") && argc == 3) {
+        char *end = NULL; uint64_t closure = strtoull(argv[2], &end, 16);
+        if (!end || *end || !lua_function(closure)) return 3;
     } else if ((!strcmp(argv[1], "lua-table") || !strcmp(argv[1], "lua-get")) && argc >= 3) {
         char *end = NULL;
         uint64_t table = strtoull(argv[2], &end, 16);

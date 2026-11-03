@@ -6,8 +6,9 @@ The installed APK, pinned production scanner and production sources were not
 changed for this investigation. The user enabled the existing radar and played.
 
 **Update:** the investigation below led to an implementation on this development
-branch. A matching candidate APK/native pair is now installed; see the latest
-implementation section. The preserved working branch/tag above remain unchanged.
+branch. The first live integrated check exposed an empty auction cache; the
+latest correction uses ShopServer's dynamic guide prices instead. See the last
+section for the current candidate. The preserved working branch/tag are unchanged.
 
 ## Intended feature
 
@@ -139,7 +140,11 @@ after each sample; the user retained control of the existing radar.
 5. Preserve the baseline and existing coordinate/render scheduling paths; recheck
    camera responsiveness and full-match stability after actual integration.
 
-## Runtime price source resolved and candidate installed
+## Initial auction-cache candidate (superseded)
+
+This section records the first candidate. Its numerical matches were real, but
+the next match proved that this auction cache can be empty. Its source and build
+identities below are historical; use the correction in the last section.
 
 The second match supplied loose-item details and a battery-only pickup check.
 That pickup removed exactly item ID `15080050111` from the fresh loot feed,
@@ -195,7 +200,7 @@ Implementation behavior:
   no invented price.
 - New feed fields are `lootItemId`, `lootUnitValue`, `lootValueKnown`,
   `lootContentsKnown`, `lootContainer`, and `lootValueSource`. The only accepted
-  known source is `auction-cache`.
+  known source was `auction-cache` (superseded below).
 - Metadata is cached for at most 500 ms per actor; actor caches clear on world
   change. Runtime price nodes refresh at one second, with root rediscovery at
   five seconds. Each frame has a 4,096-read metadata budget. Native inheritance
@@ -238,3 +243,84 @@ radar was stopped afterward, awaiting a fresh-match check. SIGBUS remains open.
 New private evidence is under `evidence/local/session/loot-price-followup-20261103/`
 and `evidence/local/session/loot-value-build-20261103/`. Keep raw Lua table addresses,
 captures and screenshots local. The working checkpoint branch/tag was not moved.
+
+
+## Live regression and dynamic-guide correction — 2026-11-03
+
+The user entered another match with the value filter OFF. The expected scanner
+was running and the new metadata fields were present. A short sample observed
+about 21 accepted frames/second; this does not establish full-match performance.
+The scanner identified searched container contents and loose item IDs, but all
+prices were unknown. The auction-cache table had no entries, including after
+opening an item's details. Matching three earlier auction quotes was insufficient
+proof that this cache would remain populated across matches.
+
+Two new screenshots supplied exact displayed prices. The safe held a Pirate
+Gold Coin and a cutlass; the coin's individual details showed **57,757**. The
+briefcase held Trade Documents, whose details showed **8,005**. The user died
+after these captures; the scanner was stopped and no further actor inspection
+used those match addresses.
+
+Read-only inspection of the loaded item-details and ItemBase methods led to
+`ShopServer.GetShopSingleDynamicGuidePriceByItem`. `ItemBase.GetSingleSellPrice`
+and `GetSingleMallSellPrice` reference that method. The normal shop's live map is:
+
+```text
+_G.Server.ShopServer._data.Normal._mapItemId2DynamicGuidePrice[itemId]
+```
+
+This map contains direct integer prices and had 8,192 hash slots. It reproduced
+both new UI prices and the three previously captured displays:
+
+| Item | Catalog ID | Captured UI / dynamic guide | Static initial guide |
+| --- | --- | ---: | ---: |
+| Trade Documents | `15070040002` | 8,005 | 7,961 |
+| Pirate Gold Coin | `15080050009` | 57,757 | 61,304 |
+| Portrait Photo | `15090010026` | 2,072 | 1,864 |
+| 9V Battery | `15080050111` | 2,798 | 2,613 |
+| Leveler | `15020040004` | 3,672 | 3,681 |
+
+The revised production header returned these five prices from the phone in one
+bounded standalone invocation (2 ms in that sample). Neither it nor the separate
+diagnostic calls game functions, writes game memory or requests network prices.
+The diagnostic now supports bounded Lua-closure constants/upvalues/instructions;
+its layouts were checked against the official
+[Lua 5.3 object definitions](https://github.com/lua/lua/blob/v5.3.6/lobject.h)
+and validated on the target's actual closure/prototype tags. All copied runtime
+content remains in ignored local evidence.
+
+The filter now accepts only `shop-dynamic-guide` prices. It rejects the old
+auction source, static guesses and malformed prices. Root discovery also checks
+`ShopServer._shopType == "Normal"`; it fails closed in other shop modes. The
+existing refresh intervals, actor cache, read budget and projection behavior
+remain unchanged.
+
+Known eligibility is limited to **EItemType.CollectableItem (15)**, ordinary
+subtypes 1–9 excluding **ECollectableType.Key (5)**, verified from the runtime
+enums. Weapons, equipment, medicine, keys and other special types can
+need condition/attachment adjustments; an unadjusted map quote must not mark
+them as valuable. They remain unknown and are hidden when the value filter is
+ON. Their IDs are still reported, and the all-loot display remains available
+when OFF. The UI explains this scope. Expensive gear support is outstanding.
+
+Current candidate (private artifacts: `loot-guide-collectibles-build-20261103`):
+
+- APK SHA256: `7e584957705c64eaa19091a82b08bfc5f86585a3c36fe447b6b683493d42552a`.
+- Native SHA256: `de99f1ca597ad8e3efb29ff7015a5b7346463603aeb968081cd043bda0c0a375`.
+- Native source-input SHA256: `b08115d00649ecdffc50e30f09af0802e008b8eab96b5f2acfb54b4305014181`.
+- Manifest base: `be20703`, plus modified source-input hashes.
+
+Validation: API-31 native build; updated owned-memory fixtures under ASan/UBSan
+covering the dynamic path, invalid prices, excluded unadjusted gear/keys, shop-mode
+mismatch, stack unit values, container updates, budget and disconnect behavior;
+40 JVM tests with no failures/errors; APK/device-test builds; lint with zero
+errors and 168 warnings. Installed APK/native hashes and the embedded native pin were verified, and
+the game PID was unchanged. Installation/service checks are recorded in the
+current build's private evidence. Both on-phone tests passed (synthetic value filtering and composed-window
+pixel/Hide/Show/expiry). The fully integrated scanner still needs
+a new-match comparison after this correction. SIGBUS/full-match acceptance
+remains outstanding.
+
+The match samples, screenshots, runtime price-path records and diagnostic dumps
+are under `evidence/local/session/loot-value-live-20261103/`. Keep them private.
+The working baseline branch/tag was not moved.

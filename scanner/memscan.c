@@ -3146,7 +3146,7 @@ static int post_to_radar(void) {
                 "\"lootContentsKnown\":%s,\"lootContainer\":%s,\"lootValueSource\":\"%s\"",
                 (unsigned long long)loot->item_id, (long long)loot->unit_value,
                 loot->value_known ? "true" : "false", loot->contents_known ? "true" : "false",
-                loot->container ? "true" : "false", loot->value_known ? "auction-cache" : "unknown");
+                loot->container ? "true" : "false", loot->value_known ? LV_PRICE_SOURCE : "unknown");
         }
         if (entities[i].has_bones) {
             off += snprintf(body + off, sizeof(body) - off, ",\"bones\":[");
