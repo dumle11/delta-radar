@@ -36,15 +36,20 @@ artifacts when restoring these exact installed bytes.
 
 ## Still needs verification
 
-1. Alignment against clearly visible living human players at close and longer
-   ranges, including camera turns and character movement. Lines on screen alone
-   do not establish correct positions. Include visible AI comparisons.
-2. Loot alignment and responsiveness in this updated build. Loot was present in
-   the feed; the initial visual check focused on combat markers.
-3. Teammate/AI/dead-character filtering, Hide/Show, feed expiry/disconnect, and a
-   fresh match or game-process restart without retaining old markers.
-4. Full-match and extraction stability under sustained load. The earlier SIGBUS
-   game exit has no established cause and is not a proven fix in this checkpoint.
+Follow-up user feedback on 2026-11-03: alignment is good, close/far tracking works,
+and camera movement is responsive. Treat these as passing based on the user's
+live observations. The user also thinks lifecycle/filtering behavior works;
+individual edge cases have not all been independently checked.
+
+1. A separate loot check: distinguish loose items from containers, confirm that
+   picking up an item or emptying a container updates/removes the appropriate
+   marker, and check loot lines during camera movement. Position markers alone
+   do not establish that container contents or item prices are known.
+2. Explicit teammate/AI/dead-character filtering, feed expiry/disconnect, and
+   game-process restart checks where not already observed by the user.
+3. Full-match and extraction stability under sustained load remains outstanding.
+   The earlier SIGBUS game exit has no established cause and is not a proven fix
+   in this checkpoint.
 
 ## Restore
 

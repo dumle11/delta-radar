@@ -1,4 +1,22 @@
-## Saved OnePlus baseline — 2026-11-03 (latest status)
+## Loot-value investigation — 2026-11-03 (latest status)
+
+Current development branch: `codex/loot-value-investigation`. The working remote
+checkpoint and installed runtime remain unchanged. User feedback now confirms
+alignment, close/far tracking and camera responsiveness; full-match/SIGBUS
+acceptance is still outstanding.
+
+See [loot-value findings](LOOT_VALUE_INVESTIGATION.md). A matched live clothing
+container comparison showed no readable item entries before search, two after
+search, then one after picking up only the photo. The photo displayed 2,072 but
+its table initial guide price was 1,864. Individual-item filtering above 50k is
+the intended feature; the actual displayed-price source remains unresolved and
+the APK filter has not been implemented. Diagnostic tools are separate one-shot
+readers. Private samples/screenshots stay ignored. The user died after the
+pickup check, so rediscover actors in a fresh match rather than reusing addresses.
+
+---
+
+## Saved OnePlus baseline — 2026-11-03
 
 The audited `8b150f87...` native scanner and matching `2662fdec...` APK were
 installed and hash-verified on the phone. The user spawned; the radar was started
