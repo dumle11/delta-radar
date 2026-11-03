@@ -23,9 +23,8 @@ The first live test on Zero Dam Easy completed a regular safe's full sequence:
 Music Box UI/native 58,809 with three items; picking only that item left two
 and changed the marker to 14,593; emptying the safe set the empty flag, zeroed
 its value and removed its marker. This was metadata kind 2, so the new linked
-special-container path is still awaiting a different-family test. The user is
-currently playing; scanner is running. Only one project scanner process was
-observed.
+special-container path is still awaiting a different-family test. Only one
+project scanner process was observed while playing.
 The flight-case test also passed after search: AirCargoContainer exposed four
 items, with a visible 14,524 marker matching Firearm Parts' displayed value.
 Its armor was detected but deliberately unpriced. At 20k its supported
@@ -41,6 +40,12 @@ matched at 3,269. It was unknown before search and also uses metadata kind 2.
 The user was released to extract with no further container requests this match.
 Filing cabinets, special safe variants and live kind-3/5 linked-content
 coverage remain outstanding.
+
+The user subsequently confirmed successful extraction. The scanner was stopped
+between matches and a root process-executable check found zero project scanners
+remaining. No crash was reported during this completed run; this does not
+establish the historical SIGBUS cause or universal stability. Minimum remains
+0 until restored for normal play; the user has been reminded to use 20k.
 
 Exact artifacts and verification: ignored `container-links-build-20261103`.
 The user's saved filter is ON, but its minimum was already **0** before these

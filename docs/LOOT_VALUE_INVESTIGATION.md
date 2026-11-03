@@ -566,3 +566,11 @@ Live kind-3/5 linked-content coverage, filing cabinets and special safe
 variants remain outstanding. No runtime changes or app restarts were needed.
 Private proof is `container-links-live-20261103/sewer-summary.json`, matched
 before/after snapshots, overlay output and the Personal Note details screenshot.
+
+The user subsequently reported successful extraction, completing this run
+with the installed candidate and all four container checks. No crash was
+reported. The scanner was stopped between matches, and a root `/proc/*/exe`
+check found zero project scanner processes remaining. This is one completed
+live run, not a diagnosis or resolution of historical SIGBUS exits. The user
+was reminded that the retained diagnostic minimum is 0 and normal play should
+use the intended 20k cutoff. Private outcome proof is `match-outcome.json`.
