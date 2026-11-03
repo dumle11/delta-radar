@@ -26,6 +26,11 @@ its value and removed its marker. This was metadata kind 2, so the new linked
 special-container path is still awaiting a different-family test. The user is
 currently playing; scanner is running. Only one project scanner process was
 observed. The next requested sample is a bird nest, sewer or filing cabinet.
+The flight-case test also passed after search: AirCargoContainer exposed four
+items, with a visible 14,524 marker matching Firearm Parts' displayed value.
+Its armor was detected but deliberately unpriced. At 20k its supported
+collectibles would not qualify. Both sampled safe/flight contents were unknown
+before search; unopened valuable-container detection is not established.
 
 Exact artifacts and verification: ignored `container-links-build-20261103`.
 The user's saved filter is ON, but its minimum was already **0** before these

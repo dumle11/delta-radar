@@ -489,3 +489,29 @@ including matched snapshots, screenshots and `regular-safe-summary.json`.
 A root `/proc/*/exe` check found exactly one project scanner, the pinned candidate;
 old `.active` filenames alone do not establish live scanner processes. No
 runtime/source change was needed for this live verification.
+
+
+## Flight case: searched contents and item-price comparison passed
+
+The user stood beside a closed flight case. The matched runtime class was
+`BP_InteractorContainer_AirCargoContainer_C`, metadata kind 2. Before search,
+`bClientSearchDone=0`, readable item count was zero and value was unknown.
+After searching and leaving the items inside, the same actor exposed four
+items: armor `11050003001`, collectibles `15080050020`, `15040010021` and
+`15080050022`. The marker showed **14,524**, the highest supported collectible
+unit value, and was present/on-screen in the captured overlay output.
+
+The Firearm Parts details panel displayed **14,524**, exactly matching the
+native/marker value for catalog ID `15040010021`. Armor was detected but excluded
+from pricing under the current condition-adjustment limitation. Thus this case
+is visible at the diagnostic minimum 0, but its supported collectible values
+would not qualify at the intended 20k threshold. This was not a live threshold
+toggle test and does not claim the armor itself is below 20k.
+
+The user was released to loot normally; the full pickup/empty sequence was not
+repeated for this flight case. Both tested safe and flight-case contents became
+readable only after search. These observations do not establish server spawn
+time or pre-search valuable-container detection. The remaining priority test is
+a bird nest, sewer or filing cabinet to exercise the new linked-content family.
+Private proof is `container-links-live-20261103/flight-summary.json` with matched
+snapshots and the captured UI value. No runtime changes were needed.
