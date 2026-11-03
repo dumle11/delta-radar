@@ -453,3 +453,39 @@ It needs verified complete inventory contents, item dimensions/occupied slots,
 stack/value handling and transfer/drop-result confirmation. Current collectible
 pricing alone is insufficient to rank gear/keys and all player-box contents.
 No automatic item transfers or drops have been added.
+
+
+## Candidate live check: regular safe search, pickup and empty passed
+
+On the installed `135e3893...` candidate, a fresh pinned native feed and its
+actual peer executable were verified. The user was on **Zero Dam Easy**
+(observed HUD), with value filtering ON and minimum 0 for container diagnosis.
+The matched actor was `BP_Interactor_Container_SafeBox_C`, metadata kind 2.
+
+| Phase | Readable item count | Highest known unit value | Marker |
+| --- | ---: | ---: | --- |
+| Unsearched | 0, search incomplete | Unknown | Hidden |
+| Searched, items left inside | 3 | 58,809 | Present |
+| Music Box picked up, other two left | 2 | 14,593 | Present at minimum 0 |
+| Remaining silver coin/telescope picked up | 0, empty flag set | Unknown / zero | Removed |
+
+Music Box catalog ID `15080050137` displayed **58,809**, exactly matching both
+native and overlay values. The user left to fight and returned before the
+pickup sample; the safe's updated contents were still readable. The emptied
+safe remained in the actor feed with known-empty contents and no projected
+marker, rejected by the value filter. At the intended 20k cutoff, the two-item
+14,593 phase would be excluded; that conclusion follows the verified threshold
+policy rather than a separate live toggle in this sequence.
+
+The new edge diamonds were visible on the captured composed screen for other
+loot with offscreen origins. This regular safe used an on-screen marker while
+searched; it does not validate every special safe or the newly added kind-3/5
+linked-content path. A second unopened safe was the same class, so the user was
+released to loot it normally rather than repeat the same diagnostic sequence.
+The next requested sample is a bird nest, sewer or filing cabinet.
+
+Private evidence: `evidence/local/session/container-links-live-20261103/`,
+including matched snapshots, screenshots and `regular-safe-summary.json`.
+A root `/proc/*/exe` check found exactly one project scanner, the pinned candidate;
+old `.active` filenames alone do not establish live scanner processes. No
+runtime/source change was needed for this live verification.

@@ -19,6 +19,14 @@ boxes. The composed-pixel test for that geometry passed, along with the value-fi
 and Hide/Show/expiry tests (three device tests total). Installed APK/native
 hashes and embedded pin match; the game PID was unchanged.
 
+The first live test on Zero Dam Easy completed a regular safe's full sequence:
+Music Box UI/native 58,809 with three items; picking only that item left two
+and changed the marker to 14,593; emptying the safe set the empty flag, zeroed
+its value and removed its marker. This was metadata kind 2, so the new linked
+special-container path is still awaiting a different-family test. The user is
+currently playing; scanner is running. Only one project scanner process was
+observed. The next requested sample is a bird nest, sewer or filing cabinet.
+
 Exact artifacts and verification: ignored `container-links-build-20261103`.
 The user's saved filter is ON, but its minimum was already **0** before these
 tests; preferences were restored and retained. Use 0 for the initial container
