@@ -1,6 +1,6 @@
 /* One-shot, bounded loot metadata inspection. No remote calls or writes.
  * Uses reflected properties rather than assuming the dumped actor layout.
- * Output contains item metadata only; no player/account identifiers. */
+ * Raw diagnostic identifiers/addresses must stay in ignored local evidence. */
 #define main scanner_main
 #include "../memscan.c"
 #undef main
@@ -673,6 +673,117 @@ static int lua_table(uint64_t table, const char *wanted, int exact) {
     return 1;
 }
 
+/* Lua 5.3 ARM64 Udata layout: metatable +16, length +24, payload +40.
+ * https://www.lua.org/source/5.3/lobject.h.html#Udata
+ * Bounded inspection only. Candidate UObject pointers must agree with the
+ * current registry slot; opaque wrapper bytes are never treated as commands. */
+static int lua_userdata(uint64_t address) {
+    unsigned char head[40], after[40], payload[256], check[256]; uint64_t length, meta;
+    if (!lv_read(&loot_values, address, head, sizeof(head)) || head[8] != 7) return 0;
+    memcpy(&meta, head + 16, 8); memcpy(&length, head + 24, 8);
+    if (!length || length > sizeof(payload)) return 0;
+    unsigned char kind;
+    if (meta && (!lv_read(&loot_values, meta + 8, &kind, 1) || kind != 5)) return 0;
+    if (!lv_read(&loot_values, address + 40, payload, (size_t)length) ||
+        !lv_read(&loot_values, address, after, sizeof(after)) || after[8] != 7 ||
+        memcmp(head + 10, after + 10, 30) ||
+        !lv_read(&loot_values, address + 40, check, (size_t)length) || memcmp(payload, check, (size_t)length)) return 0;
+    printf("{\"record\":\"userdata\",\"length\":%lu,\"metatable\":\"%lx\",\"payload\":\"", length, meta);
+    for (unsigned i = 0; i < length; i++) printf("%02x", payload[i]);
+    puts("\"}");
+    uint64_t seen[64]; unsigned count = 0;
+    for (unsigned off = 0; off + 8 <= length; off += 8) {
+        uint64_t candidate; memcpy(&candidate, payload + off, 8);
+        for (unsigned hop = 0; hop < 2 && is_game_heap_ptr(candidate); hop++) {
+            int32_t index = read_i32(candidate + 0x24);
+            if (index > 0 && index < object_count && object_at(index) == candidate) {
+                int duplicate = 0; for (unsigned k = 0; k < count; k++) if (seen[k] == candidate) duplicate = 1;
+                if (!duplicate && count < 64) {
+                    seen[count++] = candidate;
+                    uint64_t cls = read_ptr(candidate + OFF_UOBJECT_CLASS); char name[128] = {0}, escaped[256];
+                    if (resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name))) {
+                        json_escape(name, escaped, sizeof(escaped));
+                        printf("{\"record\":\"userdataObject\",\"payloadOffset\":%u,\"indirections\":%u,\"object\":\"%lx\",\"class\":\"%s\",\"registryIndex\":%d}\n",
+                               off, hop, candidate, escaped, index);
+                    }
+                }
+                break;
+            }
+            candidate = read_ptr(candidate);
+        }
+    }
+    return 1;
+}
+
+static int native_ui_methods(void) {
+    uint64_t fn = object_at(0x326b); char name[128] = {0};
+    if (!fn || !resolve_fname(read_i32(fn + OFF_UOBJECT_NAME), name, sizeof(name)) || strcmp(name, "GetCachedGeometry")) return 0;
+    uint64_t owner = read_ptr(fn + OFF_UOBJECT_OUTER), method = read_ptr(fn + 0xd8);
+    if (!resolve_fname(read_i32(owner + OFF_UOBJECT_NAME), name, sizeof(name)) || strcmp(name, "Widget") ||
+        method < ue4_base || method >= ue4_end || !(read_i32(fn + 0xb8) & 0x400)) return 0;
+    printf("{\"record\":\"uiMethod\",\"name\":\"Widget.GetCachedGeometry\",\"moduleOffset\":\"%lx\"}\n", method - ue4_base);
+    return 1;
+}
+
+/* The verified GetCachedGeometry wrapper only reads Widget's cached Slate
+ * pointer (+138/140, or weak +128/130) and copies 0x48 bytes at Slate+f0.
+ * This diagnostic mirrors those reads without calling it or touching refs. */
+static int widget_geometry(uint64_t obj) {
+    int32_t index = read_i32(obj + 0x24);
+    if (index <= 0 || object_at(index) != obj) return 0;
+    uint64_t fn = object_at(0x326b), expected = read_ptr(fn + OFF_UOBJECT_OUTER);
+    if (!fn || read_ptr(fn + 0xd8) != ue4_base + 0x1a9cfb3c) return 0;
+    char name[128] = {0};
+    if (!resolve_fname(read_i32(expected + OFF_UOBJECT_NAME), name, sizeof(name)) || strcmp(name, "Widget")) return 0;
+    uint64_t cls = read_ptr(obj + OFF_UOBJECT_CLASS), cur = cls;
+    for (unsigned depth = 0; depth < 16 && cur && cur != expected; depth++) cur = read_ptr(cur + 0x40);
+    if (cur != expected) return 0;
+    uint64_t slate = read_ptr(obj + 0x138), control = read_ptr(obj + 0x140);
+    int slot = 0x138;
+    if (!is_game_heap_ptr(slate) || !is_game_heap_ptr(control) || read_i32(control + 8) < 1) {
+        slate = read_ptr(obj + 0x128); control = read_ptr(obj + 0x130); slot = 0x128;
+    }
+    if (!is_game_heap_ptr(slate) || !is_game_heap_ptr(control) || read_i32(control + 8) < 1) return 0;
+    unsigned char bytes[0x48], after[0x48];
+    if (read_mem(slate + 0xf0, bytes, sizeof(bytes)) != sizeof(bytes) ||
+        read_mem(slate + 0xf0, after, sizeof(after)) != sizeof(after) || memcmp(bytes, after, sizeof(bytes)) ||
+        read_ptr(obj + slot) != slate || read_ptr(obj + slot + 8) != control ||
+        read_i32(control + 8) < 1 || object_at(index) != obj) return 0;
+    char escaped[256]; resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name));
+    json_escape(name, escaped, sizeof(escaped));
+    printf("{\"record\":\"widgetGeometry\",\"class\":\"%s\",\"slot\":%d,\"floats\":[", escaped, slot);
+    for (unsigned i = 0; i < sizeof(bytes) / 4; i++) {
+        float f; memcpy(&f, bytes + i * 4, 4); if (i) printf(",");
+        if (isfinite(f)) printf("%.9g", f); else printf("null");
+    }
+    puts("]}"); return 1;
+}
+
+/* Discover bounded candidates only. Cached widgets can survive after closing;
+ * neither registry membership nor geometry establishes current visibility. */
+static int ui_objects(const char *filter) {
+    if (!filter || strlen(filter) < 4 || strlen(filter) > 96) return 0;
+    unsigned matches = 0; int limit = object_count < 300000 ? object_count : 300000;
+    for (int i = 1; i < limit; i++) {
+        uint64_t obj = object_at(i);
+        if (!obj) continue;
+        uint64_t cls = read_ptr(obj + OFF_UOBJECT_CLASS);
+        char name[128] = {0}, escaped[256];
+        if (!obj || !resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name)) ||
+            !contains_case_insensitive(name, filter)) continue;
+        if (matches == 512) {
+            puts("{\"record\":\"uiObjectsEnd\",\"complete\":false,\"limitReached\":true}"); return 0;
+        }
+        json_escape(name, escaped, sizeof(escaped));
+        printf("{\"record\":\"uiObject\",\"object\":\"%lx\",\"class\":\"%s\",\"registryIndex\":%d}\n",
+               obj, escaped, i);
+        matches++;
+    }
+    printf("{\"record\":\"uiObjectsEnd\",\"complete\":%s,\"matches\":%u,\"scanned\":%d}\n",
+           limit == object_count ? "true" : "false", matches, limit);
+    return limit == object_count;
+}
+
 #include "pickup_context.h"
 
 int main(int argc, char **argv) {
@@ -702,6 +813,16 @@ int main(int argc, char **argv) {
     } else if (!strcmp(argv[1], "lua-function") && argc == 3) {
         char *end = NULL; uint64_t closure = strtoull(argv[2], &end, 16);
         if (!end || *end || !lua_function(closure)) return 3;
+    } else if (!strcmp(argv[1], "lua-userdata") && argc == 3) {
+        char *end = NULL; uint64_t address = strtoull(argv[2], &end, 16);
+        if (!end || end == argv[2] || *end || !lua_userdata(address)) return 3;
+    } else if (!strcmp(argv[1], "native-ui-methods") && argc == 2) {
+        if (!native_ui_methods()) return 3;
+    } else if (!strcmp(argv[1], "widget-geometry") && argc == 3) {
+        char *end = NULL; uint64_t obj = strtoull(argv[2], &end, 16);
+        if (!end || end == argv[2] || *end || !is_game_heap_ptr(obj) || !widget_geometry(obj)) return 3;
+    } else if (!strcmp(argv[1], "ui-objects") && argc == 3) {
+        if (!ui_objects(argv[2])) return 3;
     } else if ((!strcmp(argv[1], "lua-table") || !strcmp(argv[1], "lua-get")) && argc >= 3) {
         char *end = NULL;
         uint64_t table = strtoull(argv[2], &end, 16);

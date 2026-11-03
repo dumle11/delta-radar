@@ -6,8 +6,9 @@ The user paused pre-opening container-content research and chose a manual
 **Take best loot** button for an already open container. The user subsequently
 clarified that the same button must replace cheaper backpack loot when space
 is full, using the game's normal automatic placement for pickups.
-The phone was disconnected during development. No new APK was installed and
-no item-transfer, touch-input or game-memory-write code was added.
+The phone reconnected for a completed live manual-transfer test. No new APK
+was installed and no automatic item-transfer or game-memory-write code was
+added. Subsequent lobby navigation used ordinary ADB taps to inspect UI only.
 
 This branch contains tested decision logic and a separate read-only research
 reader. **It is not a working auto-pickup APK.** The overlay button and live
@@ -76,7 +77,8 @@ capture label cannot overwrite existing evidence.
 
 ## Validation
 
-- 56 JVM tests pass, including 16 planner/session tests. Tests cover value
+- 73 JVM tests pass, including 16 planner/session tests, ten replacement
+  tests and seven layout-decoder tests. Tests cover value
   order, exclusions, fragmented storage, rotation, full storage, invalid
   identities, stale/future captures, cancellation, late/ambiguous confirmation
   and context changes.
@@ -86,7 +88,7 @@ capture label cannot overwrite existing evidence.
   invalid headers, exhausted reads, a realistic 1,725-name globals table,
   whole-context item/pricing output, mismatched GIDs and bounded output.
 - ARM64/API-31 diagnostic compiles with warnings treated as errors.
-- Nine Python capture tests pass without ADB: hash/staleness rejection, remote
+- Ten Python capture tests pass without ADB: hash/staleness rejection, remote
   failure, truncation, partial coverage, changed process/context, lobby labeling,
   unexpected action flag and invalid manifest path.
 
@@ -188,8 +190,9 @@ Live observations (all transfers performed manually by the user):
 - A later user-reported Reader drop removed its GID from Player, but that GID
   was present in the DeadBody cache's backpack slot. Ground placement is
   **unverified**; it could be a transfer or stale cache. Do not use simple
-  disappearance as a successful ground-drop confirmation. The user was
-  released from testing with about seven minutes remaining to extract.
+  disappearance as a successful ground-drop confirmation. The user confirmed
+  dragging the Reader onto the normal trash/drop icon. This establishes the
+  gesture, not the item’s final location in memory.
 - The user upgraded the backpack during play (15 to 18 cells). Re-read actual
   dimensions and locations; never retain a spawn-time capacity assumption.
 
@@ -205,8 +208,56 @@ Main private evidence: `match1-container-open-1`, `match1-reader-picked`,
 summaries under the existing ignored session directory. An earlier second-box
 sample was not claimed to be untouched after the user's correction.
 
-Remaining work: normalize/validate live layouts, bind actual visible item
-controls, verify a real ground drop and re-pickup, implement cancellation and
+Remaining work: connect the tested layout decoder to verified live table
+copies, bind actual visible item controls, verify a real ground drop and
+re-pickup, implement cancellation and
 per-action confirmation, then integrate the button. Automatic replacement
-remains unimplemented in the running app. Do not request more test steps in
-this match; the user is extracting/playing out the remaining time.
+remains unimplemented in the running app.
+
+The user subsequently reported successful extraction with 1.4 million loot
+(value not independently verified). Radar was stopped and zero project
+scanner processes remained. No crash was reported during this match. The
+match is finished; do not request further steps from that session.
+
+## Postmatch UI research
+
+The read-only diagnostic adds bounded Lua userdata inspection, registered
+object discovery by class fragment, and cached-widget geometry inspection.
+Candidate native objects must agree with their current registry slots;
+geometry requires the verified Widget class/method and stable cached bytes.
+These modes make no remote calls, writes or reference-count changes. They
+are research helpers, separate from the production scanner. Cached widgets
+may survive closure, so neither registry membership nor geometry proves a
+visible, enabled item control.
+
+The lobby inventory screen and a single-item details panel were opened
+without transfers, sales, sorting or drops. The previously used Lua active
+view deque was empty there despite the visible panel. Do not interpret that
+manager as a complete inventory-widget source; current work checks native
+widget candidates instead. UI binding and ground-drop proof remain open.
+
+`PickupStorageLayout.kt` now converts typed copied slot/space/position fields
+into planner grids and exact GID placements. It normalizes raw item length to
+columns and raw width to rows, treats each rig compartment separately, and
+checks inclusive bounds, rotation, capacity, duplicate/missing identities and
+overlap. Locked, ambiguous or incomplete spaces reject the copy. It does not
+parse native JSON, construct a full actionable snapshot or emit screen
+coordinates. The live data adapter is still required. Seven synthetic tests
+pass; all 73 JVM tests pass, lint remains zero errors/168 warnings, ten Python
+checks pass, native owned-memory ASan/UBSan fixtures pass and the API31
+diagnostic builds with warnings as errors. Reports are saved privately under
+`layout-ui-checks/`.
+
+Native candidate discovery completed across 258,412 registered objects and
+returned 175 ItemDetail class candidates in this lobby sample. Most had no
+usable cached geometry; several visible panel/button candidates did. An
+ItemDetailView retained its positive cached geometry after the panel closed.
+This directly confirms that geometry alone is insufficient to establish an
+active control. The measured geometry also uses a different render coordinate
+space from the 2400×1080 screenshot; a 1.2 scale matched this sample visually,
+but no verified viewport-to-touch conversion has been implemented or pinned.
+Do not hardcode that sample scale for input. Lua userdata-to-UObject inspection
+compiles but has not yet been exercised against a real active view wrapper.
+The next live hypothesis is to inspect the active in-match view's item data
+and native widget wrapper together, then compare geometry with the visible
+cell. No further item-value or pre-search-container test is needed for this.

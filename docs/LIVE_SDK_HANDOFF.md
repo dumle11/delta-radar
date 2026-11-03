@@ -1,8 +1,9 @@
 ## Auto-pickup and backpack replacement — 2026-11-03 (latest)
 
-Current branch: `codex/auto-pickup`. The first live inventory test is in progress.
-The user was released from further tests with about seven minutes left in the
-match to prioritize extraction. Do not request more test steps this match.
+Current branch: `codex/auto-pickup`. The first live inventory test is finished.
+The user reported successful extraction with 1.4 million loot (value not
+independently verified). Radar was stopped; zero project scanners remained.
+No crash was reported. No further steps can be taken in that ended match.
 
 Reader pickup and a two-cell Wood Pipe pickup retained item GIDs across
 source→Player transfers. Double-tap is the confirmed gesture; the Pipe went
@@ -27,14 +28,36 @@ button or updated APK. Do not describe the planners as an operational feature.
 
 A user-reported Reader drop was not confirmed as ground placement: its GID
 left Player but appeared in the DeadBody cache. Keep that result unverified;
-absence from Player alone is insufficient. Remaining work includes validated
+absence from Player alone is insufficient. The user confirmed the gesture was
+dragging onto the trash/drop icon. Remaining work includes validated
 layout decoding, visible-control mapping, a verified ground drop/re-pickup,
 per-action confirmation/cancellation and app integration.
+
+Postmatch research adds read-only userdata/native-widget geometry helpers to
+the separate diagnostic. Lobby navigation reached Stash and opened one item
+detail panel with a single tap; no items were transferred or changed. The Lua
+active-view deque was empty despite the visible panel, so it is not a complete
+widget source. Native widget discovery is being checked; cached geometry alone
+is not proof of current visibility. See AUTO_PICKUP.md for the checkpoint.
 
 See [the live checkpoint](AUTO_PICKUP.md#first-live-pickup-session-and-replacement-scope)
 for evidence names and all findings. Private raw captures/screens remain under
 ignored `evidence/local/session/auto-pickup-20261103/`. Installed radar/native
 `21cdaadf...` / `135e3893...` and production deployment pins remain unchanged.
+
+Latest postmatch code adds `PickupStorageLayout`: normalized item footprints,
+separate rig grids, exact inclusive bounds/rotation/capacity checks and full
+occupancy validation. Seven new tests pass (73 JVM total); lint remains zero
+errors/168 warnings, ten Python tests/native ASan+UBSan/API31 compile pass.
+This is a typed layout converter; a native-record adapter remains unimplemented.
+
+Native discovery completed over 258,412 objects. Several panel widgets yielded
+cached geometry, and one retained it after closing: positive geometry is not
+a visibility check. Render coordinates differ from phone touch coordinates.
+The next live hypothesis is active in-match view item data plus its native
+widget wrapper; do not repeat price or pre-opening-container tests. The Lua
+userdata helper has not yet been exercised on a real active view. No new
+production APK has been built or installed.
 
 Future request: [enhanced aim assist](FEATURE_BACKLOG.md), recorded as deferred
 only. No aim-assist work has started.
