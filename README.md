@@ -19,6 +19,10 @@ The [saved OnePlus checkpoint](docs/ONEPLUS_WORKING_CHECKPOINT.md) records the
 checks. It is preserved on branch `OnePlus-all-working-lines` and tag
 `working-v1-2026-11-03`.
 
+[Auto-pickup development](docs/AUTO_PICKUP.md) contains the offline planner,
+read-only inventory diagnostic and remaining live integration work. Auto-pickup
+is not enabled in the installed radar.
+
 ## Components
 
 - `scanner/memscan.c` — native actor, transform, health, death, and team reader.

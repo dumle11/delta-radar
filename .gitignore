@@ -13,3 +13,4 @@
 /android/local.properties
 
 /scanner/tools/__pycache__/
+/scanner/tests/__pycache__/

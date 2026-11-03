@@ -1,4 +1,23 @@
-## Pre-opening loot investigation — 2026-11-03 (latest)
+## Auto-pickup development — 2026-11-03 (latest)
+
+The user paused pre-opening container research and selected a manual **Take
+best loot** button in an open container. Phone is now disconnected. Continue
+from [the auto-pickup checkpoint](AUTO_PICKUP.md), which records implemented
+ranking/space/session logic, the separate bounded read-only inventory probe,
+offline checks and exact remaining live work. No pickup button/input adapter,
+transfer, automatic drop or working auto-pickup APK exists yet. The installed
+radar/native and deployment pins are unchanged; no new match is needed until
+the phone is reconnected and the diagnostic schema has passed a lobby read.
+
+Branch: `codex/auto-pickup`, based on `c2bac96`. Offline checks: 56 JVM tests
+(16 pickup tests), zero lint errors/168 warnings, ASan/UBSan native fixtures,
+API-31 compile with warnings as errors, nine Python capture tests. Built-only
+diagnostic manifest is ignored `scanner/build/pickup-probe-build.json`; it is
+not the existing deployed `loot-probe-deployment.json`.
+
+---
+
+## Pre-opening loot investigation — 2026-11-03
 
 Latest matched safe test completed. The user spawned with radar ON/minimum 0
 beside a safe. Both before/after guards around the closed-cache capture showed

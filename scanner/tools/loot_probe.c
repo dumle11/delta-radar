@@ -668,6 +668,8 @@ static int lua_table(uint64_t table, const char *wanted, int exact) {
     return 1;
 }
 
+#include "pickup_context.h"
+
 int main(int argc, char **argv) {
     alarm(8);
     if (argc < 2 || argc > 67 || !init_probe()) return 2;
@@ -681,6 +683,13 @@ int main(int argc, char **argv) {
         }
     } else if (!strcmp(argv[1], "tables")) {
         tables();
+    } else if (!strcmp(argv[1], "pickup-context") && argc == 2) {
+        printf("{\"record\":\"pickupContextBegin\",\"schemaVersion\":1,\"gamePid\":%d,\"capturedElapsedMs\":%lu}\n",
+               game_pid, diag_now_ms());
+        lv_refresh(&loot_values, diag_now_ms());
+        if (!pickup_context()) return 3;
+        printf("{\"record\":\"pickupContextEnd\",\"gamePid\":%d,\"capturedElapsedMs\":%lu}\n",
+               game_pid, diag_now_ms());
     } else if (!strcmp(argv[1], "inventory-cache") && argc == 2) {
         if (!inventory_cache()) return 3;
     } else if (!strcmp(argv[1], "lua-price-metadata")) {
