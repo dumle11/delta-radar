@@ -173,6 +173,8 @@ class OverlayService : Service() {
         val botFeatures = Settings.entityFeatures(this, Settings.EntityType.BOT)
         val teammateFeatures = Settings.entityFeatures(this, Settings.EntityType.TEAMMATE)
         val lootFeatures = Settings.entityFeatures(this, Settings.EntityType.LOOT)
+        val lootValueFilter = Settings.lootValueFilter(this)
+        val lootMinimumValue = Settings.lootMinimumValue(this)
         val renderDist = com.deltaradar.app.Settings.renderDistance(this).toDouble()
 
         val enemyFrames = mutableListOf<EnemyLinesView.Enemy>()
@@ -183,7 +185,17 @@ class OverlayService : Service() {
             val id = ent.getString("id")
             if (id == selfId) continue
             val kind = ent.optString("kind", "player")
-            val name = ent.optString("name", id)
+            var name = ent.optString("name", id)
+            if (kind == "loot") {
+                val value = ent.optDouble("lootUnitValue", Double.NaN)
+                val known = ent.optBoolean("lootValueKnown", false)
+                val source = ent.optString("lootValueSource", "")
+                if (!LootValuePolicy.passes(lootValueFilter, lootMinimumValue, known, source, value)) {
+                    rejected.add("$id:loot-value"); continue
+                }
+                if (LootValuePolicy.knownValue(known, source, value))
+                    name += " · ${LootValuePolicy.label(value)} each"
+            }
             val ex = ent.optDouble("x")
             val ey = ent.optDouble("y")
             val baseZ = ent.optDouble("z")
@@ -712,7 +724,55 @@ class OverlayService : Service() {
         addRow("Distance", Settings.FEATURE_DISTANCE)
         if (type != Settings.EntityType.LOOT) addRow("Health", Settings.FEATURE_HEALTH)
         addRow("Boxes / skeleton", Settings.FEATURE_BODY)
+        if (type == Settings.EntityType.LOOT) setupLootValueControls(container)
         refresh()
+    }
+
+    private fun setupLootValueControls(container: LinearLayout) {
+        val toggle = TextView(this).apply {
+            textSize = 11f
+            setTextColor(0xFFc8d6e0.toInt())
+            setPadding(0, dpToPx(8), 0, dpToPx(8))
+            isClickable = true
+            isFocusable = true
+        }
+        fun refreshToggle() {
+            toggle.text = "Valuable loot only: " + if (Settings.lootValueFilter(this)) "ON" else "OFF"
+        }
+        toggle.setOnClickListener {
+            Settings.setLootValueFilter(this, !Settings.lootValueFilter(this))
+            refreshToggle()
+        }
+        refreshToggle()
+        container.addView(toggle)
+        val thresholdLabel = TextView(this).apply {
+            textSize = 11f
+            setTextColor(0xFFc8d6e0.toInt())
+        }
+        fun refreshThreshold() {
+            thresholdLabel.text = "Item value above ${LootValuePolicy.label(Settings.lootMinimumValue(this).toDouble())}"
+        }
+        refreshThreshold()
+        container.addView(thresholdLabel)
+        container.addView(SeekBar(this).apply {
+            max = 500
+            progress = Settings.lootMinimumValue(this@OverlayService) / 1000
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        Settings.setLootMinimumValue(this@OverlayService, value * 1000)
+                        refreshThreshold()
+                    }
+                }
+                override fun onStartTrackingTouch(bar: SeekBar?) {}
+                override fun onStopTrackingTouch(bar: SeekBar?) {}
+            })
+        })
+        container.addView(TextView(this).apply {
+            text = "Uses each item's value. Unknown contents/prices are hidden when the filter is on."
+            textSize = 10f
+            setTextColor(0xFF9AAAB8.toInt())
+        })
     }
 
     private fun setupDrawModeButtons(view: View, ids: List<Int>, currentMode: Int,

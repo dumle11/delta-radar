@@ -1,18 +1,28 @@
 ## Loot-value investigation — 2026-11-03 (latest status)
 
 Current development branch: `codex/loot-value-investigation`. The working remote
-checkpoint and installed runtime remain unchanged. User feedback now confirms
+checkpoint remains unchanged. User feedback now confirms
 alignment, close/far tracking and camera responsiveness; full-match/SIGBUS
 acceptance is still outstanding.
 
 See [loot-value findings](LOOT_VALUE_INVESTIGATION.md). A matched live clothing
 container comparison showed no readable item entries before search, two after
-search, then one after picking up only the photo. The photo displayed 2,072 but
-its table initial guide price was 1,864. Individual-item filtering above 50k is
-the intended feature; the actual displayed-price source remains unresolved and
-the APK filter has not been implemented. Diagnostic tools are separate one-shot
-readers. Private samples/screenshots stay ignored. The user died after the
-pickup check, so rediscover actors in a fresh match rather than reusing addresses.
+search, then one after picking up only the photo. Runtime auction-cache prices
+now match three captured UI displays; static guide prices do not. The user
+lowered the default/test threshold to **20k per individual item**.
+
+The candidate with optional value filtering and an adjustable minimum is now
+installed: native `6cbc42d4...`, APK `e2812155...`; see the linked findings for full
+hashes and the exact runtime path. Forty JVM tests, native regressions, lint and
+two on-phone service/window tests passed. The game PID was unchanged. The filter
+defaults OFF; Visual → Loot → Valuable loot only enables it. Radar is stopped
+between matches, awaiting the integrated scanner's first live metadata/performance
+check. The second match ended in death after the loose-item samples; rediscover
+actors in the next match. Private captures remain ignored. Full-match/SIGBUS
+acceptance is outstanding.
+
+The user chose to resume later and requested that progress be saved. Leave the
+radar stopped; no further match or device work is pending for this session.
 
 ---
 

@@ -1307,6 +1307,22 @@ static int resolve_class_name(uint64_t cls, char *out, int size) {
 static int find_object_field(uint64_t owner, int start, int end, const char *class_fragment);
 
 #define NUM_SKELETON_BONES 16
+#include "loot_value.h"
+static LootValueReader loot_values;
+static int loot_values_fd = -1, loot_values_fd_pid = -1;
+static int read_loot_value_memory(void *unused, uint64_t address, void *out, size_t size) {
+    (void)unused;
+    if (read_mem(address, out, size) == (ssize_t)size) return 1;
+    /* Only the known Lua main-state pointer may need a force read. Never
+     * switch the scanner's general reader or class-name behavior. */
+    if (address != ue4_base + 0x1fc9cd70 || size != 8) return 0;
+    if (loot_values_fd_pid != game_pid) {
+        if (loot_values_fd >= 0) close(loot_values_fd);
+        char path[80]; snprintf(path, sizeof(path), "/proc/%d/mem", game_pid);
+        loot_values_fd = open(path, O_RDONLY | O_CLOEXEC); loot_values_fd_pid = game_pid;
+    }
+    return loot_values_fd >= 0 && pread(loot_values_fd, out, size, (off_t)address) == (ssize_t)size;
+}
 /* Bone indices: 0=head 1=neck 2=spine_upper 3=pelvis
  * 4=l_shoulder 5=l_elbow 6=l_hand 7=r_shoulder 8=r_elbow 9=r_hand
  * 10=l_hip 11=l_knee 12=l_foot 13=r_hip 14=r_knee 15=r_foot */
@@ -1324,6 +1340,7 @@ typedef struct {
     uint64_t player_state;
     float bone_pos[NUM_SKELETON_BONES][3]; /* world-space bone positions in meters */
     int has_bones;
+    LootValue loot;
 } Entity;
 
 static Entity entities[MAX_ACTORS];
@@ -1700,6 +1717,28 @@ static int loot_kind_from_class(uint64_t cls) {
         loot_class_cache[loot_class_cache_count].cls = original;
         loot_class_cache[loot_class_cache_count].kind = result;
         loot_class_cache_count++;
+    }
+    return result;
+}
+
+static int loot_metadata_kind(uint64_t actor, int kind) {
+    if (kind == 3) return 3;
+    uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
+    static struct { uint64_t cls; int index, kind, result; } cache[128];
+    static unsigned count;
+    uint64_t original = cls; int index = read_i32(cls + 0x24);
+    for (unsigned i = 0; i < count; i++)
+        if (cache[i].cls == cls && cache[i].index == index && cache[i].kind == kind) return cache[i].result;
+    int result = 0;
+    for (int depth = 0; depth < 16 && is_any_ptr(cls); depth++) {
+        uint64_t parent = read_ptr(cls + 0x40);
+        if (read_i32(cls + 0x24) == 7824 && read_i32(parent + 0x24) == 7823) { result = kind; break; }
+        if (parent == cls) break;
+        cls = parent;
+    }
+    if (count < 128) {
+        cache[count].cls = original; cache[count].index = index;
+        cache[count].kind = kind; cache[count++].result = result;
     }
     return result;
 }
@@ -2181,6 +2220,8 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         stale_camera_frames = 0;
         health_layout_count = 0;
         health_layout_clock = 0;
+        memset(loot_values.actors, 0, sizeof(loot_values.actors));
+        loot_values.next_actor = 0;
         /* The field layout belongs to this game process/build, not to one
          * transient UWorld. Keep a successful resolution across loading-world
          * swaps; the scanner itself restarts when the game PID changes. */
@@ -2580,6 +2621,11 @@ camera_done:
     int pos_count = 0;
 
     int player_num = 0;
+    if (loot_values.base != ue4_base) {
+        memset(&loot_values, 0, sizeof(loot_values));
+        loot_values.base = ue4_base; loot_values.read = read_loot_value_memory;
+    }
+    lv_begin_frame(&loot_values);
     int diag_actor_ptr = 0;
     int diag_controller = 0;
     int diag_player_state = 0;
@@ -2734,6 +2780,8 @@ camera_done:
             e->half_height = 0.35f;
             e->team = 2;
             e->has_bones = 0;
+            e->loot = lv_actor(&loot_values, actor_ptrs[i],
+                              loot_metadata_kind(actor_ptrs[i], loot_kind), diag_now_ms());
             num_entities++;
             continue;
         }
@@ -3070,7 +3118,7 @@ static int post_to_radar(void) {
     clock_gettime(CLOCK_BOOTTIME, &ts);
     long long captured_elapsed_ms = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 
-    char body[131072];
+    static char body[MAX_ACTORS * 2048 + 4096];
     int off = 0;
     off += snprintf(body + off, sizeof(body) - off,
         "{\"self\":\"%s\",\"capturedElapsedMs\":%lld,\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
@@ -3091,6 +3139,15 @@ static int post_to_radar(void) {
             entities[i].max_health, entities[i].health_known ? "true" : "false",
             entities[i].half_height, entities[i].dead ? "true" : "false",
             entities[i].team, now_ms);
+        if (!strcmp(entities[i].kind, "loot")) {
+            LootValue *loot = &entities[i].loot;
+            off += snprintf(body + off, sizeof(body) - off,
+                ",\"lootItemId\":\"%llu\",\"lootUnitValue\":%lld,\"lootValueKnown\":%s,"
+                "\"lootContentsKnown\":%s,\"lootContainer\":%s,\"lootValueSource\":\"%s\"",
+                (unsigned long long)loot->item_id, (long long)loot->unit_value,
+                loot->value_known ? "true" : "false", loot->contents_known ? "true" : "false",
+                loot->container ? "true" : "false", loot->value_known ? "auction-cache" : "unknown");
+        }
         if (entities[i].has_bones) {
             off += snprintf(body + off, sizeof(body) - off, ",\"bones\":[");
             for (int b = 0; b < NUM_SKELETON_BONES; b++) {

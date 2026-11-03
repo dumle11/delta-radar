@@ -4,6 +4,7 @@
 #define main scanner_main
 #include "../memscan.c"
 #undef main
+#include <ctype.h>
 
 typedef struct { uint64_t field, type; int offset, size; } LootProperty;
 static uint64_t object_chunks;
@@ -183,7 +184,7 @@ static void tables(void) {
             read_i32(read_ptr(cls + 0x40) + 0x24) != 1) continue;
         uint64_t row = read_ptr(obj + 0x28);
         int row_index = read_i32(row + 0x24);
-        if (row_index != 0x7085 && row_index != 0x7088) continue;
+        if (row_index != 0x7085 && row_index != 0x7088 && row_index != 0x6fb3) continue;
         char name[128] = {0}, row_name[128] = {0};
         resolve_fname(read_i32(obj + OFF_UOBJECT_NAME), name, sizeof(name));
         resolve_fname(read_i32(row + OFF_UOBJECT_NAME), row_name, sizeof(row_name));
@@ -199,7 +200,7 @@ static int rows(uint64_t table, int argc, char **argv) {
     uint64_t cls = read_ptr(table + OFF_UOBJECT_CLASS), row = read_ptr(table + 0x28);
     int row_index = read_i32(row + 0x24);
     if (read_i32(cls + 0x24) != 0x286 ||
-        (row_index != 0x7085 && row_index != 0x7088)) return 0;
+        (row_index != 0x7085 && row_index != 0x7088 && row_index != 0x6fb3)) return 0;
     uint64_t map = table + 0x30, data = read_ptr(map);
     int slots = read_i32(map + 8), capacity = read_i32(map + 12);
     int bits = read_i32(map + 0x28);
@@ -227,10 +228,14 @@ static int rows(uint64_t table, int argc, char **argv) {
             if (strcmp(key, argv[a])) continue;
             char escaped[256]; json_escape(key, escaped, sizeof(escaped));
             printf("{\"itemId\":\"%s\",\"source\":\"%s\"", escaped,
-                   row_index == 0x7088 ? "ItemPriceTable" : "GameItem");
+                   row_index == 0x7088 ? "ItemPriceTable" :
+                   row_index == 0x6fb3 ? "AuctionProp" : "GameItem");
             if (row_index == 0x7088) {
                 printf(",\"rowItemId\":%lu,\"price\":%u", read_ptr(value + 0x10),
                        (uint32_t)read_i32(value + 0x18));
+            } else if (row_index == 0x6fb3) {
+                printf(",\"rowItemId\":%lu", read_ptr(value + 0x10));
+                number_field(value, row, "GuidePrice");
             } else {
                 /* Native price lookup at module+0x1606a3c8 reads this
                  * unreflected slot before falling back to InitialGuidePrice.
@@ -240,15 +245,7 @@ static int rows(uint64_t table, int argc, char **argv) {
                                          "SellPriceRates", "MaxStackCount"};
                 for (unsigned j = 0; j < sizeof(fields)/sizeof(fields[0]); j++)
                     number_field(value, row, fields[j]);
-                LootProperty p;
-                if (property(row, "Name", &p)) {
-                    char text[128] = {0}, escaped_text[256];
-                    uint64_t text_data = read_ptr(value + p.offset);
-                    if (is_any_ptr(text_data) && read_fstring(text_data + 0x48, text, sizeof(text))) {
-                        json_escape(text, escaped_text, sizeof(escaped_text));
-                        printf(",\"name\":\"%s\"", escaped_text);
-                    }
-                }
+
             }
             printf("}\n"); matches++; break;
         }
@@ -258,18 +255,170 @@ static int rows(uint64_t table, int argc, char **argv) {
     return 1;
 }
 
+static void lua_price_metadata(void) {
+    /* The page-in wrapper only reads this global; we do not invoke it.
+     * Validate a registry by its main-thread entry before inspecting any keys. */
+    uint64_t vm = read_ptr(ue4_base + 0x1fc9cd70), g = read_ptr(vm + 0x18);
+    unsigned char vm_type = 0;
+    read_mem(vm + 8, &vm_type, 1);
+    printf("lua-metadata vm=%lx type=%u global=%lx\n", vm, vm_type, g);
+    if (!is_game_heap_ptr(vm) || vm_type != 8 || !is_game_heap_ptr(g)) return;
+    for (int off = 0x30; off <= 0x180; off += 8) {
+        if (read_i32(g + off + 8) != 69) continue;
+        uint64_t registry = read_ptr(g + off), array = read_ptr(registry + 0x10);
+        int count = read_i32(registry + 0xc);
+        if (!is_game_heap_ptr(registry) || count < 2 || count > 1000000 ||
+            !is_game_heap_ptr(array) || read_ptr(array) != vm ||
+            read_i32(array + 8) != 72 || read_i32(array + 24) != 69) continue;
+        uint64_t globals = read_ptr(array + 16), node = read_ptr(globals + 0x18);
+        unsigned char lsizenode = 0, table_type = 0;
+        read_mem(globals + 8, &table_type, 1);
+        read_mem(globals + 11, &lsizenode, 1);
+        if (!is_game_heap_ptr(globals) || table_type != 5 ||
+            lsizenode > 16 || !is_game_heap_ptr(node)) continue;
+        printf("lua-registry offset=%x globals=%lx node=%lx nodeCount=%u\n",
+               off, globals, node, 1U << lsizenode);
+        for (unsigned i = 0; i < (1U << lsizenode); i++) {
+            unsigned char bytes[32] = {0};
+            if (read_mem(node + (uint64_t)i * 32, bytes, sizeof(bytes)) != sizeof(bytes)) continue;
+            int tag = 0, key_tag = 0; uint64_t key = 0, value = 0;
+            memcpy(&tag, bytes + 8, 4); memcpy(&key_tag, bytes + 24, 4);
+            memcpy(&key, bytes + 16, 8); memcpy(&value, bytes, 8);
+            if (!tag || key_tag != 68 || !is_game_heap_ptr(key)) continue;
+            unsigned char len = 0; read_mem(key + 11, &len, 1);
+            if (!len || len > 127) continue;
+            char name[128] = {0};
+            if (read_mem(key + 24, name, len) != len) continue;
+            int valid = 1;
+            for (unsigned j = 0; j < len; j++) if ((unsigned char)name[j] < 32 || (unsigned char)name[j] > 126) valid = 0;
+            if (valid) printf("lua-global name=%s tag=%d value=%lx\n", name, tag, value);
+        }
+        return;
+    }
+}
+
+static int lua_read_string(uint64_t string, int tag, char *out, size_t capacity) {
+    if (!is_game_heap_ptr(string) || (tag != 68 && tag != 84)) return 0;
+    unsigned char short_length = 0;
+    if (read_mem(string + 11, &short_length, 1) != 1) return 0;
+    uint64_t length = tag == 68 ? short_length : read_ptr(string + 16);
+    if (!length || length >= capacity ||
+        read_mem(string + 24, out, (size_t)length) != (ssize_t)length) return 0;
+    out[length] = 0;
+    for (size_t i = 0; i < length; i++)
+        if ((unsigned char)out[i] < 32 || (unsigned char)out[i] > 126) return 0;
+    return 1;
+}
+
+static int lua_contains(const char *text, const char *filter) {
+    size_t length = strlen(filter);
+    for (; *text; text++) {
+        size_t j = 0;
+        while (j < length && text[j] && tolower((unsigned char)text[j]) == tolower((unsigned char)filter[j])) j++;
+        if (j == length) return 1;
+    }
+    return !length;
+}
+
+static void lua_print_value(const char *name, int tag, uint64_t value, int number_allowed) {
+    char escaped[512]; json_escape(name, escaped, sizeof(escaped));
+    printf("{\"key\":\"%s\",\"tag\":%d,\"value\":\"%lx\"", escaped, tag, value);
+    if (number_allowed && tag == 19) printf(",\"number\":%ld", (int64_t)value);
+    if (number_allowed && tag == 3) {
+        double number = 0; memcpy(&number, &value, 8);
+        if (isfinite(number)) printf(",\"number\":%.9g", number);
+    }
+    printf("}\n");
+}
+
+static int lua_table(uint64_t table, const char *wanted, int exact) {
+    unsigned char type = 0, log_count = 0;
+    if (!is_game_heap_ptr(table) || read_mem(table + 8, &type, 1) != 1 || type != 5 ||
+        read_mem(table + 11, &log_count, 1) != 1 || log_count > 16) return 0;
+    uint64_t array = read_ptr(table + 0x10);
+    int array_count = read_i32(table + 0xc);
+    if (array_count < 0 || array_count > 1000000) return 0;
+    if (wanted && exact && wanted[0] == '#') {
+        char *end = NULL; unsigned long long index = strtoull(wanted + 1, &end, 10);
+        if (end && !*end && index >= 1 && index <= (unsigned)array_count && is_game_heap_ptr(array)) {
+            unsigned char bytes[16] = {0}; int tag = 0; uint64_t value = 0;
+            if (read_mem(array + (index - 1) * 16, bytes, sizeof(bytes)) != sizeof(bytes)) return 0;
+            memcpy(&value, bytes, 8); memcpy(&tag, bytes + 8, 4);
+            if (tag) {
+                lua_print_value(wanted, tag, value, 1);
+                printf("lua-table-summary array=%d matches=1 metatable=%lx\n", array_count, read_ptr(table + 0x28));
+                return 1;
+            }
+        }
+    }
+    if (!wanted && array_count && is_game_heap_ptr(array)) {
+        for (int i = 0; i < array_count && i < 128; i++) {
+            unsigned char bytes[16] = {0}; int tag = 0; uint64_t value = 0;
+            if (read_mem(array + (uint64_t)i * 16, bytes, sizeof(bytes)) != sizeof(bytes)) return 0;
+            memcpy(&value, bytes, 8); memcpy(&tag, bytes + 8, 4);
+            char name[24]; snprintf(name, sizeof(name), "#%d", i + 1);
+            if (tag) lua_print_value(name, tag, value, 0);
+        }
+    }
+    uint64_t node = read_ptr(table + 0x18);
+    if (!is_any_ptr(node)) return 0;
+    int matches = 0;
+    for (unsigned i = 0; i < (1U << log_count); i++) {
+        unsigned char bytes[32] = {0};
+        if (read_mem(node + (uint64_t)i * 32, bytes, sizeof(bytes)) != sizeof(bytes)) return 0;
+        int tag = 0, key_tag = 0; uint64_t key = 0, value = 0;
+        memcpy(&tag, bytes + 8, 4); memcpy(&key_tag, bytes + 24, 4);
+        memcpy(&key, bytes + 16, 8); memcpy(&value, bytes, 8);
+        if (!tag) continue;
+        char name[256] = {0};
+        if (wanted && exact && wanted[0] == '#') {
+            if (key_tag == 19) snprintf(name, sizeof(name), "#%ld", (int64_t)key);
+            else if (key_tag == 3) {
+                double number = 0; memcpy(&number, &key, 8);
+                if (!isfinite(number) || number < 0 || number > 9007199254740991.0) continue;
+                snprintf(name, sizeof(name), "#%.0f", number);
+            } else continue;
+        } else if (!lua_read_string(key, key_tag, name, sizeof(name))) continue;
+        if (wanted && !(exact ? !strcmp(name, wanted) : lua_contains(name, wanted))) continue;
+        lua_print_value(name, tag, value, exact);
+        if (++matches >= 1024 || exact) break;
+    }
+    printf("lua-table-summary slots=%u matches=%d metatable=%lx\n",
+           1U << log_count, matches, read_ptr(table + 0x28));
+    return 1;
+}
+
 int main(int argc, char **argv) {
     alarm(8);
     if (argc < 2 || argc > 67 || !init_probe()) return 2;
     if (!strcmp(argv[1], "schema")) {
         const int indices[] = {0x1e8f, 0x1e90, 0x1e91, 0x1d87,
-                               0x4703, 0x4710, 0x4742, 0x7088, 0x286};
+                               0x4703, 0x4710, 0x4742, 0x7088, 0x6fb3, 0x286};
         for (unsigned i = 0; i < sizeof(indices)/sizeof(indices[0]); i++) {
             uint64_t obj = object_at(indices[i]);
             if (obj) print_schema(obj);
         }
     } else if (!strcmp(argv[1], "tables")) {
         tables();
+    } else if (!strcmp(argv[1], "lua-price-metadata")) {
+        lua_price_metadata();
+    } else if ((!strcmp(argv[1], "lua-table") || !strcmp(argv[1], "lua-get")) && argc >= 3) {
+        char *end = NULL;
+        uint64_t table = strtoull(argv[2], &end, 16);
+        if (!end || *end || !lua_table(table, argc >= 4 ? argv[3] : NULL,
+                                       !strcmp(argv[1], "lua-get"))) return 3;
+    } else if (!strcmp(argv[1], "price-dispatch")) {
+        const uint64_t offsets[] = {0x203feb74, 0x204069ad, 0x204069ae,
+                                     0x20517748, 0x20517b8a, 0x20517b8b,
+                                     0x20517bf0, 0x20517bee};
+        for (unsigned i = 0; i < sizeof(offsets)/sizeof(offsets[0]); i++) {
+            unsigned char value = 0;
+            if (read_mem(ue4_base + offsets[i], &value, 1) == 1)
+                printf("price-dispatch offset=%lx value=%u\n", offsets[i], value);
+        }
+        char name[128] = {0};
+        if (resolve_fname(read_i32(ue4_base + 0x20507ab0), name, sizeof(name)))
+            printf("price-table-key name=%s\n", name);
     } else if (!strcmp(argv[1], "inventory-methods")) {
         uint64_t cls = object_at(0x1d35), cdo = read_ptr(cls + 0x138);
         uint64_t vtable = read_ptr(cdo);

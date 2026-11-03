@@ -5,10 +5,15 @@ Development branch: `codex/loot-value-investigation`. Preserve remote
 The installed APK, pinned production scanner and production sources were not
 changed for this investigation. The user enabled the existing radar and played.
 
+**Update:** the investigation below led to an implementation on this development
+branch. A matching candidate APK/native pair is now installed; see the latest
+implementation section. The preserved working branch/tag above remain unchanged.
+
 ## Intended feature
 
-The user wants a loot toggle/filter for **each individual item worth strictly
-more than 50,000**, rather than the combined contents of a container. Use unit
+The user initially requested 50,000, then changed the test/default threshold to
+**each individual item worth strictly more than 20,000**. The implemented minimum
+is adjustable from zero to 500,000 in steps of 1,000. Use unit
 value for eligibility; do not promote a stack of individually cheap items just
 because its combined value exceeds the threshold. Confirm the price basis
 against the value displayed in the game before implementing the threshold.
@@ -120,13 +125,116 @@ after each sample; the user retained control of the existing radar.
 
 ## Next work
 
-1. Resolve and verify the value actually displayed in-game for several loose
-   items and searched contents, including values on both sides of 50k.
+1. Run the integrated candidate in a new match, checking metadata availability,
+   positions and camera/feed responsiveness. Test real values around 20k and
+   verify expensive/modded equipment separately before assuming its cached
+   default quote accounts for all condition/attachment adjustments.
 2. Repeat the before/search/pickup/empty sequence for other container types;
    include proximity observations with fresh actors from the current match.
-3. Add item ID, unit value and explicit value-availability/source metadata to
-   the scanner feed, then implement the minimum-value setting in the APK.
+3. Catalog item names are not implemented; labels retain their existing names
+   and append the known unit value. Single-item stash/interactable metadata is
+   unknown unless a separately enumerated pickup supplies identified contents.
 4. Unknown/unsearched containers must not qualify as valuable without identified
    contents. Preserve a separate optional general-container display.
 5. Preserve the baseline and existing coordinate/render scheduling paths; recheck
    camera responsiveness and full-match stability after actual integration.
+
+## Runtime price source resolved and candidate installed
+
+The second match supplied loose-item details and a battery-only pickup check.
+That pickup removed exactly item ID `15080050111` from the fresh loot feed,
+confirming the battery's identity. The user died after those samples were saved.
+No old match actor address was reused afterward. Lowering the test threshold
+does not change the price-source requirement.
+
+Read-only inspection of the Lua main-thread registry revealed this runtime path:
+
+```text
+_G.Server.AuctionServer._mapItemId2AuctionPrice[itemId]
+    .mapAucitonPrice[0].auctionPrice
+```
+
+`mapAucitonPrice` is the actual spelling. The surrounding record's
+`currencyClientType` must equal 1. This is a cached client value: the reader does
+not request new prices, invoke Lua functions or contact a server. Three runtime
+values matched the captured item-details displays exactly:
+
+| Item | Catalog ID | Captured UI | Runtime cache | Static initial guide |
+| --- | --- | ---: | ---: | ---: |
+| Portrait Photo | `15090010026` | 2,072 | 2,072 | 1,864 |
+| 9V Battery | `15080050111` | 2,798 | 2,798 | 2,613 |
+| Leveler | `15020040004` | 3,672 | 3,672 | 3,681 |
+
+The separately inspected `AuctionProp` data table contained only 91 sparse slots
+and had no entry for these items; it did not resolve the discrepancy.
+The observed native price-dispatch override bytes were zero, so simply applying
+the static native GetPrice path would not reproduce these displayed values.
+
+The main VM pointer is at module `+0x1fc9cd70`. The reader validates thread type,
+global state, registry type and its main-thread entry before following globals.
+In this build: global state is thread `+0x18`, the registry TValue is global
+state `+0x40`, and registry array entries 1/2 are main thread / globals.
+Lua table key/value layouts were validated read-only in this process; don't
+assume these offsets remain valid across a game update.
+
+The new `scanner/loot_value.h` path uses bounded table reads and validates prices
+as positive, whole, finite values no greater than one billion. Missing values
+remain explicitly unknown. A standalone invocation of this production header
+on the phone matched the three prices, rejected an absent item ID, and measured
+2 ms for discovery plus its five sample lookups. This is one sample, not a
+latency guarantee. The SDK was the source for actor/item layouts; Tencent's
+[slua LuaState source](https://github.com/Tencent/sluaunreal/blob/master/Plugins/slua_unreal/Source/slua_unreal/Public/LuaState.h)
+was consulted as background, and the actual game layout was independently
+validated through the registry and captured price comparisons.
+
+Implementation behavior:
+
+- Verified InventoryPickup descendants expose item IDs and unit values. For a
+  container, the feed selects its highest **known individual item value**, not a
+  total. Stacks do not multiply eligibility. Empty/unavailable contents provide
+  no invented price.
+- New feed fields are `lootItemId`, `lootUnitValue`, `lootValueKnown`,
+  `lootContentsKnown`, `lootContainer`, and `lootValueSource`. The only accepted
+  known source is `auction-cache`.
+- Metadata is cached for at most 500 ms per actor; actor caches clear on world
+  change. Runtime price nodes refresh at one second, with root rediscovery at
+  five seconds. Each frame has a 4,096-read metadata budget. Native inheritance
+  admission is cached by class pointer/index. Coordinate and decoder paths stay
+  separate from metadata.
+- A dedicated read-only proc descriptor may read only the known eight-byte
+  Lua main-state global if normal reads fail. It does not change the scanner's
+  general reader/name decoding or force-read arbitrary game memory.
+- The native packet buffer was enlarged to accommodate the extra fields at the
+  existing entity limit.
+- Visual → Loot now includes **Valuable loot only** and an adjustable minimum,
+  default 20,000. Filtering defaults OFF to preserve existing settings; turn it
+  ON for the new behavior. Known labels append a unit value. OFF preserves the
+  all-loot display; ON hides unknown contents/prices and exact-boundary values.
+
+Candidate identities (local evidence `loot-value-build-20261103`):
+
+- APK SHA256: `e281215515aa7e73fdb982f15c9304f76e6ff8cbc0478d6471a8193bb3b8e2b8`.
+- Native SHA256: `6cbc42d416665f12862c13e9c8ba16211d90f0eafa4f5941d4525db739e628cc`.
+- Native source-input SHA256: `913170a2f8ad8ab3079fa9555072d7ea1b88ce50ca91f76c05818b67eb75250e`.
+- Manifest provenance base: `ced06d3`, plus the hashes of the modified inputs.
+
+Validation passed: API-31 native build; owned-memory loot fixtures under ASan and
+UBSan (including unknown/empty contents, individual stack values, pickup updates,
+currency checks, budget exhaustion/recovery and disconnected price state);
+enemy/loot coordinate-source, roster, timestamp and discovery regressions;
+40 JVM tests; APK/device-test builds; lint with zero errors and 168 warnings.
+Installed APK hash and embedded native pin were verified, and the native binary
+identity/hash was verified at its content-addressed path. The preexisting
+unrelated scanner was preserved. The game's PID remained unchanged throughout
+installation and tests.
+
+Two on-phone instrumented tests passed: synthetic values through the real feed
+and overlay service (20k strict boundary, cheap stack, unknown/static values,
+qualifying container item, all-loot toggle and changing to 50k), and the existing
+composed-window pixel/Hide/Show/expiry check. These are labelled fixtures, not
+live-position/full-match evidence. Original preferences were restored and the
+radar was stopped afterward, awaiting a fresh-match check. SIGBUS remains open.
+
+New private evidence is under `evidence/local/session/loot-price-followup-20261103/`
+and `evidence/local/session/loot-value-build-20261103/`. Keep raw Lua table addresses,
+captures and screenshots local. The working checkpoint branch/tag was not moved.

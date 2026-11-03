@@ -24,6 +24,8 @@ object Settings {
     private const val BOT_FEATURES_KEY = "bot_features_v4"
     private const val TEAMMATE_FEATURES_KEY = "teammate_features_v4"
     private const val LOOT_FEATURES_KEY = "loot_features_v4"
+    private const val LOOT_VALUE_FILTER_KEY = "loot_value_filter"
+    private const val LOOT_MINIMUM_VALUE_KEY = "loot_minimum_unit_value"
 
     const val DEFAULT_PLAYER_COLOR: Int = 0xFFE5534B.toInt()
     const val DEFAULT_BOT_COLOR: Int = 0xFF46D9FF.toInt()
@@ -62,6 +64,15 @@ object Settings {
 
     fun showLoot(ctx: Context) = prefs(ctx).getBoolean(SHOW_LOOT_KEY, false)
     fun setShowLoot(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(SHOW_LOOT_KEY, v).apply() }
+
+    fun lootValueFilter(ctx: Context) = prefs(ctx).getBoolean(LOOT_VALUE_FILTER_KEY, false)
+    fun setLootValueFilter(ctx: Context, enabled: Boolean) {
+        prefs(ctx).edit().putBoolean(LOOT_VALUE_FILTER_KEY, enabled).apply()
+    }
+    fun lootMinimumValue(ctx: Context) = prefs(ctx).getInt(LOOT_MINIMUM_VALUE_KEY, LootValuePolicy.DEFAULT_MINIMUM).coerceIn(0, 500_000)
+    fun setLootMinimumValue(ctx: Context, value: Int) {
+        prefs(ctx).edit().putInt(LOOT_MINIMUM_VALUE_KEY, value.coerceIn(0, 500_000)).apply()
+    }
 
     fun renderDistance(ctx: Context) = prefs(ctx).getInt(RENDER_DIST_KEY, 500)
     fun setRenderDistance(ctx: Context, v: Int) { prefs(ctx).edit().putInt(RENDER_DIST_KEY, v).apply() }
