@@ -1,3 +1,36 @@
+## Container coverage update — 2026-11-03 (latest)
+
+User reports loose loot working but inconsistent flight-container, sewer,
+bird-nest, suitcase and safe contents. Do not treat the previous live value-filter
+pass as universal container acceptance. A later auto-sorter was requested and
+recorded in [the findings](LOOT_VALUE_INVESTIGATION.md); it is not implemented.
+
+New candidate: APK `21cdaadf...`, native `135e3893...`. It adds bounded,
+class-verified linked-content reads for SingleItemContainer.CachedPickups /
+CachedOpenBox and ChangeableContainer.CacheSpawnActor. The loaded class field
+offsets were verified read-only on the phone. Unknown/unreplicated contents and
+unsupported item prices still stay unknown. Native fixtures/regressions and
+40 JVM tests pass; live container-family verification remains required.
+
+A separate same-sequence capture showed a 2,050,520-value container item was
+read and passed the filter but its origin projected below view. The candidate
+adds a visible loot-edge diamond for body display, preserving normal on-screen
+boxes. The composed-pixel test for that geometry passed, along with the value-filter
+and Hide/Show/expiry tests (three device tests total). Installed APK/native
+hashes and embedded pin match; the game PID was unchanged.
+
+Exact artifacts and verification: ignored `container-links-build-20261103`.
+The user's saved filter is ON, but its minimum was already **0** before these
+tests; preferences were restored and retained. Use 0 for the initial container
+contents check if convenient, then restore the intended 20k minimum.
+The baseline branch/tag remains unchanged. Development remains on
+`codex/loot-value-investigation`. Next match: use fresh actors, compare one
+reported problem container before/after search and pickup, and inspect the new
+linked-content diagnostic fields. Gear/keys, cross-map acceptance and SIGBUS
+remain outstanding.
+
+---
+
 ## Loot-value filter — 2026-11-03 (latest status)
 
 Development branch: `codex/loot-value-investigation`. Preserve

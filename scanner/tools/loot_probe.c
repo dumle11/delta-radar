@@ -170,6 +170,14 @@ static void actor(uint64_t obj) {
             putchar(']');
         }
     }
+    const char *links[] = {"CachedOpenBox", "CacheSpawnActor"};
+    for (unsigned i = 0; i < sizeof(links) / sizeof(links[0]); i++)
+        if (property(cls, links[i], &p) && p.size == 8)
+            printf(",\"%s\":\"%lx\"", links[i], read_ptr(obj + p.offset));
+    int metadata_kind = lv_kind(&loot_values, obj);
+    LootValue value = lv_actor(&loot_values, obj, metadata_kind, diag_now_ms());
+    printf(",\"metadataKind\":%d,\"candidateValueKnown\":%s,\"candidateUnitValue\":%lld",
+           metadata_kind, value.value_known ? "true" : "false", (long long)value.unit_value);
     printf("}\n");
 }
 
@@ -426,9 +434,10 @@ static int lua_table(uint64_t table, const char *wanted, int exact) {
 int main(int argc, char **argv) {
     alarm(8);
     if (argc < 2 || argc > 67 || !init_probe()) return 2;
+    loot_values.base = ue4_base; loot_values.read = read_loot_value_memory; lv_begin_frame(&loot_values);
     if (!strcmp(argv[1], "schema")) {
         const int indices[] = {0x1e8f, 0x1e90, 0x1e91, 0x1d87,
-                               0x4703, 0x4710, 0x4742, 0x7088, 0x6fb3, 0x286};
+                               0x4703, 0x4710, 0x4742, 0x7088, 0x6fb3, 0x286, 6322};
         for (unsigned i = 0; i < sizeof(indices)/sizeof(indices[0]); i++) {
             uint64_t obj = object_at(indices[i]);
             if (obj) print_schema(obj);

@@ -21,11 +21,13 @@ typedef struct {
     int value_known, contents_known, container;
 } LootValue;
 typedef struct { uint64_t actor, checked; int kind; LootValue result; } LVActor;
+typedef struct { uint64_t cls; int32_t index; int kind; } LVType;
 typedef struct {
     LVRead read; void *user;
     uint64_t base, vm, map, refreshed, discovered, world;
     LVNode nodes[LV_MAX_NODES]; unsigned node_count;
     LVActor actors[LV_ACTORS]; unsigned next_actor;
+    LVType types[128]; unsigned type_count, next_type;
     unsigned read_budget; int budget_enabled;
 } LootValueReader;
 
@@ -41,6 +43,32 @@ static int lv_read(LootValueReader *r, uint64_t p, void *out, size_t n) {
 }
 static uint64_t lv_ptr(LootValueReader *r, uint64_t p) {
     uint64_t value = 0; lv_read(r, p, &value, sizeof(value)); return value;
+}
+/* Native class and immediate superclass IDs are verified together. This also
+ * admits linked pickups which are not separately enumerated in level arrays. */
+static int lv_kind(LootValueReader *r, uint64_t actor) {
+    uint64_t original = lv_ptr(r, actor + 8), cls = original;
+    int32_t original_index = 0;
+    if (!lv_pointer(cls) || !lv_read(r, cls + 0x24, &original_index, 4)) return 0;
+    for (unsigned i = 0; i < r->type_count; i++)
+        if (r->types[i].cls == cls && r->types[i].index == original_index) return r->types[i].kind;
+    int kind = 0;
+    for (int depth = 0; depth < 16 && lv_pointer(cls); depth++) {
+        int32_t index = 0, parent_index = 0; uint64_t parent = lv_ptr(r, cls + 0x40);
+        if (!lv_read(r, cls + 0x24, &index, 4) || !lv_read(r, parent + 0x24, &parent_index, 4)) break;
+        if (index == 7826 && parent_index == 7825) kind = 4;
+        else if (index == 7825 && parent_index == 7824) kind = 2;
+        else if (index == 7824 && parent_index == 7823) kind = 1;
+        else if (index == 7559 && parent_index == 7557) kind = 3;
+        else if (index == 6322 && parent_index == 57) kind = 5;
+        if (kind || parent == cls) break;
+        cls = parent;
+    }
+    if (!r->budget_enabled || r->read_budget) {
+        unsigned slot = r->type_count < 128 ? r->type_count++ : r->next_type++ % 128;
+        r->types[slot] = (LVType){original, original_index, kind};
+    }
+    return kind;
 }
 static int lv_table_header(LootValueReader *r, uint64_t p, unsigned *count, uint64_t *nodes) {
     unsigned char head[32];
@@ -147,31 +175,64 @@ static void lv_consider_item(LootValueReader *r, uint64_t item, LootValue *out) 
         out->item_id = id; out->unit_value = price; out->value_known = 1;
     }
 }
+typedef struct { uint64_t seen[128]; unsigned count; } LVWalk;
+static void lv_merge(LootValue *out, LootValue child) {
+    out->contents_known |= child.contents_known;
+    if (child.value_known && (!out->value_known || child.unit_value > out->unit_value)) {
+        out->item_id = child.item_id; out->unit_value = child.unit_value; out->value_known = 1;
+    } else if (!out->item_id) out->item_id = child.item_id;
+}
+static LootValue lv_inspect(LootValueReader *r, uint64_t actor, int kind, unsigned depth, LVWalk *walk) {
+    LootValue result = {.container = kind >= 2};
+    if (!kind || depth >= 4 || walk->count >= 128 || !lv_pointer(actor)) return result;
+    for (unsigned i = 0; i < walk->count; i++) if (walk->seen[i] == actor) return result;
+    walk->seen[walk->count++] = actor;
+    if (kind == 1 || kind == 2 || kind == 4) {
+        unsigned char hidden = 0;
+        if (!lv_read(r, actor + 0xfc0, &hidden, 1) || hidden != 0) return result;
+    }
+    if (kind == 1) {
+        result.contents_known = 1;
+        lv_consider_item(r, actor + 0x1240, &result);
+    } else if (kind == 2 || kind == 4) {
+        struct { uint64_t data; int32_t count, capacity; } items;
+        unsigned char searched = 0, empty = 0;
+        if (!lv_read(r, actor + 0x2040, &items, sizeof(items)) ||
+            items.count < 0 || items.count > 128 || items.capacity < items.count ||
+            items.capacity > 1024 || (items.count && !lv_pointer(items.data))) return result;
+        lv_read(r, actor + 0x2068, &searched, 1); lv_read(r, actor + 0x2428, &empty, 1);
+        result.contents_known = items.count > 0 || searched == 1 || empty == 1;
+        for (int i = 0; i < items.count; i++) lv_consider_item(r, items.data + (uint64_t)i * 0x800, &result);
+    } else if (kind == 3) {
+        /* Reflected Interactor_SingleItemContainer layout, verified on device. */
+        struct { uint64_t data; int32_t count, capacity; } children;
+        if (lv_read(r, actor + 0x1128, &children, sizeof(children)) && children.count >= 0 &&
+            children.count <= 128 && children.capacity >= children.count && children.capacity <= 1024 &&
+            (!children.count || lv_pointer(children.data))) {
+            for (int i = 0; i < children.count && walk->count < 128; i++) {
+                uint64_t child = lv_ptr(r, children.data + (uint64_t)i * 8);
+                lv_merge(&result, lv_inspect(r, child, lv_kind(r, child), depth + 1, walk));
+            }
+        }
+        uint64_t open_box = lv_ptr(r, actor + 0x1180);
+        lv_merge(&result, lv_inspect(r, open_box, lv_kind(r, open_box), depth + 1, walk));
+    } else if (kind == 5) {
+        /* ChangeableContainer.CacheSpawnActor; preview actors are not loot. */
+        uint64_t child = lv_ptr(r, actor + 0x378);
+        lv_merge(&result, lv_inspect(r, child, lv_kind(r, child), depth + 1, walk));
+    }
+    return result;
+}
 static LootValue lv_actor(LootValueReader *r, uint64_t actor, int kind, uint64_t now) {
     LVActor *slot = NULL;
     for (unsigned i = 0; i < LV_ACTORS; i++) if (r->actors[i].actor == actor && r->actors[i].kind == kind) { slot = &r->actors[i]; break; }
     if (slot && slot->checked && now - slot->checked < 500) return slot->result;
     if (!slot) slot = &r->actors[r->next_actor++ % LV_ACTORS];
     *slot = (LVActor){.actor = actor, .checked = now, .kind = kind};
-    LootValue *out = &slot->result;
-    out->container = kind >= 2;
     lv_refresh(r, now);
-    /* Metadata kind 1/2/4 is admitted only for a verified InventoryPickup
-     * inheritance chain. Other interactables retain explicitly unknown value. */
-    if (kind == 1) {
-        out->contents_known = 1;
-        lv_consider_item(r, actor + 0x1240, out);
-    } else if (kind == 2 || kind == 4) {
-        struct { uint64_t data; int32_t count, capacity; } items;
-        unsigned char searched = 0, empty = 0;
-        if (!lv_read(r, actor + 0x2040, &items, sizeof(items)) ||
-            items.count < 0 || items.count > 128 || items.capacity < items.count ||
-            items.capacity > 1024 || (items.count && !lv_pointer(items.data))) return *out;
-        lv_read(r, actor + 0x2068, &searched, 1); lv_read(r, actor + 0x2428, &empty, 1);
-        out->contents_known = items.count > 0 || searched == 1 || empty == 1;
-        for (int i = 0; i < items.count; i++) lv_consider_item(r, items.data + (uint64_t)i * 0x800, out);
-    }
+    LVWalk walk = {0};
+    slot->result = lv_inspect(r, actor, kind, 0, &walk);
     if (r->budget_enabled && !r->read_budget) slot->checked = 0;
-    return *out;
+    return slot->result;
 }
 #endif

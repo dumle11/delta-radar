@@ -380,3 +380,76 @@ fresh feed's peer PID and verify its `/proc/PID/exe`. A fresh scanner diagnostic
 timestamp alone also does not establish an active match: check overlay age and
 game state before interpreting it. Private evidence is under
 `evidence/local/session/loot-guide-zero-dam-repeat-20261103/`.
+
+
+## Container coverage and edge-marker candidate — 2026-11-03
+
+The user reports loose map loot working, but inconsistent detection from flight
+containers, sewers, bird nests, suitcases and safes, including special safes that
+appear at varying locations. Treat these as unresolved per-family coverage;
+the earlier visual filter pass does not establish universal container support.
+
+Further review found a same-sequence capture (3271) of a nearby container with
+item `15040050002`, runtime unit value **2,050,520**, eligible at 20k. The
+corresponding overlay output contained it, but `onScreen=false` at normalized
+(0.4275, 0.982). Its origin was about 1.1m below the camera. This is consistent
+with the reported red/bust item, but its exact name/container class was not
+captured. The renderer skipped offscreen bodies, leaving only whichever line
+or tiny label features were enabled. The candidate draws an inset loot-edge
+diamond when body display is enabled, while retaining normal on-screen boxes.
+A diamond indicates direction toward an offscreen origin, not a world-space box.
+
+A separate source gap was explicit: kind-3 stash/interactable values were always
+unknown. The candidate now follows these verified native layouts:
+
+- `Interactor_SingleItemContainer` (class 7559 / parent 7557): `CachedPickups`
+  at 0x1128, plus `CachedOpenBox` at 0x1180.
+- `ChangeableContainer` (class 6322 / parent 57): `CacheSpawnActor` at 0x378;
+  preview actors are ignored.
+- Linked actors must independently pass native class/superclass validation.
+  Pickup/container/death-box descendants use their corresponding existing item
+  reader. Hidden pickups (`bIsHiddenItem` at 0xfc0) do not retain stale values.
+
+Class definitions and field offsets were checked against the SDK and read-only
+reflection of the phone's loaded classes. Contents are walked at most four
+levels and 128 distinct actors, with array bounds and the shared 4096-read/frame
+budget. Cycles/invalid references terminate without inventing prices. The parent
+uses the highest known individual child-item value, never a sum. The 500ms actor
+cache and ordinary-collectible price scope remain. Class-kind caches reset on
+world change. Actor positions and character decoder paths are unchanged.
+
+This adds a missing path; **live coverage for each reported container family is
+still pending**. Unsearched or unreplicated contents remain unknown. A special
+container with neither readable linked pickups nor an open-box/spawned actor
+will still have no value marker while the filter is ON. No old match addresses
+were inspected after death; class reflection used only current static objects.
+
+Candidate identities (ignored `container-links-build-20261103`):
+
+- APK: `21cdaadfad5223cf5b187514fa415bbbe8d846ac53cedec9d2dd9c0ce9a86e6c`.
+- Native: `135e3893f9e502f50c71f6d39d1801e0470d9bd05215b9223dee802e6f535d14`.
+- Source inputs: `0501dd19430030b649815baf2f80b3c2bf531d05fdcadc5a5634be1a8cb5009d`.
+- Build base: `c14dcb6` plus modified input hashes.
+
+Native graph fixtures pass under ASan/UBSan (nested links, hidden children,
+invalid arrays, cycle termination and class/superclass mismatch). Position,
+feed timestamp, roster and discovery regressions pass. API31/APK/device-test
+builds, 40 JVM tests and lint pass (zero lint errors, 168 warnings). The new
+on-phone test reproduces the captured safe/camera offset using labelled synthetic
+input, body-only loot style and a composed-screen shown-versus-hidden pixel
+comparison. All three on-phone tests passed, including that composed-pixel check. Installed
+APK/native hashes and embedded native pin match; game PID was unchanged. The
+user's pre-test minimum was 0 with the filter ON and was preserved; 20k remains
+the intended normal-play threshold. Device results and exact artifacts are
+saved locally. Live family
+and pickup/empty comparisons are the next required checks.
+
+### Later feature: automatic loot sorting (requested, not implemented)
+
+When the user opens a loot container or player box, take its most valuable loot;
+if the backpack/rig is full, replace lower-value carried loot with higher-value
+loot. Record this as a later feature, after container coverage is reliable.
+It needs verified complete inventory contents, item dimensions/occupied slots,
+stack/value handling and transfer/drop-result confirmation. Current collectible
+pricing alone is insufficient to rank gear/keys and all player-box contents.
+No automatic item transfers or drops have been added.

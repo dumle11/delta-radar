@@ -1721,28 +1721,6 @@ static int loot_kind_from_class(uint64_t cls) {
     return result;
 }
 
-static int loot_metadata_kind(uint64_t actor, int kind) {
-    if (kind == 3) return 3;
-    uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
-    static struct { uint64_t cls; int index, kind, result; } cache[128];
-    static unsigned count;
-    uint64_t original = cls; int index = read_i32(cls + 0x24);
-    for (unsigned i = 0; i < count; i++)
-        if (cache[i].cls == cls && cache[i].index == index && cache[i].kind == kind) return cache[i].result;
-    int result = 0;
-    for (int depth = 0; depth < 16 && is_any_ptr(cls); depth++) {
-        uint64_t parent = read_ptr(cls + 0x40);
-        if (read_i32(cls + 0x24) == 7824 && read_i32(parent + 0x24) == 7823) { result = kind; break; }
-        if (parent == cls) break;
-        cls = parent;
-    }
-    if (count < 128) {
-        cache[count].cls = original; cache[count].index = index;
-        cache[count].kind = kind; cache[count++].result = result;
-    }
-    return result;
-}
-
 static int sane_tarray(uint64_t owner, int off, int max_count) {
     uint64_t data = read_ptr(owner + (uint64_t)off);
     int count = read_i32(owner + (uint64_t)off + 8);
@@ -2222,6 +2200,7 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         health_layout_clock = 0;
         memset(loot_values.actors, 0, sizeof(loot_values.actors));
         loot_values.next_actor = 0;
+        loot_values.type_count = loot_values.next_type = 0;
         /* The field layout belongs to this game process/build, not to one
          * transient UWorld. Keep a successful resolution across loading-world
          * swaps; the scanner itself restarts when the game PID changes. */
@@ -2781,7 +2760,7 @@ camera_done:
             e->team = 2;
             e->has_bones = 0;
             e->loot = lv_actor(&loot_values, actor_ptrs[i],
-                              loot_metadata_kind(actor_ptrs[i], loot_kind), diag_now_ms());
+                              lv_kind(&loot_values, actor_ptrs[i]), diag_now_ms());
             num_entities++;
             continue;
         }

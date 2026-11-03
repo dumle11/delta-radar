@@ -79,4 +79,88 @@ class LootValueDeviceTest {
             if (!captureBefore) capture.delete()
         }
     }
+    @Test fun valuableSafeBelowViewHasVisibleBodyOnlyEdgeMarker() {
+        assumeTrue(AndroidSettings.canDrawOverlays(context))
+        val features = Settings.entityFeatures(context, Settings.EntityType.LOOT)
+        val filter = Settings.lootValueFilter(context)
+        val minimum = Settings.lootMinimumValue(context)
+        val mode = Settings.lootDrawMode(context)
+        val color = Settings.lootColor(context)
+        val capture = File(context.filesDir, "capture-feed.enabled")
+        val captureBefore = capture.isFile
+        val output = File(context.filesDir, "latest-overlay-frame.json")
+        val keepFeeding = AtomicBoolean(true)
+        var feeder: Thread? = null
+        try {
+            capture.writeText("")
+            Settings.setEntityFeatures(context, Settings.EntityType.LOOT,
+                Settings.FEATURE_ENABLED or Settings.FEATURE_BODY)
+            Settings.setLootDrawMode(context, Settings.DRAW_MODE_BOXES)
+            Settings.setLootColor(context, 0xFF00FF30.toInt())
+            Settings.setLootValueFilter(context, true)
+            Settings.setLootMinimumValue(context, 20_000)
+            instrumentation.runOnMainSync { EntityFeedService.start(context); OverlayService.show(context) }
+            await("services not ready") { EntityFeedService.instance?.isFeedRunning == true && OverlayService.instance != null }
+            // Reproduce the captured safe/camera offset without game memory.
+            val raw = """{"self":"TEST-safe-camera","entities":[
+                {"id":"TEST-safe-camera","x":0,"y":0,"z":1.1,"yaw":-78.7,"pitch":-4.9,"fov":112.5},
+                {"id":"TEST-safe-edge","kind":"loot","name":"TEST SAFE EDGE","x":-0.1,"y":-0.9,"z":0,
+                 "lootContainer":true,"lootUnitValue":2050520,"lootValueKnown":true,"lootValueSource":"shop-dynamic-guide"}]}""".trimIndent()
+            val service = EntityFeedService.instance!!
+            feeder = thread(isDaemon = true) {
+                while (keepFeeding.get()) { service.ingest(raw); SystemClock.sleep(20) }
+            }
+            var pointX = 0f
+            var pointY = 0f
+            await("safe was not projected to the screen edge") {
+                try {
+                    val json = JSONObject(output.readText())
+                    val list = json.getJSONArray("projected")
+                    if (System.currentTimeMillis() - json.getLong("captureWallTimeMs") > 1500 || list.length() != 1) false
+                    else list.getJSONObject(0).let { e ->
+                        pointX = e.getDouble("x").toFloat(); pointY = e.getDouble("y").toFloat()
+                        e.getString("id") == "TEST-safe-edge" && !e.getBoolean("onScreen")
+                    }
+                } catch (_: Exception) { false }
+            }
+            fun edgePixels(name: String): Int {
+                instrumentation.waitForIdleSync()
+                val bitmap = instrumentation.uiAutomation.takeScreenshot()
+                val cx = (pointX * bitmap.width).toInt()
+                val cy = (pointY * bitmap.height).toInt()
+                val radius = (24 * context.resources.displayMetrics.density).toInt()
+                var pixels = 0
+                for (x in (cx - radius).coerceAtLeast(0)..(cx + radius).coerceAtMost(bitmap.width - 1)) {
+                    for (y in (cy - radius).coerceAtLeast(0)..(cy + radius).coerceAtMost(bitmap.height - 1)) {
+                        val pixel = bitmap.getPixel(x, y)
+                        if (android.graphics.Color.green(pixel) > 200 && android.graphics.Color.red(pixel) < 80 &&
+                            android.graphics.Color.blue(pixel) < 180) pixels++
+                    }
+                }
+                File(context.filesDir, name).outputStream().use {
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                }
+                bitmap.recycle()
+                return pixels
+            }
+            await("overlay did not draw") { OverlayService.instance?.overlayVisible == true && OverlayService.instance!!.overlayDrawnFrames > 0 }
+            SystemClock.sleep(150)
+            val shown = edgePixels("test-safe-edge-shown.png")
+            instrumentation.runOnMainSync { OverlayService.hide(context) }
+            await("Hide did not hide overlay") { OverlayService.instance?.overlayVisible == false }
+            SystemClock.sleep(150)
+            val hidden = edgePixels("test-safe-edge-hidden.png")
+            assertTrue("Body-only offscreen loot marker must add visible green pixels: shown=$shown hidden=$hidden", shown > hidden + 20)
+        } finally {
+            keepFeeding.set(false); feeder?.join(1000)
+            instrumentation.runOnMainSync { OverlayService.stop(context); EntityFeedService.stop(context) }
+            Settings.setEntityFeatures(context, Settings.EntityType.LOOT, features)
+            Settings.setLootValueFilter(context, filter)
+            Settings.setLootMinimumValue(context, minimum)
+            Settings.setLootDrawMode(context, mode)
+            Settings.setLootColor(context, color)
+            if (!captureBefore) capture.delete()
+        }
+    }
+
 }

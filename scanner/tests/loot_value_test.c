@@ -34,6 +34,9 @@ static void field(uint64_t t, unsigned slot, const char *name, int tag, uint64_t
 static void numeric_key(uint64_t t, unsigned slot, uint64_t key, int tag, uint64_t value) {
     LVNode n = {.value = {.value = value, .tag = tag}, .key = key, .key_tag = 19}; put(nodes_of(t) + slot * sizeof(n), &n, sizeof(n));
 }
+static uint64_t native_class(int index, uint64_t parent) {
+    uint64_t p = alloc(0x80); integer(p + 0x24, index); ptr(p + 0x40, parent); return p;
+}
 static void item(uint64_t p, uint32_t category, uint32_t sequence, int32_t count) {
     uint32_t pair[2] = {category, sequence}; put(p + 0x10, pair, sizeof(pair)); integer(p + 0x38, count);
 }
@@ -92,8 +95,40 @@ int main(void) {
     result = lv_actor(&reader, loose, 1, 16000); assert(!result.value_known);
     lv_begin_frame(&reader);
     result = lv_actor(&reader, loose, 1, 18000); assert(result.value_known && result.unit_value == 2798);
+    uint64_t actor_class = native_class(57, 0), proxy = native_class(7557, actor_class);
+    uint64_t pickup_base = native_class(7823, actor_class), pickup = native_class(7824, pickup_base);
+    uint64_t box_class = native_class(7825, pickup), single_class = native_class(7559, proxy);
+    uint64_t change_class = native_class(6322, actor_class);
+    ptr(loose + 8, pickup); ptr(box + 8, box_class);
+    uint64_t stash = alloc(0x2000), children = alloc(16), wrapper = alloc(0x500);
+    ptr(stash + 8, single_class); ptr(stash + 0x1128, children); integer(stash + 0x1130, 1); integer(stash + 0x1134, 2);
+    ptr(children, loose); ptr(wrapper + 8, change_class); ptr(wrapper + 0x378, stash);
+    lv_begin_frame(&reader);
+    assert(lv_kind(&reader, loose) == 1 && lv_kind(&reader, box) == 2);
+    assert(lv_kind(&reader, stash) == 3 && lv_kind(&reader, wrapper) == 5);
+    result = lv_actor(&reader, stash, 3, 19000);
+    assert(result.container && result.contents_known && result.unit_value == 2798);
+    /* The open-box link can contain a more valuable individual item. */
+    integer(box + 0x2048, 2); memory[box - MEMORY_BASE + 0x2428] = 0;
+    ptr(stash + 0x1180, box);
+    result = lv_actor(&reader, wrapper, 5, 19600);
+    assert(result.container && result.unit_value == 25000 && result.item_id == 15090010026ULL);
+    /* Picked-up/hidden children must not keep a stale valuable marker alive. */
+    memory[loose - MEMORY_BASE + 0xfc0] = 1; memory[box - MEMORY_BASE + 0xfc0] = 1;
+    result = lv_actor(&reader, wrapper, 5, 20200); assert(!result.value_known);
+    memory[loose - MEMORY_BASE + 0xfc0] = 0; memory[box - MEMORY_BASE + 0xfc0] = 0;
+    /* Bad array headers do not suppress a separately valid open-box link. */
+    integer(stash + 0x1130, 129);
+    result = lv_actor(&reader, stash, 3, 20800); assert(result.unit_value == 25000);
+    /* Cycles/unknown classes terminate and cannot invent a price. */
+    ptr(wrapper + 0x378, wrapper);
+    result = lv_actor(&reader, wrapper, 5, 21400); assert(!result.value_known);
+    uint64_t impostor = alloc(0x3000); ptr(impostor + 8, native_class(7824, actor_class));
+    assert(lv_kind(&reader, impostor) == 0);
+    integer(stash + 0x1130, 0); ptr(stash + 0x1180, 0);
+    result = lv_actor(&reader, stash, 3, 22000); assert(!result.contents_known && !result.value_known);
     field(shop, 1, "_shopType", 68, string("Arena"));
-    reader.map = 0; result = lv_actor(&reader, loose, 1, 20000);
+    reader.map = 0; result = lv_actor(&reader, loose, 1, 24000);
     assert(!result.value_known && !reader.node_count); /* never use Normal prices in Arena */
     puts("loot value fixtures passed");
     return 0;

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.os.SystemClock
 import android.view.View
@@ -79,6 +80,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     private val healthBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC000000.toInt() }
     private val healthFillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rounded = RectF()
+    private val lootEdgeMarker = Path()
     private val candidateLabel = RectF()
     private val fontMetrics = Paint.FontMetrics()
     private val expire = Runnable { clear(); onExpired() }
@@ -185,6 +187,28 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
             }
 
             var boxHeightForLabel = 48f * density
+            if (enemy.kind == "loot" && !enemy.onScreen && drawBody) {
+                // A nearby safe's actor origin can be below the camera's view.
+                // Keep its direction visible without drawing a misplaced world
+                // box: an inset diamond marks the clipped screen-edge position.
+                val radius = 6f * density
+                val inset = radius + padding
+                val edgeX = ex.coerceIn(inset, (width - inset).coerceAtLeast(inset))
+                val edgeY = ey.coerceIn(inset, (height - inset).coerceAtLeast(inset))
+                lootEdgeMarker.reset()
+                lootEdgeMarker.moveTo(edgeX, edgeY - radius)
+                lootEdgeMarker.lineTo(edgeX + radius, edgeY)
+                lootEdgeMarker.lineTo(edgeX, edgeY + radius)
+                lootEdgeMarker.lineTo(edgeX - radius, edgeY)
+                lootEdgeMarker.close()
+                boxPaint.color = entityColor
+                boxPaint.strokeWidth = density * thicknessScale
+                boxShadowPaint.strokeWidth = 2.5f * density * thicknessScale
+                canvas.drawPath(lootEdgeMarker, boxShadowPaint)
+                canvas.drawPath(lootEdgeMarker, boxPaint)
+                labelCenterX = edgeX
+                labelTopY = edgeY - radius
+            }
             if (enemy.onScreen && (drawBody || drawHealth)) {
                 val headX = enemy.headX * width
                 val headY = enemy.headY * height
