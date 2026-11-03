@@ -723,3 +723,53 @@ Capture the closed target through the new data paths before requesting its
 first opening, then compare actual items. The installed working APK, native
 scanner and deployment pins remain unchanged. No pre-opening display feature
 is claimed ready, and empty data must remain unknown.
+
+
+## Third match: closed flight case and the native item reader
+
+Fresh pinned production feed and peer executable were verified. The first
+independent cabinet registry pass returned no match despite a cabinet in the
+production feed. This exposed a diagnostic ownership error: a streamed Level's
+Outer can be its package World. The diagnostic now follows reflected
+Level.OwningWorld, validates the World class, and uses that active World for
+both the current self anchor and candidate containers. A subsequent full pass
+matched the Tool Cabinet. Do not interpret the earlier zero-match pass as
+absence of client data.
+
+The user then stood beside a closed Flight Case with its interaction prompt
+visible. Both the nearest-feed capture and independent current-world registry
+pass matched `BP_InteractorContainer_AirCargoContainer_C`. The registry completed
+without truncation and found the same actor. Its RepItemArray was valid with
+count zero, search incomplete, and ContainerSpace null. The diagnostic also
+records the reflected InventoryGID privately for cache correlation. The user
+died before the requested closed-to-searched comparison; no matched after-search
+sample exists for this run. No game crash was reported. Radar was stopped and
+zero project scanner processes remained (`match-outcome.json`).
+
+Fresh Lua metadata identified `Server.LootingServer` and its methods.
+Read-only closure/prototype captures showed InitPickupBoxData_SceneBox using
+LootBoxRepData.SpaceRepData and FetchItemsInPickupBox; the latter calls
+GetSubPickups, then constructs item data. This is evidence from method constants
+and native disassembly, not an executed game call. InventoryServer's shallow
+maps were also captured, but no closed-container content mapping was established.
+
+The diagnostic's new `pickup-methods` mode validates the native pickup and
+container classes, their immediate parent indices, class default objects and
+module-bounded vtables before reading the GetSubPickups virtual method slot
+identified in the SDK wrapper. Offline module-relative reads/disassembly showed
+the native container implementation copying RepItemArray.Items from the same
+offsets and 0x800 stride already used by production. GetSubPickupSpace returns
+the ContainerSpace field. The relevant pre/post GetSubPickups and GetSubPickupSpace
+hotfix flags were zero when checked after the user's death, so that check did
+not expose an alternate patched reader. It does not establish that every
+Blueprint override or every other cache has been ruled out.
+
+This supports pre-search item availability as the remaining blocker; it does
+not prove server-side spawn timing or universal absence of an alternative client
+source. No pre-opening display feature is implemented. The separate diagnostic
+API-31 build passed warnings as errors and its deployed hash (`9afa728a...`)
+matches. Production APK/native and pins remain unchanged. Private evidence:
+`unopened-container-20261103/`, including closed feed/registry frames, method
+captures, native disassembly and dispatch flags. Positive nonnull ItemSpace
+capture remains unvalidated. Identify a concrete new data path before requesting
+another match; repeating already-passed price panels will not resolve this gap.

@@ -184,6 +184,11 @@ static void actor(uint64_t obj) {
     json_escape(class_name, escaped, sizeof(escaped));
     printf("{\"actor\":\"%lx\",\"class\":\"%s\",\"kind\":%d", obj, escaped, kind);
     LootProperty p;
+    if (property(cls, "InventoryGID", &p) && p.size == 8) {
+        uint64_t gid = 0;
+        if (read_mem(obj + p.offset, &gid, sizeof(gid)) == sizeof(gid))
+            printf(",\"inventoryGid\":\"%llu\"", (unsigned long long)gid);
+    }
     if (property(cls, "InventoryIdName", &p)) {
         char name[128] = {0};
         if (resolve_fname(read_i32(obj + p.offset), name, sizeof(name))) {
@@ -253,8 +258,20 @@ static void actor(uint64_t obj) {
 static uint64_t owning_world(uint64_t obj) {
     for (int depth = 0; depth < 16 && is_any_ptr(obj); depth++) {
         char name[96] = {0};
-        resolve_class_name(read_ptr(obj + OFF_UOBJECT_CLASS), name, sizeof(name));
+        uint64_t cls = read_ptr(obj + OFF_UOBJECT_CLASS);
+        resolve_class_name(cls, name, sizeof(name));
         if (!strcmp(name, "World")) return obj;
+        /* Streamed levels can have a different package World as their Outer.
+         * The reflected OwningWorld is the active game World instead. */
+        if (!strcmp(name, "Level")) {
+            LootProperty field;
+            if (property(cls, "OwningWorld", &field) && field.size == 8) {
+                uint64_t world = read_ptr(obj + field.offset);
+                char world_name[96] = {0};
+                resolve_class_name(read_ptr(world + OFF_UOBJECT_CLASS), world_name, sizeof(world_name));
+                if (!strcmp(world_name, "World")) return world;
+            }
+        }
         uint64_t outer = read_ptr(obj + OFF_UOBJECT_OUTER);
         if (outer == obj) break;
         obj = outer;
@@ -607,6 +624,19 @@ int main(int argc, char **argv) {
         char name[128] = {0};
         if (resolve_fname(read_i32(ue4_base + 0x20507ab0), name, sizeof(name)))
             printf("price-table-key name=%s\n", name);
+    } else if (!strcmp(argv[1], "pickup-methods")) {
+        const int indices[] = {7824, 7825};
+        for (unsigned i = 0; i < sizeof(indices) / sizeof(indices[0]); i++) {
+            uint64_t cls = object_at(indices[i]), parent = read_ptr(cls + 0x40);
+            uint64_t cdo = read_ptr(cls + 0x138), vtable = read_ptr(cdo);
+            if (!cls || read_i32(parent + 0x24) != indices[i] - 1 ||
+                !is_game_heap_ptr(cdo) || read_ptr(cdo + OFF_UOBJECT_CLASS) != cls ||
+                vtable < ue4_base || vtable >= ue4_end) return 3;
+            uint64_t method = read_ptr(vtable + 0xc28);
+            if (method < ue4_base || method >= ue4_end) return 3;
+            printf("{\"nativeClassIndex\":%d,\"getSubPickupsModuleOffset\":\"%lx\"}\n",
+                   indices[i], method - ue4_base);
+        }
     } else if (!strcmp(argv[1], "inventory-methods")) {
         uint64_t cls = object_at(0x1d35), cdo = read_ptr(cls + 0x138);
         uint64_t vtable = read_ptr(cdo);

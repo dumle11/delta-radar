@@ -1,11 +1,12 @@
 ## Pre-opening loot investigation — 2026-11-03 (latest)
 
-The user now explicitly wants actual contents before the first open/search.
-That feature is not established. Keep the installed working APK/native
-`21cdaadf...` / `135e3893...` while investigating; no production code or pins
-were changed in this preparation. Radar was stopped after the second match.
+The user wants actual contents before the first open/search. That feature is
+not established. Keep the installed working APK/native `21cdaadf...` /
+`135e3893...`; production code/pins were unchanged. The user died during the
+third match after a closed flight-case sample, before a matched after-search
+sample. Radar was stopped; zero project scanners remained. No crash reported.
 
-Prepared a separate content-addressed read-only diagnostic `9d384db4...`.
+Current separate content-addressed read-only diagnostic: `9afa728a...`.
 It independently searches up to 300,000 registered UObjects, selects nearby
 loot by case-insensitive class fragment, and records containers omitted from
 the production level-array/position filters. Live capture requires a fresh
@@ -17,16 +18,26 @@ interpreted as contents or sent to production pricing.
 
 API-31 compile with warnings as errors, Python compile, complete lobby registry
 pass (~1 second) and invalid-coordinate/anchor/argument rejection checks passed.
-The deployed diagnostic hash matches. The positive world-anchor and inventory
-paths still need a live-match check. Private proof: ignored local
-`unopened-container-20261103/diagnostic-validation.json`.
+The deployed diagnostic hash matches. Live testing exposed a diagnostic bug:
+streamed Level.Outer can be a package World, so following only Outer excluded
+valid map containers. Following reflected Level.OwningWorld fixed the pass:
+it matched the Tool Cabinet and then the same closed AirCargoContainer as
+the production feed, with current-world filtering and no registry truncation.
+The closed flight case had a valid empty RepItemArray and null ContainerSpace.
+No positive nonnull ItemSpace snapshot has been validated yet. Private proof:
+ignored local `unopened-container-20261103/`.
 
-Next: the user has been asked to spawn with radar ON/minimum 0 and take cover.
-Use fresh frame/actors. Run `capture_loot_snapshot.py` with a unique label,
-`--registry-filter Cabinet --radius 15` near a closed cabinet (or a relevant
-class fragment for another closed container), without asking the user to open
-it until its alternate inventory data is captured. Compare once after opening.
-Do not reuse actors from the previous matches or promise pre-search prices.
+Read-only follow-up found `Server.LootingServer`: its scene-box fetch calls
+GetSubPickups. Native class/CDO vtable checks and offline disassembly show the
+container implementation copying the same RepItemArray.Items offsets/stride
+already used by production; GetSubPickupSpace returns ContainerSpace. Relevant
+hotfix dispatch flags were zero when checked after death, exposing no alternate
+patched source in that check. The inventory GID and Lua metadata are captured
+privately for further correlation. This narrows the blocker to pre-search item
+availability; it does not prove no other client source exists or establish
+server-side creation time. Do not promise pre-search prices or reuse actors.
+Before requesting another match, identify a concrete additional data path;
+do not repeat existing price-panel tests without a new reason.
 
 Static audit also found a per-level 2,000-actor scan ceiling and positional
 de-duplication within 0.5 m that can suppress distinct loot items. These are
