@@ -1,4 +1,23 @@
-## Offline performance audit — 2026-11-02 (latest candidate)
+## Saved OnePlus baseline — 2026-11-03 (latest status)
+
+The audited `8b150f87...` native scanner and matching `2662fdec...` APK were
+installed and hash-verified on the phone. The user spawned; the radar was started
+in the background and produced fresh player/AI/loot snapshots and visible combat
+markers. One short sample measured 21.8 feed updates/sec, 15 ms transport age and
+40 ms draw-source age. The user said "I think it works," then died and left the
+match. The radar was stopped between matches.
+
+At the user's request, save this exact version on remote branch
+`OnePlus-all-working-lines` and tag `working-v1-2026-11-03`. See
+[the checkpoint record](ONEPLUS_WORKING_CHECKPOINT.md) for exact build identities,
+the local executable backup and remaining acceptance checks. Production source
+is `8863a1a`; checkpoint changes are documentation only. Continue experiments on
+`working-v1` and preserve the checkpoint branch/tag. No clearly visible living
+human alignment comparison or full-match crash acceptance has been completed.
+
+---
+
+## Offline performance audit — 2026-11-02 (historical)
 
 See [the performance audit](PERFORMANCE_AUDIT.md) for findings, fixes and checks.
 The user reported a game exit at 19:51:24, recorded by Android as SIGBUS; no

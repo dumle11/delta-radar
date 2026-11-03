@@ -14,6 +14,11 @@ confirmed; the full player overlay is still under verification.
 The [offline performance audit](docs/PERFORMANCE_AUDIT.md) describes the latest
 latency and cache fixes, regression results, and remaining device checks.
 
+The [saved OnePlus checkpoint](docs/ONEPLUS_WORKING_CHECKPOINT.md) records the
+2026-11-03 live-tested build, exact executable hashes and remaining acceptance
+checks. It is preserved on branch `OnePlus-all-working-lines` and tag
+`working-v1-2026-11-03`.
+
 ## Components
 
 - `scanner/memscan.c` — native actor, transform, health, death, and team reader.
