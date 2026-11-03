@@ -6,8 +6,8 @@ Alignment, close/far tracking and responsiveness were previously reported good;
 full-match/SIGBUS acceptance remains outstanding.
 
 The first live integrated value-filter check exposed an empty auction cache.
-Item IDs and searched container contents were readable, but the initial filter
-hid everything as unknown. The user supplied Trade Documents (**8,005**) and a
+Item IDs and searched container contents were readable, but enabling the initial
+filter would have hidden everything as unknown. The user supplied Trade Documents (**8,005**) and a
 Pirate Gold Coin (**57,757**) before dying. No game crash was reported.
 
 The correction uses
