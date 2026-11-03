@@ -634,3 +634,36 @@ The diagnostic remains a separate content-addressed, bounded read-only tool.
 The production scanner/APK, deployment pins and live radar were unchanged.
 An office filing cabinet remains the next requested target; the user can
 continue playing until one is encountered.
+
+
+## Office/filing cabinet: child items track after opening and reclosing
+
+The user found an unopened office cabinet, with the game's Open prompt visible.
+The closed cabinet parent was not represented in the nearby emitted loot feed;
+the nearest emitted loot was about 4.9 m away. Thus its parent class and cached
+link fields were not established by this capture. The two later child actor IDs
+were absent from the entire captured before feed, not just the nearest sample.
+This is an observation about the emitted client feed, not proof of server-side
+creation time or absence from every other client data structure.
+
+Opening the doors exposed two shelf items, independently emitted as
+`BP_InventoryPickup_FromSingleItemContainer_C`, metadata kind 1:
+
+| Item shown | Catalog ID | Native/marker unit value | UI price comparison |
+| --- | --- | ---: | --- |
+| Solar Panel | `15030050016` | 25,749 | Exact match, 25,749 |
+| Waybill | `15090910022` | 4,451 | Not repeated |
+
+Both items had composed on-screen markers. After the user left both untouched
+and closed the cabinet doors, the same child actors remained in the feed at
+the same prices and both markers remained on-screen over the closed cabinet.
+Minimum remained 0. At the intended 20k cutoff, the Solar Panel qualifies and
+the Waybill does not; no live toggle or pickup/empty sequence was repeated.
+
+This establishes tracking for items exposed by this cabinet, including after
+reclosing it. It does not validate the parent's kind-3/5 linked-content reader
+or visibility before the first opening. No production/source changes were
+needed. Private proof: `container-links-live-20261103/filing-cabinet-summary.json`
+with before/opened/reclosed frames, composed screenshots and the Solar Panel
+details panel. The user was released to extract; scanner remains running until
+the match ends. No further tests were requested this match.

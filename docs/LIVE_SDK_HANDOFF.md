@@ -71,6 +71,18 @@ pre-search price source and does not establish server spawn timing. Replacement
 definitions are diagnostic only, never treated as authoritative live contents.
 The installed APK and production scanner are unchanged.
 
+The user-selected office/filing cabinet then passed item tracking after opening
+and reclosing. Its closed parent was not present in the nearby emitted loot
+feed, so the parent class/link path is not established. Opening exposed two
+`BP_InventoryPickup_FromSingleItemContainer_C` children, metadata kind 1:
+Solar Panel `15030050016` at **25,749**, Waybill `15090910022` at **4,451**.
+Solar Panel's UI price matched exactly. Both same child actors and visible
+markers persisted after closing the doors with items untouched. At 20k only
+the Solar Panel would qualify; no live threshold toggle was repeated.
+This verifies child pickup tracking, not the parent kind-3/5 linked reader or
+pre-first-opening contents. The user was released to extract; scanner is left
+running for that extraction. No more tests are requested this match.
+
 Exact artifacts and verification: ignored `container-links-build-20261103`.
 The user's saved filter is ON, but its minimum was already **0** before these
 tests; preferences were restored and retained. Use 0 for the initial container
