@@ -9,6 +9,7 @@
 typedef struct { uint64_t field, type; int offset, size; } LootProperty;
 static uint64_t object_chunks;
 static int object_count;
+static int contains_case_insensitive(const char *text, const char *filter);
 
 static uint64_t object_at(int index) {
     if (index < 0 || index >= object_count) return 0;
@@ -148,6 +149,32 @@ static void replacement_drops(uint64_t obj, uint64_t cls) {
     putchar(']');
 }
 
+/* The SDK leaves most ItemSpace members opaque. Capture only this named,
+ * class-verified bounded object for offline comparison, never follow its
+ * arbitrary pointers or interpret opaque bytes as current item contents. */
+static void container_space(uint64_t obj, uint64_t cls) {
+    LootProperty p;
+    if (!property(cls, "ContainerSpace", &p) || p.size != 8) return;
+    uint64_t space = read_ptr(obj + p.offset), type = read_ptr(space + OFF_UOBJECT_CLASS);
+    char name[96] = {0};
+    resolve_class_name(type, name, sizeof(name));
+    int size = read_i32(type + 0x3c);
+    printf(",\"containerSpace\":{\"object\":\"%lx\",\"classVerified\":%s",
+           space, is_any_ptr(space) && type == p.type && !strcmp(name, "ItemSpace") ? "true" : "false");
+    if (is_any_ptr(space) && type == p.type && !strcmp(name, "ItemSpace") &&
+        size >= 0x80 && size <= 1024) {
+        unsigned char bytes[1024];
+        int readable = read_mem(space, bytes, (size_t)size) == size;
+        printf(",\"size\":%d,\"readable\":%s", size, readable ? "true" : "false");
+        if (readable) {
+            printf(",\"opaqueBytes\":\"");
+            for (int i = 0; i < size; i++) printf("%02x", bytes[i]);
+            putchar('"');
+        }
+    }
+    putchar('}');
+}
+
 static void actor(uint64_t obj) {
     uint64_t cls = read_ptr(obj + OFF_UOBJECT_CLASS);
     int kind = loot_kind_from_class(cls);
@@ -206,16 +233,93 @@ static void actor(uint64_t obj) {
             putchar(']');
         }
     }
-    const char *links[] = {"CachedOpenBox", "CacheSpawnActor"};
+    const char *links[] = {"CachedOpenBox", "CacheSpawnActor", "RootComponent"};
     for (unsigned i = 0; i < sizeof(links) / sizeof(links[0]); i++)
         if (property(cls, links[i], &p) && p.size == 8)
             printf(",\"%s\":\"%lx\"", links[i], read_ptr(obj + p.offset));
     replacement_drops(obj, cls);
+    container_space(obj, cls);
     int metadata_kind = lv_kind(&loot_values, obj);
     LootValue value = lv_actor(&loot_values, obj, metadata_kind, diag_now_ms());
     printf(",\"metadataKind\":%d,\"candidateValueKnown\":%s,\"candidateUnitValue\":%lld",
            metadata_kind, value.value_known ? "true" : "false", (long long)value.unit_value);
     printf("}\n");
+}
+
+/* Independent of production's level-array/position de-duplication. A single
+ * bounded UObject pass can find named closed containers missing from its feed.
+ * Coordinates are supplied from a fresh frame, in metres. No pawn fields are
+ * output. The existing eight-second process deadline still applies. */
+static uint64_t owning_world(uint64_t obj) {
+    for (int depth = 0; depth < 16 && is_any_ptr(obj); depth++) {
+        char name[96] = {0};
+        resolve_class_name(read_ptr(obj + OFF_UOBJECT_CLASS), name, sizeof(name));
+        if (!strcmp(name, "World")) return obj;
+        uint64_t outer = read_ptr(obj + OFF_UOBJECT_OUTER);
+        if (outer == obj) break;
+        obj = outer;
+    }
+    return 0;
+}
+
+static int nearby_loot(float x, float y, float z, float radius, const char *filter, uint64_t anchor) {
+    struct { uint64_t cls; int kind; } cache[2048] = {{0}};
+    LootValueReader types = {.read = read_loot_value_memory, .base = ue4_base};
+    struct { uint64_t obj; float distance; } nearest[32] = {{0}};
+    uint64_t unresolved[16] = {0};
+    int count = 0, unresolved_count = 0, invalid_roots = 0, matched = 0;
+    uint64_t world = 0;
+    if (anchor) {
+        if (object_at(read_i32(anchor + 0x24)) != anchor || !(world = owning_world(anchor))) return 0;
+    }
+    int limit = object_count < 300000 ? object_count : 300000;
+    for (int index = 0; index < limit; index++) {
+        uint64_t obj = object_at(index);
+        if (!obj) continue;
+        uint64_t cls = read_ptr(obj + OFF_UOBJECT_CLASS);
+        if (!is_any_ptr(cls)) continue;
+        unsigned slot = (unsigned)((cls >> 4) ^ (cls >> 19)) & 2047;
+        if (cache[slot].cls != cls) {
+            cache[slot].cls = cls; cache[slot].kind = lv_kind(&types, obj);
+        }
+        if (!cache[slot].kind) continue;
+        /* Class default objects are templates, not map loot. */
+        if (read_ptr(cls + 0x138) == obj) continue;
+        char name[128] = {0}; resolve_class_name(cls, name, sizeof(name));
+        if (filter && !contains_case_insensitive(name, filter)) continue;
+        if (world && owning_world(obj) != world) continue;
+        matched++;
+        uint64_t root = read_ptr(obj + OFF_AACTOR_ROOT_COMPONENT);
+        float pos[3] = {0};
+        if (!is_any_ptr(root) || !read_component_position(root, OFF_USCENE_WORLD_LOCATION, pos) ||
+            !isfinite(pos[0]) || !isfinite(pos[1]) || !isfinite(pos[2]) ||
+            fabsf(pos[0]) > 10000000 || fabsf(pos[1]) > 10000000 || fabsf(pos[2]) > 10000000 ||
+            (pos[0] == 0 && pos[1] == 0 && pos[2] == 0)) {
+            invalid_roots++;
+            if (filter && unresolved_count < 16) unresolved[unresolved_count++] = obj;
+            continue;
+        }
+        float dx = pos[0] / 100 - x, dy = pos[1] / 100 - y, dz = pos[2] / 100 - z;
+        float distance = sqrtf(dx * dx + dy * dy + dz * dz);
+        if (!isfinite(distance) || distance > radius) continue;
+        int slot_index = count < 32 ? count++ : 31;
+        if (count == 32 && nearest[31].obj && distance >= nearest[31].distance) continue;
+        while (slot_index > 0 && distance < nearest[slot_index - 1].distance) {
+            nearest[slot_index] = nearest[slot_index - 1]; slot_index--;
+        }
+        nearest[slot_index].obj = obj; nearest[slot_index].distance = distance;
+    }
+    for (int i = 0; i < count; i++) {
+        printf("nearby distance=%.3f\n", nearest[i].distance); actor(nearest[i].obj);
+    }
+    for (int i = 0; i < unresolved_count; i++) {
+        puts("nearby unresolved-transform"); actor(unresolved[i]);
+    }
+    printf("nearby-complete inspected=%d total=%d truncated=%s matched=%d invalidRoots=%d "
+           "emitted=%d unresolvedEmitted=%d metadataReadsRemaining=%u worldFiltered=%s\n", limit, object_count,
+           limit == object_count ? "false" : "true", matched, invalid_roots, count,
+           unresolved_count, loot_values.read_budget, world ? "true" : "false");
+    return 1;
 }
 
 static void tables(void) {
@@ -355,7 +459,7 @@ static int lua_read_string(uint64_t string, int tag, char *out, size_t capacity)
     return 1;
 }
 
-static int lua_contains(const char *text, const char *filter) {
+static int contains_case_insensitive(const char *text, const char *filter) {
     size_t length = strlen(filter);
     for (; *text; text++) {
         size_t j = 0;
@@ -459,7 +563,7 @@ static int lua_table(uint64_t table, const char *wanted, int exact) {
                 snprintf(name, sizeof(name), "#%.0f", number);
             } else continue;
         } else if (!lua_read_string(key, key_tag, name, sizeof(name))) continue;
-        if (wanted && !(exact ? !strcmp(name, wanted) : lua_contains(name, wanted))) continue;
+        if (wanted && !(exact ? !strcmp(name, wanted) : contains_case_insensitive(name, wanted))) continue;
         lua_print_value(name, tag, value, exact);
         if (++matches >= 1024 || exact) break;
     }
@@ -524,6 +628,21 @@ int main(int argc, char **argv) {
             if (!end || *end || !is_game_heap_ptr(obj)) return 3;
             actor(obj);
         }
+    } else if (!strcmp(argv[1], "nearby-loot") && (argc >= 6 && argc <= 8)) {
+        float values[4];
+        for (int i = 0; i < 4; i++) {
+            char *end = NULL; values[i] = strtof(argv[i + 2], &end);
+            if (!end || end == argv[i + 2] || *end || !isfinite(values[i])) return 3;
+        }
+        if (fabsf(values[0]) > 100000 || fabsf(values[1]) > 100000 ||
+            fabsf(values[2]) > 100000 || values[3] <= 0 || values[3] > 1000 ||
+            (argc >= 7 && (!argv[6][0] || strlen(argv[6]) > 64))) return 3;
+        uint64_t anchor = 0;
+        if (argc == 8) {
+            char *end = NULL; anchor = strtoull(argv[7], &end, 16);
+            if (!end || end == argv[7] || *end || !is_game_heap_ptr(anchor)) return 3;
+        }
+        if (!nearby_loot(values[0], values[1], values[2], values[3], argc >= 7 ? argv[6] : NULL, anchor)) return 3;
     } else return 3;
     return ferror(stdout) ? 4 : 0;
 }

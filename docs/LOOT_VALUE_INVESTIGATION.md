@@ -674,3 +674,52 @@ remaining. No crash was reported. The user's message confirms the match ended,
 without a separate extraction-result screenshot. Private outcome proof is
 `second-match-outcome.json`. The diagnostic minimum remains 0 until restored
 for normal play; intended minimum is 20k. Production APK/native are unchanged.
+
+
+## Preparation for actual contents before the first open/search
+
+The user explicitly requested pre-opening loot visibility after the two live
+runs. All accepted price samples so far were after opening/search. A new
+read-only diagnostic now investigates two independent questions: whether the
+container is missing only from production discovery, and whether alternate
+client inventory state contains its actual items before opening.
+
+Static audit found a first-2,000-actors-per-level ceiling in production discovery
+and a 0.5 m position-based duplicate filter that can suppress distinct nearby
+loot. Neither has been changed in this preparation, and neither establishes
+that pre-opening item data exists. The SDK's LootBoxRepData.SpaceRepData describes
+grid sizes/update counters, not a separate item list. AInventoryPickup has a
+ContainerSpace reference, but most native ItemSpace internals are opaque.
+
+`loot_probe.c nearby-loot X Y Z RADIUS CLASS_FRAGMENT [SELF_ACTOR]` performs a
+separate registry pass capped at 300,000 objects. It uses class-verified loot
+inheritance, excludes class default objects, and retains at most 32 nearby
+matches plus 16 matching actors with unresolved transforms. With SELF_ACTOR,
+its owning World must resolve and only actors owned by that World qualify.
+The existing eight-second deadline applies. Per-actor output now includes a
+ContainerSpace snapshot only when the referenced object's class matches the
+reflected ItemSpace class and its full size is readable and at most 1,024 bytes.
+No arbitrary pointers in that opaque object are followed; no contents/value
+claims are made from those bytes.
+
+`capture_loot_snapshot.py --registry-filter Cabinet --radius 15` invokes that
+mode from a fresh pinned frame, using its current self actor as the world anchor.
+It retains private evidence before rejecting an incomplete, truncated or
+unverified-world pass. The helper now uses `adb shell -T` for the diagnostic
+so the remote process's exit code is preserved; `exec-out` did not preserve
+the negative-test exit codes on this device. Arguments use `shlex.join`.
+
+Validation: API-31 compile with `-Wall -Wextra -Werror`, Python compile,
+hash-verified separate diagnostic deployment (`9d384db4...`), full lobby
+registry traversal in about one second, rejection of invalid coordinates and
+invalid anchors, and Python rejection of nonfinite radius, invalid class
+filter and incompatible watch/registry arguments. The lobby pass had no
+matching cabinet actors; it does not validate positive inventory/world-anchor
+behavior or establish match contents. Those checks need a fresh match.
+Private proof: `unopened-container-20261103/diagnostic-validation.json`.
+
+The user has been asked to spawn with radar ON/minimum 0 and take cover.
+Capture the closed target through the new data paths before requesting its
+first opening, then compare actual items. The installed working APK, native
+scanner and deployment pins remain unchanged. No pre-opening display feature
+is claimed ready, and empty data must remain unknown.

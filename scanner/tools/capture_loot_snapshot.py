@@ -21,6 +21,8 @@ def main():
     parser.add_argument('--label', required=True)
     parser.add_argument('--limit', type=int, default=16)
     parser.add_argument('--watch', nargs='*', default=[])
+    parser.add_argument('--registry-filter', help='Independently inspect registered loot by case-insensitive class fragment (up to 32 nearby and 16 unresolved transforms)')
+    parser.add_argument('--radius', type=float, default=15, help='Registry search radius in metres, 0 < radius <= 1000')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if not re.fullmatch(r'[a-zA-Z0-9_-]{1,64}', args.label):
@@ -29,6 +31,12 @@ def main():
         parser.error('limit must be 1..64 and accommodate all watched addresses')
     if any(not re.fullmatch(r'[0-9a-fA-F]{8,16}', a) for a in args.watch):
         parser.error('watch addresses must be hexadecimal')
+    if args.registry_filter is not None and not re.fullmatch(r'[A-Za-z0-9_]{1,64}', args.registry_filter):
+        parser.error('registry filter must be a 1..64-character class-name fragment')
+    if not 0 < args.radius <= 1000:
+        parser.error('radius must be finite and in (0, 1000]')
+    if args.registry_filter and args.watch:
+        parser.error('registry mode does not accept watched addresses')
     output = args.output.resolve()
     if not output.is_relative_to(ROOT / 'evidence/local'):
         parser.error('output must be inside ignored evidence/local')
@@ -66,15 +74,24 @@ def main():
             raise RuntimeError('invalid actor address in feed')
         if address not in targets and len(targets) < args.limit:
             targets.append(address)
-    if not targets:
+    if not targets and not args.registry_filter:
         raise RuntimeError('no loot in the current feed')
     started = time.time()
-    result = subprocess.run(adb + ['exec-out', 'su -c ' + shlex.quote(
-        probe + ' actors ' + ' '.join(targets))], capture_output=True, timeout=12)
+    command = ([probe, 'nearby-loot', *(str(me[k]) for k in ('x', 'y', 'z')),
+                str(args.radius), args.registry_filter, me['id'].removeprefix('ent_')] if args.registry_filter else
+               [probe, 'actors', *targets])
+    if args.registry_filter and not re.fullmatch(r'[0-9a-fA-F]{8,16}', command[-1]):
+        raise RuntimeError('invalid current self actor; registry mode requires a fresh match anchor')
+    result = subprocess.run(adb + ['shell', '-T', 'su -c ' + shlex.quote(
+        shlex.join(command))], capture_output=True, timeout=12)
     lines = result.stdout.decode().splitlines()
     records = [json.loads(line) for line in lines if line.startswith('{')]
+    if args.registry_filter:
+        targets = [record['actor'] for record in records]
     sample = dict(label=args.label, hostStarted=started, hostFinished=time.time(),
                   probe=manifest, exitCode=result.returncode, targets=targets,
+                  mode='registry' if args.registry_filter else 'feed',
+                  registryFilter=args.registry_filter, registryRadius=args.radius,
                   records=records, diagnostics=[line for line in lines
                                                if not line.startswith('{')],
                   stderr=result.stderr.decode(errors='replace'), frame=frame)
@@ -83,6 +100,12 @@ def main():
                           lootInFeed=len(loot), inspected=len(records),
                           itemIds=sum(bool(e.get('itemNameId', '').isdigit()) for e in records),
                           containersWithItems=sum(e.get('contentsCount', 0) > 0 for e in records))))
+    if args.registry_filter and not any(line.startswith('nearby-complete ') for line in lines):
+        raise RuntimeError('registry pass did not complete; do not infer absence from partial output')
+    if args.registry_filter and not any(line.startswith('nearby-complete ') and 'worldFiltered=true' in line for line in lines):
+        raise RuntimeError('registry world was not verified from the current self actor')
+    if args.registry_filter and not any(line.startswith('nearby-complete ') and 'truncated=false' in line for line in lines):
+        raise RuntimeError('registry was truncated; do not infer absence from this sample')
     if result.returncode:
         raise SystemExit(result.returncode)
 

@@ -1,4 +1,43 @@
-## Container coverage update — 2026-11-03 (latest)
+## Pre-opening loot investigation — 2026-11-03 (latest)
+
+The user now explicitly wants actual contents before the first open/search.
+That feature is not established. Keep the installed working APK/native
+`21cdaadf...` / `135e3893...` while investigating; no production code or pins
+were changed in this preparation. Radar was stopped after the second match.
+
+Prepared a separate content-addressed read-only diagnostic `9d384db4...`.
+It independently searches up to 300,000 registered UObjects, selects nearby
+loot by case-insensitive class fragment, and records containers omitted from
+the production level-array/position filters. Live capture requires a fresh
+pinned feed and derives the current owning UWorld from the current self actor;
+partial, truncated or unverified-world passes cannot establish absence.
+The actor diagnostic also captures a bounded opaque `ContainerSpace` object
+only when its reflected class is verified as ItemSpace. These bytes are not
+interpreted as contents or sent to production pricing.
+
+API-31 compile with warnings as errors, Python compile, complete lobby registry
+pass (~1 second) and invalid-coordinate/anchor/argument rejection checks passed.
+The deployed diagnostic hash matches. The positive world-anchor and inventory
+paths still need a live-match check. Private proof: ignored local
+`unopened-container-20261103/diagnostic-validation.json`.
+
+Next: the user has been asked to spawn with radar ON/minimum 0 and take cover.
+Use fresh frame/actors. Run `capture_loot_snapshot.py` with a unique label,
+`--registry-filter Cabinet --radius 15` near a closed cabinet (or a relevant
+class fragment for another closed container), without asking the user to open
+it until its alternate inventory data is captured. Compare once after opening.
+Do not reuse actors from the previous matches or promise pre-search prices.
+
+Static audit also found a per-level 2,000-actor scan ceiling and positional
+de-duplication within 0.5 m that can suppress distinct loot items. These are
+production coverage hypotheses, not yet changed or proven to explain this
+cabinet. The independent diagnostic bypasses both for investigation. The SDK's
+LootBoxRepData contains grid-space metadata, not an alternative item list;
+most ItemSpace internals are opaque in this dump.
+
+---
+
+## Container coverage update — 2026-11-03
 
 User reports loose loot working but inconsistent flight-container, sewer,
 bird-nest, suitcase and safe contents. Do not treat the previous live value-filter
