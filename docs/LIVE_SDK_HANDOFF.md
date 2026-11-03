@@ -26,10 +26,19 @@ are saved under ignored local `loot-guide-collectibles-build-20261103`. The filt
 defaults OFF. Visual → Loot → Valuable loot only enables it; minimum defaults to
 strictly over **20k per individual item**, adjustable through 500k.
 
-The scanner is stopped between matches. Next: a new-match integrated comparison
-of displayed item values, filtered markers and pickup/empty behavior. Rediscover
-all actors from that match. No expensive item needs to be bought. Private runtime
-dumps, addresses, screenshots and player/account information stay ignored.
+The corrected candidate passed its first integrated live filter check: fresh
+pinned frames supplied known prices, and four sampled overlay outputs with the
+filter ON at 20k contained no cheap/unknown loot. A 42,478-value item remained;
+player/bot markers continued. The user confirmed: "Looks right; tracking is
+responsive." This validates the filter output and reported visual behavior,
+not a new item-details price comparison or full-match stability.
+
+The user subsequently died and plans to test another map. Scanner is stopped
+between matches; the user's filter setting remains ON at 20k. Next: compare the
+same settings on the next map, then verify pickup/empty-container behavior.
+Rediscover all actors from that match. No expensive item needs to be bought.
+Private runtime dumps, addresses, screenshots and player/account information
+stay ignored; this pass is recorded under local `loot-guide-verification-20261103`.
 
 ---
 

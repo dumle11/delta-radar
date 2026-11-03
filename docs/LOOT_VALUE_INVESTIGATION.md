@@ -324,3 +324,30 @@ remains outstanding.
 The match samples, screenshots, runtime price-path records and diagnostic dumps
 are under `evidence/local/session/loot-value-live-20261103/`. Keep them private.
 The working baseline branch/tag was not moved.
+
+## Corrected candidate: first integrated live filter pass
+
+On the next spawn, the content-pinned `de99f1ca...` scanner supplied fresh,
+non-test player/AI/loot frames. The initial sample had seven known loot prices,
+including a loose item worth 33,624. Before enabling the filter, one sampled
+overlay output included 25 unknown and two known cheap loot markers alongside
+qualifying loot. Counts/framing changed while the user played.
+
+The user enabled **Valuable loot only** at **20,000**. Four fresh, valid overlay
+output samples were matched by entity ID to the live native feed. Every
+projected loot marker had a known `shop-dynamic-guide` value strictly above the
+threshold; none was cheap, unknown or unmatched. The observed remaining item
+had catalog ID `15020010015` and runtime value **42,478**. That value was not
+separately compared to this item's in-game details panel. Player/bot output
+continued. The user confirmed: **"Looks right; tracking is responsive."**
+
+This passes the integrated filter/output and user visual-response check for
+this match. It does not resolve gear/keys, complete pickup/empty behavior,
+cross-map acceptance or full-match/SIGBUS stability. The user then died and
+chose to test another map; no crash was reported. The scanner was stopped
+between matches and the filter setting was retained at ON/20k. Future samples
+must rediscover actors in that new match.
+
+Private before/after feed and overlay captures, a screenshot and the summarized
+result are under `evidence/local/session/loot-guide-verification-20261103/`.
+No source/runtime changes were needed for this verification.
