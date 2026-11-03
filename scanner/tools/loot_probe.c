@@ -114,6 +114,40 @@ static void item_info(uint64_t info, uint64_t structure) {
     printf("}");
 }
 
+/* Diagnostic only: replacement definitions are not proven current contents. */
+static void replacement_drops(uint64_t obj, uint64_t cls) {
+    LootProperty array, id, count, price, sell;
+    if (!property(cls, "DropItems_ForReplace", &array) || array.size != 16) return;
+    uint64_t inner = read_ptr(array.field + 0x88), type = read_ptr(inner + 0x88);
+    int stride = read_i32(inner + 0x3c);
+    struct { uint64_t data; int32_t count, capacity; } header = {0};
+    int header_readable = read_mem(obj + array.offset, &header, sizeof(header)) == sizeof(header);
+    uint64_t data = header.data;
+    int n = header.count, capacity = header.capacity;
+    int valid = header_readable && is_any_ptr(inner) && is_any_ptr(type) &&
+                stride >= 0x38 && stride <= 0x400 && n >= 0 && n <= 128 &&
+                capacity >= n && capacity <= 1024 && (!n || is_any_ptr(data)) &&
+                property(type, "ItemID", &id) && id.size == 8 && id.offset <= stride - 8 &&
+                property(type, "Number", &count) && count.size == 4 && count.offset <= stride - 4 &&
+                property(type, "Price", &price) && price.size == 4 && price.offset <= stride - 4 &&
+                property(type, "SellPrice", &sell) && sell.size == 4 && sell.offset <= stride - 4;
+    printf(",\"replacementDropsValid\":%s", valid ? "true" : "false");
+    if (!valid) return;
+    printf(",\"replacementDrops\":[");
+    for (int i = 0; i < n; i++) {
+        uint64_t entry = data + (uint64_t)i * stride, item = 0;
+        uint32_t number = 0, amount = 0, sell_amount = 0;
+        int readable = read_mem(entry + id.offset, &item, 8) == 8 &&
+                       read_mem(entry + count.offset, &number, 4) == 4 &&
+                       read_mem(entry + price.offset, &amount, 4) == 4 &&
+                       read_mem(entry + sell.offset, &sell_amount, 4) == 4;
+        printf("%s{\"readable\":%s,\"itemId\":\"%llu\",\"count\":%u,"
+               "\"price\":%u,\"sellPrice\":%u}", i ? "," : "",
+               readable ? "true" : "false", (unsigned long long)item, number, amount, sell_amount);
+    }
+    putchar(']');
+}
+
 static void actor(uint64_t obj) {
     uint64_t cls = read_ptr(obj + OFF_UOBJECT_CLASS);
     int kind = loot_kind_from_class(cls);
@@ -131,7 +165,9 @@ static void actor(uint64_t obj) {
         }
     }
     const char *fields[] = {"StackCount", "bIsHiddenItem", "bClientSearchDone",
-                           "bIsEmpty", "bFirstOpened"};
+                           "bIsEmpty", "bFirstOpened", "bRandomEnabled",
+                           "bFinished", "bSafeBoxUnlocked", "bRandomContainer",
+                           "boxId", "SafeBoxId"};
     for (unsigned i = 0; i < sizeof(fields)/sizeof(fields[0]); i++)
         number_field(obj, cls, fields[i]);
     if (property(cls, "PickupItemInfo", &p)) {
@@ -174,6 +210,7 @@ static void actor(uint64_t obj) {
     for (unsigned i = 0; i < sizeof(links) / sizeof(links[0]); i++)
         if (property(cls, links[i], &p) && p.size == 8)
             printf(",\"%s\":\"%lx\"", links[i], read_ptr(obj + p.offset));
+    replacement_drops(obj, cls);
     int metadata_kind = lv_kind(&loot_values, obj);
     LootValue value = lv_actor(&loot_values, obj, metadata_kind, diag_now_ms());
     printf(",\"metadataKind\":%d,\"candidateValueKnown\":%s,\"candidateUnitValue\":%lld",

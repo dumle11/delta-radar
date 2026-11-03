@@ -603,3 +603,34 @@ source/runtime changes, app restarts or pickup/empty repeat were needed.
 Private proof is `container-links-live-20261103/special-safe-summary.json`.
 Only `special-safe-confirmed-before.json` is the accepted safe before sample;
 `special-safe-before.json` belongs to the earlier Computer/Ammo Crate location.
+
+
+## Tool Cabinet passed; extra unopened-container fields inspected
+
+The user found a Tool Cabinet while looking for a filing cabinet. The game
+prompt and nearest actor matched `BP_InteractorContainer_ToolCabinetLarge_C`,
+metadata kind 2. Before search it exposed zero items and unknown value.
+Searching exposed one item, `15020010034`, with native and diagnostic value
+**14,954**. The user already had the Basic Fuel details panel open; its value
+was **14,954**, exactly matching the visible container marker. Minimum remained
+0. At 20k this item would not qualify; no live threshold toggle or repeated
+pickup/empty sequence was needed. Private proof: `tool-cabinet-summary.json`.
+This is Tool Cabinet coverage, not filing-cabinet or kind-3/5 acceptance.
+
+To investigate another possible pre-search source, the separate one-shot
+`loot_probe.c` diagnostic now reports reflected special-container state flags
+and `DropItems_ForReplace`. It validates a fully readable array header, count
+and capacity limits (128/1024), element stride and field bounds, and records
+per-entry read success. These replacement definitions are not established as
+actual current contents and are not used by production pricing. The API-31
+compile passed `-Wall -Wextra -Werror`; the final deployed diagnostic hash was
+verified. Live output parsed as JSON, and twelve still-current unopened kind-3
+actors exposed valid but empty replacement arrays alongside empty cached
+pickup/open-box links. This does not prove that no alternative client state
+exists or when the server generates loot. Nonempty replacement definitions
+have not been validated live. Private proof: `replacement-drops-unopened-validated.json`.
+
+The diagnostic remains a separate content-addressed, bounded read-only tool.
+The production scanner/APK, deployment pins and live radar were unchanged.
+An office filing cabinet remains the next requested target; the user can
+continue playing until one is encountered.

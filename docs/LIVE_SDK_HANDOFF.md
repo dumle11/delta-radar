@@ -56,6 +56,21 @@ this second match. Next requested test: an unopened filing cabinet with its
 interaction prompt visible. Kind-3/5 acceptance remains pending; do not infer
 it from the user's visual description of this safe.
 
+The user then found a Tool Cabinet (not a filing cabinet). It also passed:
+`BP_InteractorContainer_ToolCabinetLarge_C`, metadata kind 2, unknown before
+search; one Basic Fuel item afterwards with UI/native/marker all **14,954**.
+No extra price-panel step was needed because the user already had it open.
+The user may loot normally; an office filing cabinet is still the next target.
+
+The separate read-only loot diagnostic now also reports special-container
+state flags and bounded `DropItems_ForReplace` definitions. Its API-31 build
+passed with warnings as errors; the deployed diagnostic hash was verified.
+Twelve still-current unopened kind-3 actors had readable but empty replacement
+arrays as well as empty cached pickup/open-box links. This supplies no new
+pre-search price source and does not establish server spawn timing. Replacement
+definitions are diagnostic only, never treated as authoritative live contents.
+The installed APK and production scanner are unchanged.
+
 Exact artifacts and verification: ignored `container-links-build-20261103`.
 The user's saved filter is ON, but its minimum was already **0** before these
 tests; preferences were restored and retained. Use 0 for the initial container
