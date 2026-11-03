@@ -871,3 +871,8 @@ verification passed; current diagnostic hash is `ea4a2030...`. Raw module
 fragments, disassembly, GIDs and addresses remain private under ignored
 `unopened-container-20261103/`. Working APK/native and deployment pins are
 unchanged. Do not promise pre-search loot display from this diagnostic path.
+
+The user subsequently reported ending the fourth match (no extraction/death
+detail specified). Radar was stopped between matches and the process-executable
+inventory found zero project scanners remaining. No crash was reported.
+Private outcome record: `unopened-container-20261103/fourth-match-outcome.json`.

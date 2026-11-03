@@ -12,8 +12,9 @@ did not expose these items before search. This does not rule out every client
 source or establish server-side creation time.
 
 The user was released to take loot and continue playing; no more interaction
-steps are needed at that safe. Radar remains running for the fourth match.
-Do not stop it until the user ends the match. Pre-opening display remains
+steps are needed at that safe. The user subsequently ended the fourth match;
+radar was stopped and zero project scanner processes remained. Extraction/death
+was not specified, and no crash was reported. Pre-opening display remains
 unimplemented; installed working APK/native are unchanged.
 
 `capture_loot_cache.py` captures freshly rooted loot-UI caches in
