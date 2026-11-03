@@ -35,8 +35,12 @@ The bird nest also passed after search: `BP_Interact_Nest_C` exposed three
 items, and Medical Alcohol UI/native/marker values all matched at 9,066.
 Before search it exposed zero items and an unknown value. This nest also uses
 metadata kind 2; the new kind-3/5 linked-content path remains unverified live.
-The user may loot normally; the next requested sample is a sewer or filing
-cabinet if one is encountered during the match.
+The sewer/Hidden Stash also passed: `BP_Interact_WellLid_C` exposed three
+items after search, and Personal Note (S Letter) UI/native/marker values all
+matched at 3,269. It was unknown before search and also uses metadata kind 2.
+The user was released to extract with no further container requests this match.
+Filing cabinets, special safe variants and live kind-3/5 linked-content
+coverage remain outstanding.
 
 Exact artifacts and verification: ignored `container-links-build-20261103`.
 The user's saved filter is ON, but its minimum was already **0** before these

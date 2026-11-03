@@ -540,3 +540,29 @@ and was not the nest tested. The next optional sample is a sewer or filing
 cabinet. Private proof is `container-links-live-20261103/nest-summary.json`
 with before/after snapshots, overlay output and the item-details screenshot.
 No runtime changes or app restarts were needed.
+
+
+## Sewer / Hidden Stash: searched contents and Personal Note price matched
+
+The user stood beside an unopened sewer lid, shown by the game as Hidden
+Stash. Its class was `BP_Interact_WellLid_C`, metadata kind 2. The initial
+snapshot had search incomplete, zero readable items and unknown value.
+After search, the same actor exposed three items: `15020010014`,
+`15020010019` and `15090910023`, shown as SetSqre, Pliers and S Letter.
+Both the native feed and separate diagnostic reported a highest known
+individual value of **3,269**, catalog ID `15090910023`.
+
+The S Letter details panel named the item Personal Note and displayed
+**3,269**, exactly matching the visible on-screen container marker. The filter
+was ON at diagnostic minimum 0; at the intended 20k minimum this stash would
+be excluded based on known values. No live threshold toggle or additional
+pickup/empty sequence was repeated. The user was released to extract with
+no further container tests requested this match.
+
+This verifies the searched sewer/stash class, not pre-search valuable-loot
+detection or server-side spawn timing. All four tested visual families
+(regular safe, flight case, bird nest and sewer) used metadata kind 2.
+Live kind-3/5 linked-content coverage, filing cabinets and special safe
+variants remain outstanding. No runtime changes or app restarts were needed.
+Private proof is `container-links-live-20261103/sewer-summary.json`, matched
+before/after snapshots, overlay output and the Personal Note details screenshot.
