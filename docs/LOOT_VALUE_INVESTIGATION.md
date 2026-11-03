@@ -351,3 +351,32 @@ must rediscover actors in that new match.
 Private before/after feed and overlay captures, a screenshot and the summarized
 result are under `evidence/local/session/loot-guide-verification-20261103/`.
 No source/runtime changes were needed for this verification.
+
+## Repeat Zero Dam load; other-map test deferred
+
+Other-map matchmaking was too slow for the user's lunch break, so they reported
+returning to **Zero Dam, Normal**, with the radar ON. The filter remained ON at
+20k. The current feed peer's `/proc/PID/exe` matched the pinned scanner path.
+Initial samples contained unsearched containers; later samples supplied 12–13
+priced loot entries and a qualifying **22,137** item. Player/bot output continued.
+
+Capture comparisons need care: scanner and overlay diagnostic files are each
+throttled independently at 500 ms. Seven of eight sampled pairs contained no
+cheap/unknown projected loot. One pair differed by nine feed sequences / 497 ms
+while a container's contents changed; it cannot establish a filter violation.
+A subsequent short capture found no exact sequence pairs, so this repeat is
+recorded as price availability across a new match, not an additional strict
+per-frame filter acceptance. Prefer matching sequences or explicitly treat
+transitional comparisons as inconclusive.
+
+The game was subsequently observed on its post-match season-pass progress
+screen. The user has not confirmed whether they died or extracted in this
+repeat. Scanner was stopped; no app/runtime changes were needed. Another map,
+pickup/empty-container behavior and full-match/SIGBUS acceptance remain pending.
+
+Operational checks: `ps ARGS` did not reliably include the executable's full
+path on this device, so prefix matching can falsely report no scanner. Use the
+fresh feed's peer PID and verify its `/proc/PID/exe`. A fresh scanner diagnostic
+timestamp alone also does not establish an active match: check overlay age and
+game state before interpreting it. Private evidence is under
+`evidence/local/session/loot-guide-zero-dam-repeat-20261103/`.

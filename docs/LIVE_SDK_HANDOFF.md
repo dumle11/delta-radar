@@ -40,6 +40,15 @@ Rediscover all actors from that match. No expensive item needs to be bought.
 Private runtime dumps, addresses, screenshots and player/account information
 stay ignored; this pass is recorded under local `loot-guide-verification-20261103`.
 
+Latest repeat: other-map queues were too long for the user's lunch break, so
+they returned to Zero Dam on Normal. The expected native feed peer executable
+was verified directly; settings stayed ON/20k. Live samples supplied 12–13
+priced items and a qualifying 22,137 item. A post-match season-pass screen was
+then observed, and the scanner was stopped. The user has not confirmed this
+match's outcome. Cross-map and full-match/SIGBUS acceptance remain outstanding.
+See the latest findings for diagnostic sampling limits; private repeat evidence
+is under `loot-guide-zero-dam-repeat-20261103`. No runtime changes were made.
+
 ---
 
 ## Saved OnePlus baseline — 2026-11-03
