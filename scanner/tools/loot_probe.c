@@ -573,6 +573,11 @@ static void lua_print_value(const char *name, int tag, uint64_t value, int numbe
         double number = 0; memcpy(&number, &value, 8);
         if (isfinite(number)) printf(",\"number\":%.9g", number);
     }
+    char value_text[256];
+    if (lua_read_string(value, tag, value_text, sizeof(value_text))) {
+        char value_escaped[512]; json_escape(value_text, value_escaped, sizeof(value_escaped));
+        printf(",\"text\":\"%s\"", value_escaped);
+    }
     printf("}\n");
 }
 

@@ -64,11 +64,14 @@ static void full_context_fixture(void) {
     main_vm = vm; ue4_base = UINT64_C(0x7000000000);
     bytes[vm - BASE + 8] = 8; ptr(vm + 24, g);
     LVValue rv = {.value = reg, .tag = 69}; put(g + 0x40, &rv, sizeof(rv));
-    uint64_t globals = table(2, 0), server = table(0, 0), inv = table(1, 0), enums = table(2, 0);
+    uint64_t globals = table(2, 0), server = table(1, 0), inv = table(1, 0), enums = table(2, 0);
     LVValue root_values[2] = {{.value = vm, .tag = 72}, {.value = globals, .tag = 69}};
     put(roots, root_values, sizeof(root_values)); ptr(reg + 16, roots);
     field(globals, 0, "Server", 69, server); field(globals, 1, "ESlotGroup", 69, enums);
+    uint64_t pickup_enums = table(0, 0); field(pickup_enums, 0, "SceneBox", 19, 1);
+    field(globals, 3, "EGamePickupType", 69, pickup_enums);
     field(server, 0, "InventoryServer", 69, inv);
+    uint64_t looting = table(0, 0); field(server, 1, "LootingServer", 69, looting);
     field(enums, 0, "Player", 19, 1); field(enums, 1, "Nearby", 19, 3); field(enums, 2, "DeadBody", 19, 2);
     uint64_t types = table(3, 0); field(globals, 2, "ESlotType", 69, types);
     const char *names[] = {"BagContainer", "ChestHangingContainer", "NearbyContainer", "DeadbodyLootBox", "SafeBoxContainer", "Pocket"};
@@ -93,6 +96,15 @@ static void full_context_fixture(void) {
     assert(strstr(out, "\"gid\":\"f123456789abcde0\""));
     assert(strstr(out, "\"unitValueKnown\":true,\"unitValue\":62800"));
     assert(strstr(out, "\"complete\":true,\"actionReady\":false"));
+    assert(strstr(out, "\"record\":\"selector\",\"present\":false"));
+    uint64_t selected = table(1, 0), interactors = table(0, 1);
+    LVValue interactor = {.value = UINT64_C(0x300001000), .tag = 71};
+    put(getptr(interactors + 16), &interactor, sizeof(interactor));
+    field(selected, 0, "type", 19, 1); field(selected, 1, "interactors", 69, interactors);
+    field(looting, 0, "_currentSelectorData", 69, selected); context_output(out, sizeof(out));
+    assert(strstr(out, "\"record\":\"selector\",\"present\":true,\"sceneBoxType\":1"));
+    assert(strstr(out, "\"type\":1,\"interactorCount\":1,\"interactorsReadable\":true"));
+    field(looting, 0, "_currentSelectorData", 0, 0);
     /* Map key/GID disagreement is rejected instead of misidentifying an item. */
     field(data, 0, "gid", 19, gid + 1); context_output(out, sizeof(out));
     assert(!strstr(out, "\"record\":\"item\""));

@@ -57,6 +57,9 @@ object PickupPlanner {
             LootValuePolicy.passes(true, minimum, true, valueSource, unitValue.toDouble())
     }
 
+    internal fun validSnapshot(snapshot: Snapshot, nowMs: Long) = snapshot.valid(nowMs)
+    internal fun eligibleItem(item: Item, minimum: Int) = item.eligible(minimum)
+
     private fun placement(item: Item, grids: List<Grid>): Placement? {
         for (grid in grids) {
             for (rotated in listOf(false, true)) {

@@ -3,8 +3,9 @@
 ## Scope and current status
 
 The user paused pre-opening container-content research and chose a manual
-**Take best loot** button for an already open container. Initial scope is
-pickup into free backpack/rig space; replacement/drop behavior is deferred.
+**Take best loot** button for an already open container. The user subsequently
+clarified that the same button must replace cheaper backpack loot when space
+is full, using the game's normal automatic placement for pickups.
 The phone was disconnected during development. No new APK was installed and
 no item-transfer, touch-input or game-memory-write code was added.
 
@@ -141,4 +142,71 @@ Private proof is under `evidence/local/session/auto-pickup-20261103/`.
 
 Keep auto-pickup's eventual minimum separate from the diagnostic marker minimum
 (currently 0). The intended normal loot marker cutoff remains >20,000 per item.
-Automatic removal of carried items remains a later feature.
+Automatic removal was subsequently requested as part of the button; see the live-session scope below.
+
+## First live pickup session and replacement scope
+
+The user clarified that full-backpack replacement is part of the desired
+button, not a separate future feature. `BackpackReplacementPlanner.kt` now
+plans both free-space pickups and profitable replacements. It prioritizes
+incoming individual value, then finds the cheapest complete set of blocking
+backpack items needed to fit that object. The incoming value must strictly
+exceed their combined value. Unknown prices, unsupported types, stacks and
+explicitly protected items cannot be removed. Rig and secure-case grids are
+not drop destinations. It emits a plan only; no automatic drop/input exists.
+
+Ten replacement tests cover cheapest replacement, free space, multi-item
+space requirements, strict combined-value gain, protected/unknown items,
+fragmentation, whole blocking objects, stale/incomplete occupancy and incoming
+value priority. All 66 JVM tests pass. Native ASan/UBSan fixtures and API-31
+compilation pass; lint remains zero errors/168 warnings. Ten Python capture
+tests pass. Reports are saved privately before restoring upstream-tracked
+generated Android outputs.
+
+Live observations (all transfers performed manually by the user):
+
+- Reader `15030040011`, value 2,401, moved from Nearby slot 302 into Player
+  backpack slot 108001 with the same GID. The screen changed from 0/15 to
+  1/15 used cells. The user confirmed double-tap as the pickup gesture.
+- In a player's loot box, Wood Pipe `15080050075`, value 14,171, appeared
+  horizontally across two cells. Raw item `length=2,width=1` means columns=2,
+  rows=1; raw slot `Length=3,Width=5` was the 3-column/5-row backpack. Position
+  `Length/Height` are the placed footprint, including rotation. The game moved
+  the same Pipe GID into the secure case, Player slot 109001, after double-tap.
+  A predicted backpack fit is not an instruction controlling the destination.
+- `_spaceBatch` exposes actual rig compartments with separate `index`,
+  `length`, `height` and UI-relative coordinates. Normalize these individually;
+  the rig's outer dimensions do not define one usable rectangular space.
+- `_itemsPosition` provides X/Y, inclusive bounds, Length/Height, SubIndex and
+  bRotated. The diagnostic now exports these structures and space batches,
+  plus scalar bounds from absolute-location maps, without game calls.
+- `LootingServer.GetCurrentSelectorData` is a getter for `_currentSelectorData`.
+  The open storage box had selector type 1, with one interactor; closing that
+  window removed the selector. A player box had type 2. The reader now emits
+  selector state and the freshly resolved SceneBox enum, group completeness
+  and root/header-stability flags. This does not yet map an item to a control.
+- A later user-reported Reader drop removed its GID from Player, but that GID
+  was present in the DeadBody cache's backpack slot. Ground placement is
+  **unverified**; it could be a transfer or stale cache. Do not use simple
+  disappearance as a successful ground-drop confirmation. The user was
+  released from testing with about seven minutes remaining to extract.
+- The user upgraded the backpack during play (15 to 18 cells). Re-read actual
+  dimensions and locations; never retain a spawn-time capacity assumption.
+
+The live capture helper originally mistook diagnostics `accepted` for a bool.
+It is the accepted snapshot object. Validation now requires that object and a
+matching camera, with regression fixtures reflecting the app's actual schema.
+No native/installed APK changes were needed for that host-side correction.
+
+Main private evidence: `match1-container-open-1`, `match1-reader-picked`,
+`match1-selector-and-layout`, `match1-closed-selector-ui`,
+`match1-player-box-baseline`, `match1-pipe-picked`,
+`match1-replacement-baseline`, `match1-reader-dropped`, and their comparison
+summaries under the existing ignored session directory. An earlier second-box
+sample was not claimed to be untouched after the user's correction.
+
+Remaining work: normalize/validate live layouts, bind actual visible item
+controls, verify a real ground drop and re-pickup, implement cancellation and
+per-action confirmation, then integrate the button. Automatic replacement
+remains unimplemented in the running app. Do not request more test steps in
+this match; the user is extracting/playing out the remaining time.

@@ -24,6 +24,7 @@ class Commands:
         self.truncate = False
         self.native_complete = True
         self.action_ready = False
+        self.accepted_override = None
 
     def __call__(self, args, **kwargs):
         assert kwargs['capture_output'] and kwargs['timeout'] <= 10
@@ -32,11 +33,13 @@ class Commands:
             output = self.hash + '  ' + MANIFEST['path']
         elif 'run-as' in args:
             nth = sum('run-as' in x for x in self.calls)
-            output = json.dumps(dict(valid=True, accepted=True, sequence=nth,
+            camera = 'camera-a' if nth == 1 else self.camera_after
+            entities = [dict(id=camera)]
+            accepted = dict(self=camera, entities=entities) if self.accepted_override is None else self.accepted_override
+            output = json.dumps(dict(valid=True, accepted=accepted, sequence=nth,
                 captureWallTimeMs=1000 if self.stale else 100_000,
                 verifiedScannerSha256=PINS['sha256'],
-                rawLine=json.dumps(dict(self='camera-a' if nth == 1 else self.camera_after,
-                                        entities=[dict(id='camera-a')]))))
+                rawLine=json.dumps(dict(self=camera, entities=entities))))
         elif 'pidof' in args:
             output = self.pid
         elif args[-1].startswith('su -c '):
@@ -69,6 +72,13 @@ class CaptureTest(unittest.TestCase):
         result = self.capture(commands)
         self.assertTrue(result['complete']); self.assertFalse(result['nativeComplete'])
         self.assertFalse(result['actionReady'])
+
+    def test_accepted_snapshot_requires_object_with_matching_camera(self):
+        for value in (True, {}, dict(self='other-camera', entities=[dict(id='other-camera')]),
+                      dict(self='camera-a', entities=[])):
+            commands = Commands(); commands.accepted_override = value
+            self.assertFalse(self.capture(commands)['complete'])
+            self.assertEqual(2, len(commands.calls))
 
     def test_stale_frame_stops_before_probe(self):
         commands = Commands(); commands.stale = True

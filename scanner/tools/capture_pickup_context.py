@@ -48,7 +48,8 @@ def capture(adb, manifest, pins, lobby=False, run=subprocess.run, clock=time.tim
 
     def frame(name):
         data = json.loads(command(name, ['shell', '-T', 'run-as', PACKAGE, 'cat', FRAME_PATH]))
-        if (data.get('valid') is not True or data.get('accepted') is not True or
+        accepted = data.get('accepted')
+        if (data.get('valid') is not True or not isinstance(accepted, dict) or
                 data.get('verifiedScannerSha256') != pins['sha256']):
             raise RuntimeError('no accepted pinned live frame')
         if not -2000 <= clock() * 1000 - data['captureWallTimeMs'] <= 3000:
@@ -56,6 +57,9 @@ def capture(adb, manifest, pins, lobby=False, run=subprocess.run, clock=time.tim
         raw = json.loads(data['rawLine'])
         if not isinstance(raw.get('self'), str) or not raw['self'] or not raw.get('entities'):
             raise RuntimeError('no active match camera')
+        if accepted.get('self') != raw['self'] or not isinstance(accepted.get('entities'), list) or not any(
+                isinstance(e, dict) and e.get('id') == raw['self'] for e in accepted['entities']):
+            raise RuntimeError('accepted snapshot does not match the live camera')
         return data, raw['self']
 
     try:

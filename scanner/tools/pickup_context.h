@@ -121,6 +121,37 @@ static void pc_print_number(const PCTable *t, const char *name) {
     printf(",\"%s\":", name);
     if (pc_integer(pc_field(t, name), &n)) printf("%ld", n); else printf("null");
 }
+static void pc_print_scalar(const PCTable *t, const char *name) {
+    LVValue v = pc_field(t, name); int64_t n;
+    printf(",\"%s\":", name);
+    if (pc_integer(v, &n)) printf("%ld", n);
+    else if (v.tag == 3) {
+        double d; memcpy(&d, &v.value, 8);
+        if (isfinite(d)) printf("%.17g", d); else printf("null");
+    } else if (v.tag == 1) printf("%s", (v.value & 255) ? "true" : "false");
+    else printf("null");
+}
+static void pc_layout(PCContext *ctx, const char *map, LVValue value) {
+    if (value.tag != 69 || !strcmp(map, "_containItems")) return;
+    PCTable t = pc_load(ctx, value.value);
+    if (!strcmp(map, "_itemsPosition")) {
+        printf(",\"layout\":{\"readable\":%s", t.valid ? "true" : "false");
+        const char *f[] = {"X", "Y", "Left", "Right", "Top", "Bottom", "Length", "Height", "SubIndex", "bRotated", "bNewlyGet"};
+        for (unsigned i = 0; i < sizeof(f)/sizeof(f[0]); i++) pc_print_scalar(&t, f[i]);
+        printf("}");
+    } else if (!strcmp(map, "_spaceBatch")) {
+        printf(",\"layout\":{\"readable\":%s", t.valid ? "true" : "false");
+        const char *f[] = {"index", "length", "height", "startX", "startY", "endX", "endY", "sizeX", "sizeY", "uiStartX", "uiStartY", "bIsMultiSpace", "bFullyLocked", "unlocked"};
+        for (unsigned i = 0; i < sizeof(f)/sizeof(f[0]); i++) pc_print_scalar(&t, f[i]);
+        printf("}");
+    } else {
+        printf(",\"layout\":{\"readable\":%s", t.valid ? "true" : "false");
+        const char *f[] = {"left", "right", "top", "bottom"};
+        for (unsigned i = 0; i < sizeof(f)/sizeof(f[0]); i++) pc_print_scalar(&t, f[i]);
+        printf("}");
+    }
+    pc_free(&t);
+}
 static int pc_supported_collectible(uint64_t id) {
     unsigned subtype = (unsigned)((id / 10000 / 1000) % 100);
     return id / 10000 / 100000 == 15 && subtype >= 1 && subtype <= 9 && subtype != 5;
@@ -204,6 +235,7 @@ static void pc_slots(PCContext *ctx, uint64_t address, const char *group, int64_
                     if (isfinite(d)) printf(",\"number\":%.17g", d);
                 }
                 /* Do not emit arbitrary pointer values from child entries. */
+                pc_layout(ctx, maps[m], e->value);
                 puts("}");
             }
             pc_free(&t);
@@ -229,8 +261,33 @@ static int pickup_context(void) {
     uint64_t server = pc_table_value(&ctx, &globals, "Server");
     uint64_t groups = pc_table_value(&ctx, &globals, "ESlotGroup");
     uint64_t slot_types = pc_table_value(&ctx, &globals, "ESlotType");
+    uint64_t pickup_types = pc_table_value(&ctx, &globals, "EGamePickupType");
     pc_free(&globals);
     uint64_t inventory = pc_child(&ctx, server, "InventoryServer");
+    uint64_t looting = pc_child(&ctx, server, "LootingServer");
+    PCTable loot = pc_load(&ctx, looting); LVValue selector = pc_field(&loot, "_currentSelectorData");
+    pc_free(&loot);
+    if (pc_emit(&ctx)) {
+        printf("{\"record\":\"selector\",\"present\":%s", selector.tag == 69 ? "true" : "false");
+        PCTable pickup_enums = pc_load(&ctx, pickup_types);
+        LVValue scene = pc_field(&pickup_enums, "SceneBox"); int64_t scene_type;
+        if (pc_integer(scene, &scene_type)) printf(",\"sceneBoxType\":%ld", scene_type);
+        else ctx.complete = 0;
+        pc_free(&pickup_enums);
+        if (selector.tag == 69) {
+            PCTable selected = pc_load(&ctx, selector.value);
+            printf(",\"token\":\"%016lx\",\"readable\":%s", selector.value, selected.valid ? "true" : "false");
+            pc_print_number(&selected, "type");
+            LVValue interactors = pc_field(&selected, "interactors");
+            if (interactors.tag == 69) {
+                PCTable list = pc_load(&ctx, interactors.value);
+                printf(",\"interactorCount\":%u,\"interactorsReadable\":%s", list.count, list.valid ? "true" : "false");
+                pc_free(&list);
+            } else ctx.complete = 0;
+            pc_free(&selected);
+        }
+        puts("}");
+    }
     uint64_t maps = pc_child(&ctx, inventory, "_mapGid2Items");
     uint64_t slots = pc_child(&ctx, inventory, "_allItemSlots");
     PCTable enums = pc_load(&ctx, groups), item_groups = pc_load(&ctx, maps), slot_groups = pc_load(&ctx, slots);
@@ -248,6 +305,7 @@ static int pickup_context(void) {
         else ctx.complete = 0;
     }
     pc_free(&types);
+    int roots_complete = ctx.complete;
     const char *names_group[] = {"Player", "Nearby", "DeadBody"};
     for (unsigned i = 0; i < 3; i++) {
         int64_t group;
@@ -256,6 +314,7 @@ static int pickup_context(void) {
         }
         LVValue items = pc_numeric(&item_groups, group), spaces = pc_numeric(&slot_groups, group);
         if (!pc_emit(&ctx)) break;
+        int previous_complete = ctx.complete; ctx.complete = 1;
         printf("{\"record\":\"group\",\"name\":\"%s\",\"value\":%ld,\"itemsAvailable\":%s,\"slotsAvailable\":%s}\n",
                names_group[i], group, items.tag == 69 ? "true" : "false", spaces.tag == 69 ? "true" : "false");
         if (items.tag == 69) pc_items(&ctx, items.value, names_group[i]);
@@ -263,16 +322,22 @@ static int pickup_context(void) {
             pc_slots(&ctx, spaces.value, names_group[i], bag, rig);
         /* A missing group is not equivalent to a known empty inventory. */
         if (items.tag != 69 || spaces.tag != 69) ctx.complete = 0;
+        if (pc_emit(&ctx))
+            printf("{\"record\":\"groupSummary\",\"group\":\"%s\",\"complete\":%s}\n",
+                   names_group[i], ctx.complete ? "true" : "false");
+        ctx.complete = ctx.complete && previous_complete;
     }
     pc_free(&enums); pc_free(&item_groups); pc_free(&slot_groups);
+    int guards_stable = 1;
     for (unsigned i = 0; i < ctx.count; i++) {
         unsigned char now[32];
         if (!lv_read(&loot_values, ctx.guards[i].address, now, sizeof(now)) ||
-            memcmp(now + 10, ctx.guards[i].header + 10, 22)) ctx.complete = 0;
+            memcmp(now + 10, ctx.guards[i].header + 10, 22)) { ctx.complete = 0; guards_stable = 0; }
     }
     if (lv_ptr(&loot_values, ue4_base + 0x1fc9cd70) != vm) ctx.complete = 0;
-    printf("{\"record\":\"pickupContextSummary\",\"complete\":%s,\"actionReady\":false,\"pricesAvailable\":%s,\"tablesCopied\":%u,\"dataRecords\":%u,\"readsRemaining\":%u}\n",
-           ctx.complete ? "true" : "false", loot_values.node_count ? "true" : "false", ctx.count, ctx.records, loot_values.read_budget);
+    printf("{\"record\":\"pickupContextSummary\",\"complete\":%s,\"actionReady\":false,\"pricesAvailable\":%s,\"tablesCopied\":%u,\"dataRecords\":%u,\"readsRemaining\":%u,\"rootsComplete\":%s,\"guardsStable\":%s}\n",
+           ctx.complete ? "true" : "false", loot_values.node_count ? "true" : "false", ctx.count, ctx.records, loot_values.read_budget,
+           roots_complete ? "true" : "false", guards_stable ? "true" : "false");
     return 1;
 }
 #endif

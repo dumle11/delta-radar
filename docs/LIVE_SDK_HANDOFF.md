@@ -1,29 +1,43 @@
-## Auto-pickup development — 2026-11-03 (latest)
+## Auto-pickup and backpack replacement — 2026-11-03 (latest)
+
+Current branch: `codex/auto-pickup`. The first live inventory test is in progress.
+The user was released from further tests with about seven minutes left in the
+match to prioritize extraction. Do not request more test steps this match.
+
+Reader pickup and a two-cell Wood Pipe pickup retained item GIDs across
+source→Player transfers. Double-tap is the confirmed gesture; the Pipe went
+into the secure case automatically. Raw item length means horizontal columns,
+width means vertical rows; rig compartments are separate space batches. The
+backpack changed from 15 to 18 cells during play: re-read actual capacity.
+
+The separate read-only diagnostic now exports selector state, structured
+positions/space batches and completeness/stability flags. Complete live
+captures passed. Exact deployed identity is in ignored
+`scanner/build/pickup-probe-build.json`; this is separate from the old loot
+probe manifest. The host capture helper now validates the accepted snapshot
+object, correcting an initial assumption that it was a boolean.
+
+The user clarified that the button must also replace cheaper backpack loot
+when full. `BackpackReplacementPlanner` computes a profitable complete set of
+blocking backpack items before any removal, protecting unknown prices and
+unsupported items. Ten replacement tests pass (66 JVM total), native
+ASan/UBSan fixtures/API31 build pass, ten Python tests pass, and lint has zero
+errors/168 warnings. There are still no automatic inputs, drop actuator,
+button or updated APK. Do not describe the planners as an operational feature.
+
+A user-reported Reader drop was not confirmed as ground placement: its GID
+left Player but appeared in the DeadBody cache. Keep that result unverified;
+absence from Player alone is insufficient. Remaining work includes validated
+layout decoding, visible-control mapping, a verified ground drop/re-pickup,
+per-action confirmation/cancellation and app integration.
+
+See [the live checkpoint](AUTO_PICKUP.md#first-live-pickup-session-and-replacement-scope)
+for evidence names and all findings. Private raw captures/screens remain under
+ignored `evidence/local/session/auto-pickup-20261103/`. Installed radar/native
+`21cdaadf...` / `135e3893...` and production deployment pins remain unchanged.
 
 Future request: [enhanced aim assist](FEATURE_BACKLOG.md), recorded as deferred
-only. Auto-pickup remains the current priority; no aim-assist work has started.
-
-The user paused pre-opening container research and selected a manual **Take
-best loot** button in an open container. Phone is reconnected; the user expects
-to be ready to play about 30 minutes after their latest connection message. Continue
-from [the auto-pickup checkpoint](AUTO_PICKUP.md), which records implemented
-ranking/space/session logic, the separate bounded read-only inventory probe,
-offline checks and exact remaining live work. No pickup button/input adapter,
-transfer, automatic drop or working auto-pickup APK exists yet. The installed
-radar/native and deployment pins are unchanged. USB/root and exact installed
-hashes passed verification; the separate diagnostic has now run in the lobby.
-The initial 32K budget and all-Player-slot ceiling were too small for cached
-stash data. A 128K one-shot budget and enum-selected backpack/rig slots fixed
-those coverage limits. Latest diagnostic `c4be83fc...` is deployed/hash-verified.
-The final lobby capture read 264 cached items with 69K reads left; zero bag/rig
-dimensions and native completeness=false remain non-actionable. No item/game
-interaction was sent; one pre-existing project scanner was left running.
-
-Branch: `codex/auto-pickup`, based on `c2bac96`. Offline checks: 56 JVM tests
-(16 pickup tests), zero lint errors/168 warnings, ASan/UBSan native fixtures,
-API-31 compile with warnings as errors, nine Python capture tests. Current
-diagnostic deployment manifest is ignored `scanner/build/pickup-probe-build.json`; it is
-not the existing deployed `loot-probe-deployment.json`.
+only. No aim-assist work has started.
 
 ---
 
