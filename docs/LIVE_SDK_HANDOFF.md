@@ -83,6 +83,13 @@ This verifies child pickup tracking, not the parent kind-3/5 linked reader or
 pre-first-opening contents. The user was released to extract; scanner is left
 running for that extraction. No more tests are requested this match.
 
+The user subsequently confirmed they were out of the second match. Radar was
+stopped and the process-executable inventory found zero project scanners
+remaining. No crash was reported. Both completed runs are saved; the latest
+APK/native remain the verified `21cdaadf...` / `135e3893...` candidate. Restore
+the retained diagnostic minimum 0 to 20k for normal play. Before-first-opening
+loot values and parent kind-3/5 acceptance remain unresolved.
+
 Exact artifacts and verification: ignored `container-links-build-20261103`.
 The user's saved filter is ON, but its minimum was already **0** before these
 tests; preferences were restored and retained. Use 0 for the initial container

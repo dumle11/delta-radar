@@ -667,3 +667,10 @@ needed. Private proof: `container-links-live-20261103/filing-cabinet-summary.jso
 with before/opened/reclosed frames, composed screenshots and the Solar Panel
 details panel. The user was released to extract; scanner remains running until
 the match ends. No further tests were requested this match.
+
+The user then confirmed they were out of the match. Radar was stopped between
+matches; a root process-executable inventory found zero project scanners
+remaining. No crash was reported. The user's message confirms the match ended,
+without a separate extraction-result screenshot. Private outcome proof is
+`second-match-outcome.json`. The diagnostic minimum remains 0 until restored
+for normal play; intended minimum is 20k. Production APK/native are unchanged.
