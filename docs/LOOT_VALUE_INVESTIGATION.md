@@ -515,3 +515,28 @@ time or pre-search valuable-container detection. The remaining priority test is
 a bird nest, sewer or filing cabinet to exercise the new linked-content family.
 Private proof is `container-links-live-20261103/flight-summary.json` with matched
 snapshots and the captured UI value. No runtime changes were needed.
+
+
+## Bird nest: searched contents and Medical Alcohol price matched
+
+The user-selected bird nest was `BP_Interact_Nest_C`, metadata kind 2.
+Before search its readable item count was zero, search was incomplete and the
+value was unknown. Searching exposed three items, catalog IDs `15060010007`,
+`15080050007` and `15090910023`. The native reader and separate diagnostic
+agreed on a highest known individual value of **9,066** for `15060010007`.
+The composed screen showed the on-screen container marker with that value.
+
+The user opened the EtOH bottle's details: its full name was Medical Alcohol
+and its displayed value was **9,066**, exactly matching the native/marker value.
+The filter remained ON at diagnostic minimum 0. At the intended 20k minimum,
+this nest would be excluded based on its known values; a live threshold toggle
+was not repeated. The user was released to loot normally without another
+pickup/empty sequence.
+
+This establishes searched-content coverage for this bird-nest class, not
+pre-search visibility, every nest variant or the new kind-3/5 linked readers.
+A nearby unopened HalloweenRaven SingleItemContainer was a different actor
+and was not the nest tested. The next optional sample is a sewer or filing
+cabinet. Private proof is `container-links-live-20261103/nest-summary.json`
+with before/after snapshots, overlay output and the item-details screenshot.
+No runtime changes or app restarts were needed.

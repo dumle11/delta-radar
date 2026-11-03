@@ -25,12 +25,18 @@ and changed the marker to 14,593; emptying the safe set the empty flag, zeroed
 its value and removed its marker. This was metadata kind 2, so the new linked
 special-container path is still awaiting a different-family test. The user is
 currently playing; scanner is running. Only one project scanner process was
-observed. The next requested sample is a bird nest, sewer or filing cabinet.
+observed.
 The flight-case test also passed after search: AirCargoContainer exposed four
 items, with a visible 14,524 marker matching Firearm Parts' displayed value.
 Its armor was detected but deliberately unpriced. At 20k its supported
 collectibles would not qualify. Both sampled safe/flight contents were unknown
 before search; unopened valuable-container detection is not established.
+The bird nest also passed after search: `BP_Interact_Nest_C` exposed three
+items, and Medical Alcohol UI/native/marker values all matched at 9,066.
+Before search it exposed zero items and an unknown value. This nest also uses
+metadata kind 2; the new kind-3/5 linked-content path remains unverified live.
+The user may loot normally; the next requested sample is a sewer or filing
+cabinet if one is encountered during the match.
 
 Exact artifacts and verification: ignored `container-links-build-20261103`.
 The user's saved filter is ON, but its minimum was already **0** before these
