@@ -1,24 +1,42 @@
 ## Pre-opening loot investigation — 2026-11-03 (latest)
 
-Next live check is now prepared; the user has been told they can queue and
-asked to confirm spawning with radar ON/minimum 0. Keep working when they
-reply. New `capture_loot_cache.py` captures freshly rooted loot-UI caches in
+Latest matched safe test completed. The user spawned with radar ON/minimum 0
+beside a safe. Both before/after guards around the closed-cache capture showed
+the same actor still unsearched, zero native contents and null ContainerSpace.
+The complete Nearby item-map sample had only nearby ammunition. After search,
+the native list and Nearby map both contained exactly the safe's three items
+`15080050011`, `15080050015`, `15080050012`; no cache child/entry limits were
+reached for that comparison. ContainerSpace remained null. The marker showed
+62,800, but no new UI price comparison was requested. Thus the additional cache
+did not expose these items before search. This does not rule out every client
+source or establish server-side creation time.
+
+The user was released to take loot and continue playing; no more interaction
+steps are needed at that safe. Radar remains running for the fourth match.
+Do not stop it until the user ends the match. Pre-opening display remains
+unimplemented; installed working APK/native are unchanged.
+
+`capture_loot_cache.py` captures freshly rooted loot-UI caches in
 one bounded command (~4.5 s in the lobby). It verifies the deployed diagnostic,
 requires a fresh pinned frame in live mode, resolves ESlotGroup.Nearby rather
 than hardcoding it, and reads LootingServer._cachedData / _slotItemMap /
 _nearbyPickupMapping / _fetchScope plus InventoryServer's Nearby item/slot maps.
 Limits and partial-child flags are explicit. It never invokes Lua methods.
-Lobby/startup, stale-frame rejection, duplicate-label preservation and invalid
-label checks passed. Positive live cache capture remains pending.
+Lobby/startup, stale-frame rejection, duplicate-label preservation, invalid
+label and matched live-cache checks passed. Live captures took about 8 s.
 
-After spawn, get the user beside one unopened target. Capture its native
-state, run the cache collector, then recheck the same target is still unopened
-before requesting search. Capture native/cache state after opening without
-extra price-panel requests. Compare the actual after-search catalog IDs with
-the before cache, respecting child/sample limits. This is the new test's purpose;
-do not repeat prior UI price comparisons. Last confirmed scanner state was
-stopped after the third match; do not start/stop/reinstall either app unless
-needed for the newly confirmed match.
+A separate native InventoryDataCenter cache path was also traced through
+module disassembly. The new diagnostic mode `inventory-cache` validates native
+classes including SOL/PropHunt subclasses, bounds a sparse GID/shared-item map,
+checks GID agreement, allocation counts and header stability, and caps output.
+A later read found one center: 11 active entries, 10 valid type-18 items and
+one unreadable/invalid entry; none matched the three safe GIDs. This was not a
+matched before/after sample or an established source for container contents.
+Do not treat the unreadable entry or that cache as proving absence. Diagnostic
+hash is now `ea4a2030...`, API-31 compile/hash/live-map checks passed. Raw proof
+stays in ignored `unopened-container-20261103/`; `safe-cache-comparison-summary.json`
+is the main result. Slot-map root keys are compound slot keys, not item GIDs.
+Their count changed 74→77, but no direct GID correlation was established there.
 
 ---
 

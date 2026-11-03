@@ -362,6 +362,85 @@ static void tables(void) {
             limit == object_count ? "false" : "true");
 }
 
+/* Native InventoryDataCenter::GetItemByGID disassembly identifies the TMap
+ * at +0x48: uint64 GID -> shared FInventoryItemInfo, 32-byte sparse entries.
+ * This is a separate diagnostic source, not an alternative production price. */
+static int inventory_cache(void) {
+    uint64_t cls = object_at(0x1e82);
+    char name[96] = {0}; resolve_class_name(cls, name, sizeof(name));
+    if (!cls || strcmp(name, "InventoryDataCenter") ||
+        read_i32(read_ptr(cls + 0x40) + 0x24) != 0x1bae) return 0;
+    uint64_t sol = object_at(0x29d3), prop_hunt = object_at(0x2875);
+    if (read_ptr(sol + 0x40) != cls || read_ptr(prop_hunt + 0x40) != cls) return 0;
+    unsigned emitted = 0, centers = 0;
+    int limit = object_count < 300000 ? object_count : 300000;
+    for (int index = 0; index < limit; index++) {
+        uint64_t obj = object_at(index);
+        if (!obj) continue;
+        uint64_t actual_cls = read_ptr(obj + OFF_UOBJECT_CLASS);
+        if (actual_cls != cls && actual_cls != sol && actual_cls != prop_hunt) continue;
+        if (read_ptr(actual_cls + 0x138) == obj) continue;
+        if (++centers > 16) return 0;
+        unsigned char header[0x50], after[0x50];
+        if (read_mem(obj + 0x48, header, sizeof(header)) != sizeof(header)) return 0;
+        uint64_t data = 0, flags = 0;
+        int32_t slots = 0, capacity = 0, bits = 0, free_count = 0;
+        memcpy(&data, header, 8); memcpy(&slots, header + 8, 4);
+        memcpy(&capacity, header + 12, 4); memcpy(&flags, header + 0x20, 8);
+        memcpy(&bits, header + 0x28, 4); memcpy(&free_count, header + 0x34, 4);
+        if (slots < 0 || slots > 16384 || capacity < slots || capacity > 65536 ||
+            bits < slots || bits > 65536 || free_count < 0 || free_count > slots ||
+            (slots && !is_any_ptr(data))) return 0;
+        if (!flags) {
+            if (bits > 128) return 0;
+            flags = obj + 0x58;
+        }
+        if (!is_any_ptr(flags)) return 0;
+        size_t n = (size_t)slots * 32, flag_n = ((size_t)slots + 31) / 32 * 4;
+        unsigned char *entries = malloc(n ? n : 1);
+        uint32_t *allocated = malloc(flag_n ? flag_n : 1);
+        if (!entries || !allocated) { free(entries); free(allocated); return 0; }
+        if ((n && read_mem(data, entries, n) != (ssize_t)n) ||
+            (flag_n && read_mem(flags, allocated, flag_n) != (ssize_t)flag_n)) {
+            free(entries); free(allocated); return 0;
+        }
+        unsigned active = 0, valid = 0, unreadable = 0, skipped = 0;
+        for (int i = 0; i < slots; i++) {
+            if (!(allocated[i / 32] & (1U << (i % 32)))) continue;
+            active++;
+            uint64_t gid = 0, info = 0, control = 0, stored_gid = 0;
+            memcpy(&gid, entries + (size_t)i * 32, 8);
+            memcpy(&info, entries + (size_t)i * 32 + 8, 8);
+            memcpy(&control, entries + (size_t)i * 32 + 16, 8);
+            unsigned char item[0x78]; uint32_t pair[2]; int32_t count = 0, attach = 0;
+            if (!gid || !is_any_ptr(info) || !is_any_ptr(control) ||
+                read_mem(info, item, sizeof(item)) != sizeof(item)) { unreadable++; continue; }
+            memcpy(&stored_gid, item + 0x28, 8); memcpy(pair, item + 0x10, 8);
+            memcpy(&count, item + 0x38, 4); memcpy(&attach, item + 0x70, 4);
+            if (stored_gid != gid || !pair[0] || pair[1] >= 10000 ||
+                count < 0 || count > 100000) { unreadable++; continue; }
+            valid++;
+            if (emitted >= 4096) { skipped++; continue; }
+            emitted++;
+            printf("{\"inventoryCacheItem\":true,\"center\":\"%lx\",\"gid\":\"%llu\","
+                   "\"itemId\":\"%llu\",\"count\":%d,\"attachPosition\":%d}\n",
+                   obj, (unsigned long long)gid,
+                   (unsigned long long)((uint64_t)pair[0] * 10000 + pair[1]), count, attach);
+        }
+        free(entries); free(allocated);
+        int stable = read_mem(obj + 0x48, after, sizeof(after)) == sizeof(after) &&
+                     !memcmp(header, after, sizeof(header));
+        printf("{\"inventoryCacheSummary\":true,\"center\":\"%lx\",\"slots\":%d,"
+               "\"active\":%u,\"validItems\":%u,\"unreadable\":%u,\"skipped\":%u,"
+               "\"allocationCountMatches\":%s,\"stableHeader\":%s}\n", obj, slots,
+               active, valid, unreadable, skipped,
+               active == (unsigned)(slots - free_count) ? "true" : "false", stable ? "true" : "false");
+    }
+    printf("inventory-cache-complete inspected=%d total=%d truncated=%s centers=%u emitted=%u\n",
+           limit, object_count, limit == object_count ? "false" : "true", centers, emitted);
+    return 1;
+}
+
 static int rows(uint64_t table, int argc, char **argv) {
     uint64_t cls = read_ptr(table + OFF_UOBJECT_CLASS), row = read_ptr(table + 0x28);
     int row_index = read_i32(row + 0x24);
@@ -602,6 +681,8 @@ int main(int argc, char **argv) {
         }
     } else if (!strcmp(argv[1], "tables")) {
         tables();
+    } else if (!strcmp(argv[1], "inventory-cache") && argc == 2) {
+        if (!inventory_cache()) return 3;
     } else if (!strcmp(argv[1], "lua-price-metadata")) {
         lua_price_metadata();
     } else if (!strcmp(argv[1], "lua-function") && argc == 3) {

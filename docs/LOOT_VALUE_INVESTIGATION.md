@@ -809,3 +809,65 @@ then matched native/cache samples after opening. No price details panels are
 needed. This tests an additional data path; pre-opening item visibility remains
 unproven. Private preparation evidence: `lobby-cache-startup.json` and
 `cache-collector-validation.json` under `unopened-container-20261103/`.
+
+
+## Fourth match: matched unopened safe vs Nearby-cache comparison
+
+The user spawned with radar ON/minimum 0 beside a safe. The interaction prompt
+and native sample matched `BP_Interactor_Container_SafeBox_C`, metadata kind 2.
+The cache capture was bracketed by native snapshots of that same actor: both
+showed search incomplete, zero readable items and null ContainerSpace. The
+live cache capture was complete and the Nearby map's single item was nearby
+ammunition (`37250200002`, count 16), not a safe item.
+
+After the user searched and left everything inside, the same safe's native
+array and complete Nearby item-map sample both contained three catalog IDs:
+`15080050011`, `15080050015`, `15080050012` (telescope, wine cup and figurine
+shown in the composed loot window). None of those IDs was in the before Nearby
+map. Neither before nor after Nearby item-map capture hit its entry/child limits.
+The marker's highest known individual value was 62,800. No item-details price
+panel was requested, so this is not another exact UI price comparison.
+ContainerSpace remained null even after search.
+
+LootingServer._slotItemMap had 74 root keys before and 77 afterwards, all below
+the 1,024-entry cap. Its keys use a compound slot format; an attempted direct
+GID lookup did not correlate them to the safe items. Its child payloads were
+sampled, so do not claim a full content/GID comparison for that map. The decisive
+comparison here is the complete InventoryServer Nearby item-map sample against
+the native safe array. Private summary: `safe-cache-comparison-summary.json`.
+Cache captures took 8.484 s before and 8.209 s after, with fresh pinned frames.
+
+The user was released to take the loot and keep playing. No further safe
+interaction steps were requested. Radar remains running until this fourth
+match ends. No production APK/native change was made. These observations show
+the additional checked cache does not expose this safe's items before search;
+they do not rule out every client source or establish server-side spawn timing.
+Pre-opening item display remains unimplemented.
+
+
+## Separate native InventoryDataCenter cache traced during play
+
+Read-only module disassembly of the SDK item allocation/GID lookup methods
+identified an opaque native InventoryDataCenter TMap at +0x48, mapping a GID to
+a shared FInventoryItemInfo in 32-byte sparse entries. The diagnostic's new
+`inventory-cache` mode validates the base native class/parent and the final
+SOL/PropHunt subclasses, excludes default objects, and caps the registry at
+300,000 objects / 16 centers. Array/bitmap bounds, allocation popcount, stored
+item GID agreement and a stable header are recorded; output caps at 4,096 items.
+It reads only known item fields, never changes reference counts or invokes
+game functions. The existing eight-second alarm remains.
+
+An initial base-class-only pass found no instances; adding the SDK's verified
+final subclasses found one center. A later read during play reported 11 active
+entries, 10 valid type-18 catalog items and one unreadable/invalid entry, with
+allocation counts matching and a stable header. None of the valid GIDs matched
+the three searched safe items. This does not establish it as a container-content
+cache, and the single unreadable entry prevents a claim of complete item
+enumeration. No matched before/after experiment was performed on this native
+cache. The result supplies no demonstrated source for unopened valuables.
+
+API-31 compile with warnings as errors and content-addressed deployment hash
+verification passed; current diagnostic hash is `ea4a2030...`. Raw module
+fragments, disassembly, GIDs and addresses remain private under ignored
+`unopened-container-20261103/`. Working APK/native and deployment pins are
+unchanged. Do not promise pre-search loot display from this diagnostic path.
