@@ -32,7 +32,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         val boneScreenY: FloatArray? = null,
         val team: Int = 2
     )
-    data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>)
+    data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>, val warning: String? = null)
 
     private var frame: Frame? = null
     private var receivedAt = 0L
@@ -62,6 +62,11 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
     }
     private val labelBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xE6141A25.toInt() }
+    private val warningTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFD180.toInt()
+        textSize = 11 * resources.displayMetrics.scaledDensity
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+    }
     private val labelOutline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFF090D16.toInt(); style = Paint.Style.STROKE; strokeWidth = 2 * density
     }
@@ -100,7 +105,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     }
 
     fun submit(value: Frame, receivedAtMs: Long) {
-        if (value.me == null || value.enemies.isEmpty()) { clear(); return }
+        if (value.me == null || (value.enemies.isEmpty() && value.warning == null)) { clear(); return }
         previousById = frame?.enemies?.associateBy { it.id }.orEmpty()
         frame = value; receivedAt = receivedAtMs
         transitionStartedAt = SystemClock.elapsedRealtime()
@@ -126,6 +131,17 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         val padding = 2f * density
         val occupied = mutableListOf<RectF>()
         val blend = ((SystemClock.elapsedRealtime() - transitionStartedAt) / 50f).coerceIn(0f, 1f)
+
+        data.warning?.let { warning ->
+            val left = 8f * density
+            val top = 8f * density
+            val inset = 6f * density
+            val bounds = RectF(left, top, left + warningTextPaint.measureText(warning) + inset * 2,
+                top + warningTextPaint.fontSpacing + inset * 2)
+            canvas.drawRoundRect(bounds, 4f * density, 4f * density, labelBgPaint)
+            canvas.drawText(warning, left + inset, top + inset - warningTextPaint.ascent(), warningTextPaint)
+            occupied.add(bounds)
+        }
 
         for (enemy in data.enemies) {
             val previous = previousById[enemy.id]

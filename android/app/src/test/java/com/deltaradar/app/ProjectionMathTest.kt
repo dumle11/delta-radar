@@ -6,6 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ProjectionMathTest {
+    @Test fun narrowScopeUsesItsActualFieldOfView() {
+        val p = ProjectionMath.project(100.0, 5.0, 0.0, 0.0, 0.0, 20.0, 16.0 / 9.0)
+        assertTrue(p.onScreen)
+        assertEquals(0.64178f, p.x, 0.0001f)
+    }
+
     @Test fun yAxisIsForwardAtZeroYaw() {
         // Y=100 forward, X=0 altitude, Z=0 lateral → center of screen
         val p = ProjectionMath.project(100.0, 0.0, 0.0, 0.0, 0.0, 80.0, 16.0 / 9.0)

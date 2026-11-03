@@ -3060,6 +3060,19 @@ id action_text
 id actions
 id activity_chooser_view_content
 id add
+id aimAutoShoot
+id aimCalibration
+id aimCircle
+id aimDefaultLook
+id aimEnabled
+id aimFovLabel
+id aimFovSlider
+id aimScroll
+id aimSetFire
+id aimSetLook
+id aimStatus
+id aimStrengthLabel
+id aimStrengthSlider
 id alertTitle
 id aligned
 id all
@@ -3134,6 +3147,7 @@ id design_menu_item_action_area
 id design_menu_item_action_area_stub
 id design_menu_item_text
 id design_navigation_view
+id diagnosticText
 id dialog_button
 id dimensions
 id direct
@@ -3348,6 +3362,8 @@ id playerModeLines
 id playerModeOff
 id playerModeSkeleton
 id position
+id positionTraceStatus
+id positionTraceToggle
 id postLayout
 id pressed
 id progress_circular
@@ -3422,6 +3438,7 @@ id stop
 id stretch
 id submenuarrow
 id submit_area
+id tabAim
 id tabGeneral
 id tabLogs
 id tabMode
@@ -3880,6 +3897,7 @@ string searchview_navigation_content_description
 string side_sheet_accessibility_pane_title
 string side_sheet_behavior
 string status_bar_notification_info_overflow
+string unverified_players_hidden
 style AlertDialog_AppCompat
 style AlertDialog_AppCompat_Light
 style Animation_AppCompat_Dialog

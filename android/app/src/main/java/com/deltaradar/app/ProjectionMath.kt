@@ -35,7 +35,7 @@ object ProjectionMath {
         val up = -horizontalForward * sp + dz * cp
         val inFront = forward > 0.05
 
-        val tanHalfHorizontal = tan(Math.toRadians(horizontalFovDegrees.coerceIn(30.0, 150.0) / 2.0))
+        val tanHalfHorizontal = tan(Math.toRadians(horizontalFovDegrees.coerceIn(5.0, 150.0) / 2.0))
         val tanHalfVertical = tanHalfHorizontal / aspect.coerceAtLeast(0.25)
         val depth = max(abs(forward), 0.05)
 

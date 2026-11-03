@@ -1,5 +1,161 @@
 # Delta Radar recovery state — 2026-11-02
 
+## Live match encrypted-position audit — 2026-11-03
+
+A live sample confirmed4 encoded bounds/root transforms among29 character
+actors. Later fresh GameState/PlayerState-linked samples showed that clear-tag
+LastFrame/LastUpdate caches can still contain duplicate underground values;
+do not use them as a fallback. The game stayed PID12758 and automatic input
+was disabled for the capture, with the visual feed/overlay running.
+
+Readable runtime ARM64 getter snapshots show mode2 + Index!=0xFFFF decoder
+dispatch, independently of bEncrypted. The reader now requires an unmanaged
+index sentinel plus clear flag for bounds/transforms/camera certification.
+Native fixtures cover active indices with clear flags and camera admission;
+25 Android tests and the APK build pass. This does not decode positions.
+The patch APK is staged under /tmp/delta-live-encryption-evidence/build;
+it has not been installed while the user's recording timing is pending.
+Decoder dispatch slots are in a write-only VMA; no protected reads were made.
+
+All20 supplied forum screenshots were reviewed, but several are clipped or
+blank at16384px. Page16's pointer-encryption/account-flag discussion does not
+supply an Android coordinate decoder; its code example is cut off. Detailed
+coverage is /tmp/delta-forum-screenshots-review.md and the investigation doc.
+
+## 2026-11-03: ghost-target fix and encryption investigation
+
+The user still reported empty-space aiming after the earlier corrective build.
+A live lobby probe reproduced overbroad character classification: the local
+Pawn->Actor->Object hierarchy caused unrelated actors to pass. Fixed native
+Character->Pawn ancestry, strengthened the PlayerState fallback, and recheck
+cached classes every frame. Automatic input now also requires a live possessed
+character and coherent plaintext bounds/world-transform positions. Camera drag
+setup is optional and has an explicit reset-to-default action.
+
+Visible firing-range dummies were plaintext and ESP-aligned in the same game
+process without reboot. Automatic aiming visibly converged on torso targets;
+manual and automatic firing produced range hits after fixing the saved fire
+point. An80ms stationary fire contact replaces zero-duration taps. These tests
+do not validate encrypted multiplayer targets or full-match stability.
+
+All90 supplied forum pages were attempted in a normal browser; only pages
+1,2,6,24,25,90 were readable (112 post containers). The remaining84 hit browser
+challenges. Do not claim the entire thread was reviewed or that the user's
+account is flagged. No verified Android decoder was obtained or integrated.
+See docs/AIM_POSITION_INVESTIGATION_2026-11-03.md for evidence and limitations.
+
+## Aim regression correction
+
+The first Aim implementation was reported to rotate toward empty space. It
+accepted legacy raw positions, treated missing visibility as eligibility,
+and repeatedly injected uncalibrated swipes without observing the result.
+That implementation was not validated against a live target before release.
+
+The corrective reader adds `positionPlaintext`, `renderedOnScreen`,
+`cameraTimestamp` and `cameraPositionPlaintext`. These are read-only checks of
+the matching SDK layouts. Encrypted positions remain undecoded and are excluded
+from automatic input. A rendered-mesh flag is only a necessary visibility
+filter; it is not an authoritative line-of-sight result. Targeting additionally
+requires a current-snapshot entity with known positive health. Feed snapshots
+are now copied atomically, and camera angles retain sub-degree precision.
+
+The controller now sends small corrections, waits for an advancing camera
+sample and checks that screen error decreases. Wrong or absent response,
+large camera movement, zoom changes and a bounded correction count stop it.
+These checks have regression coverage, but are not proof of live aim accuracy.
+
+The old discovery loop also missed an active gameplay world. A bounded SDK
+pointer-chain check found a world with 427 actors and 12 PlayerStates through
+`libUE4 + 0x20AA87A0`. Reading through that slot restored 176 entities. The
+reader now prefers that slot after checking the level backlink, camera owner,
+replicated player names and actor-array bounds; this no longer depends on a
+pawn appearing in the first 256 sampled actor entries. A subsequent world
+transition was observed with the game process still alive.
+
+Owned-memory native tests and Android tests pass. Runtime metadata has shown
+both excluded encrypted/unrendered actors and eligible rendered, plaintext
+actors with positive health. Initial stationary probes sent no gestures while the view was moving or
+the player unavailable. A later live test isolated the saved centre/left look
+point: a four-pixel drag there changed no camera angle, while the same drag
+from the right-hand area increased yaw by roughly 0.44 degrees. Twelve-pixel
+right/down probes changed yaw/pitch in the expected directions. Old centre/left
+look points now use the measured right-hand area (70%, 55%), and calibration
+rejects that inactive area. Pending gesture feedback is checked before another
+target is selected; a transient render-flag change cannot silently erase the
+in-flight result. The in-app diagnostics have observed a correction reducing
+target error. Full live aiming/firing acceptance remains outstanding. Keep this
+limitation explicit; encrypted remote positions are still unsupported.
+
+## Later follow-up: missing gameplay world
+
+After installing the unchanged `poc-wip` APK, the user reported no lines,
+including bots, despite being spawned. The running scanner executable matched
+the bundled legacy reader. Its log repeatedly rejected all discovered world
+candidates with `players=0` and waited for an active gameplay world. The
+discovery scan samples at most 256 actor entries per candidate and limits
+which mappings it searches; neither limitation has been proven to explain
+this particular failure.
+
+With explicit approval, an isolated, owned-memory-tested diagnostic checked
+the local-player pointer chains of two previously logged candidates using
+readable mappings and `process_vm_readv` only. One had no usable game-instance
+pointer and the other no usable local-players pointer. Five reads totaling
+40 bytes were made. These candidates may have changed since they were logged;
+the result does not locate the real gameplay world or establish why it was
+missed. The game, app and scanner were running immediately afterward. The
+diagnostic executable was removed from the device. No production fix or new
+APK resulted, and correct position decryption remains unverified.
+
+The same game and scanner processes later selected a gameplay world with 165
+actors and one plausible player, and then reselected it with 213 actors and
+two plausible players. Entity counts subsequently rose above 100. The user
+reported that all visible players, bots and teammates were aligned at that
+time. This explains the return of entities but does not establish why world
+discovery previously failed or whether character positions were encrypted.
+The installed reader still uses raw bounds and has no verified decoder.
+
+The user approved a separate check of four previously logged actors' bounds
+encryption flags. At the time of the check none of those actor root-field
+addresses was in a readable mapping, so the diagnostic made zero
+`process_vm_readv` calls and obtained no encryption flags. The game, app and
+scanner were still running afterward. The diagnostic was removed from the
+device. Subsequent logs contained different actor addresses; the unsuccessful
+check is not evidence that the game is unencrypted or inaccessible.
+
+## Later follow-up: working friend and scanner identity
+
+The user reports a friend with a OnePlus 5 and the same game/region gets
+correct teammate, bot and human positions in every match using `working-v1`.
+The friend's Android version and the hashes of the installed APK and running
+scanner have not yet been established. This report does not establish whether
+the difference is account-related, encryption state, OS, scanner build, or
+configuration. The user later reported that the friend is on Android 12.
+Only one device was visible through ADB; its reported Android version was 10
+(API 29), and its running scanner was the legacy reader. The friend's running
+scanner identity has therefore not been independently checked.
+
+On this device, switching the Git checkout to `poc-wip` did not install a new
+APK. After the user's restart, the installed APK SHA-256 remained
+`31df2e99e91ed671280bcc4d9065edec23684a0b63b43e7ba444a9761acd2080`,
+the `working-v1` APK installed during the preceding request. Its scanner
+verification expects `/data/local/tmp/delta-radar/scanner-api31-3e77827de53dcacc`
+and hash `3e77827de53dcacc6eaac1a9b03174e74fb96a875d9729167d126fb78115c63f`;
+that file was absent after restart. The existing legacy scanner file at
+`/data/local/tmp/delta_radar_legacy/memscan` instead has SHA-256
+`a8323eb1466d5aafc53c60387bad2611e792191723b30fa5f6da9d1f164c3fe4`,
+matching the `poc-wip` bundled reader. A process named `memscan` had been
+running before the restart, but its executable identity was not verified.
+Consequently, testing the `working-v1` APK does not by itself establish that
+the `working-v1` decoder scanner ran. This device is Android 10/API 29;
+the pinned `working-v1` scanner targets API 31.
+
+With the user's approval, the unchanged `poc-wip` APK was subsequently built,
+unit-tested and installed. Its APK SHA-256 is
+`96c0af8bf20ccde134a9f9d334e4f1bbb161554c4955a7c4e7465e36256bbffe`;
+the installed APK matched, and its bundled scanner hash matched the legacy
+reader above. The radar app and scanner were not running during the final
+process check; the game was running. No position fix was included.
+
 ## Later follow-up: HUD position investigation
 
 The SDK declares a possible read-only position path from

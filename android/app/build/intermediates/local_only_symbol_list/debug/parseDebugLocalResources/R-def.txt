@@ -5,6 +5,19 @@ drawable bg_overlay_menu
 drawable btn_danger
 drawable btn_primary
 drawable ic_bubble
+id aimAutoShoot
+id aimCalibration
+id aimCircle
+id aimDefaultLook
+id aimEnabled
+id aimFovLabel
+id aimFovSlider
+id aimScroll
+id aimSetFire
+id aimSetLook
+id aimStatus
+id aimStrengthLabel
+id aimStrengthSlider
 id botColorCyan
 id botColorGreen
 id botColorOrange
@@ -17,6 +30,7 @@ id botModeOff
 id botModeSkeleton
 id btnClose
 id btnStart
+id diagnosticText
 id enemyLabelsDetails
 id enemyLinesDetails
 id generalScroll
@@ -45,10 +59,13 @@ id playerModeBoxes
 id playerModeLines
 id playerModeOff
 id playerModeSkeleton
+id positionTraceStatus
+id positionTraceToggle
 id renderDistSeek
 id renderDistValue
 id statusDetails
 id statusState
+id tabAim
 id tabGeneral
 id tabLogs
 id tabVisual
@@ -84,4 +101,5 @@ layout overlay_bubble
 layout overlay_menu
 mipmap ic_launcher
 string app_name
+string unverified_players_hidden
 style AppTheme

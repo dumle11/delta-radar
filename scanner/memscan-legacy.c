@@ -72,6 +72,9 @@ static int num_regions = 0;
 static uint8_t *read_buf = NULL;
 static int use_vm_readv = 0;
 static FILE *maps_file = NULL;
+static unsigned diagnostic_read_failures = 0;
+static uint64_t diagnostic_failure_address = 0;
+static int diagnostic_failure_errno = 0;
 
 static int find_game_pid(void) {
     DIR *proc = opendir("/proc");
@@ -141,14 +144,25 @@ static int parse_maps_with_retry(void) {
 }
 
 static ssize_t read_mem(uint64_t addr, void *buf, size_t len) {
+    ssize_t result;
     if (use_vm_readv) {
         struct iovec local = { .iov_base = buf, .iov_len = len };
         struct iovec remote = { .iov_base = (void *)addr, .iov_len = len };
-        return syscall(__NR_process_vm_readv, game_pid, &local, 1, &remote, 1, 0);
+        result = syscall(__NR_process_vm_readv, game_pid, &local, 1, &remote, 1, 0);
+    } else if (mem_fd < 0) {
+        errno = EBADF;
+        result = -1;
+    } else if (lseek64(mem_fd, (off64_t)addr, SEEK_SET) == (off64_t)-1) {
+        result = -1;
+    } else {
+        result = read(mem_fd, buf, len);
     }
-    if (mem_fd < 0) return -1;
-    if (lseek64(mem_fd, (off64_t)addr, SEEK_SET) == (off64_t)-1) return -1;
-    return read(mem_fd, buf, len);
+    if (result != (ssize_t)len) {
+        diagnostic_read_failures++;
+        diagnostic_failure_address = addr;
+        diagnostic_failure_errno = result < 0 ? errno : 0;
+    }
+    return result;
 }
 
 static uint64_t read_ptr(uint64_t addr) {
@@ -426,7 +440,54 @@ static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
     return best_score;
 }
 
+/* The matching SDK provides this slot. Do not depend on a pawn happening to
+ * occur in the first 256 entries of a heap-scan candidate's actor array. */
+static int select_sdk_world(uint64_t slot, GWorldCandidate *out) {
+    uint64_t world = read_ptr(slot);
+    if (!is_telemetry_ptr(world)) return 0;
+    uint64_t level = read_ptr(world + 0xF8);
+    uint64_t state = read_ptr(world + 0x140);
+    uint64_t instance = read_ptr(world + 0x190);
+    if (!is_telemetry_ptr(level) || !is_telemetry_ptr(state) || !is_telemetry_ptr(instance) ||
+        read_ptr(level + 0xA8) != world) return 0;
+    uint64_t actors = read_ptr(level + 0x98);
+    int count = read_i32(level + 0xA0), capacity = read_i32(level + 0xA4);
+    uint64_t players = read_ptr(state + 0x388);
+    int player_count = read_i32(state + 0x390);
+    if (!is_telemetry_ptr(actors) || count < 1 || count > 50000 || capacity < count ||
+        capacity > 100000 || !is_telemetry_ptr(players) || player_count < 1 || player_count > 256)
+        return 0;
+    uint64_t locals = read_ptr(instance + 0x38);
+    uint64_t local = is_telemetry_ptr(locals) ? read_ptr(locals) : 0;
+    uint64_t controller = is_telemetry_ptr(local) ? read_ptr(local + 0x30) : 0;
+    uint64_t camera = is_telemetry_ptr(controller) ? read_ptr(controller + 0x408) : 0;
+    if (!is_telemetry_ptr(camera) || read_ptr(camera + 0x370) != controller) return 0;
+    int named = 0;
+    for (int i = 0; i < player_count && i < 32; i++) {
+        uint64_t player = read_ptr(players + (uint64_t)i * 8);
+        if (!is_telemetry_ptr(player)) continue;
+        char name[64];
+        if (read_fstring(player + OFF_PLAYER_STATE_NAME, name, sizeof(name)) > 0 ||
+            read_fstring(player + OFF_PLAYER_STATE_NAME_PRIVATE, name, sizeof(name)) > 0) {
+            named = 1; break;
+        }
+    }
+    if (!named) return 0;
+    memset(out, 0, sizeof(*out));
+    out->gworld_addr = slot; out->uworld = world; out->level = level;
+    out->actor_data = actors; out->actor_count = count;
+    out->actor_source = 1; out->plausible_players = 1; out->score = 160;
+    return 1;
+}
+
 static void scan_for_gworld(void) {
+    GWorldCandidate sdk_world;
+    if (select_sdk_world(ue4_base + 0x20AA87A0, &sdk_world)) {
+        num_candidates = 1;
+        candidates[0] = sdk_world;
+        fprintf(stderr, "[+] SDK gameplay world selected: actors=%d\n", sdk_world.actor_count);
+        return;
+    }
     fprintf(stderr, "[*] Scanning for GWorld (SDK dump offsets: PersistentLevel=0x%x)...\n",
             OFF_UWORLD_PERSISTENT_LEVEL);
     fprintf(stderr, "[*] UE4 base=0x%lx end=0x%lx (%lu MB)\n",
@@ -761,12 +822,25 @@ static int find_object_field(uint64_t owner, int start, int end, const char *cla
  * 10=l_hip 11=l_knee 12=l_foot 13=r_hip 14=r_knee 15=r_foot */
 
 typedef struct {
+    uint64_t root;
+    float bounds[3];
+    int present, decoded;
+    int bounds_index, bounds_encrypted, bounds_flags;
+    int world_index, world_encrypted, world_flags;
+} PositionObservation;
+
+typedef struct {
     char id[32];
     float x, y, z, yaw, pitch, fov;
     char name[64];
     char kind[16];
+    char class_name[64];
+    uint64_t class_address;
     float health, max_health, half_height;
     int health_known;
+    int position_plaintext;
+    PositionObservation position_observation;
+    int rendered_on_screen;
     int dead;
     int team;
     int native_team;
@@ -776,6 +850,19 @@ typedef struct {
 
 static Entity entities[MAX_ACTORS];
 static int num_entities = 0;
+static uint64_t diagnostic_gworld = 0, diagnostic_world = 0, diagnostic_level = 0;
+static uint64_t diagnostic_actor_data = 0;
+static int diagnostic_actor_count = 0;
+static const char *diagnostic_status = "waiting for gameplay";
+
+static void diagnostics_game_unavailable(void) {
+    diagnostic_status = "game process unavailable";
+    diagnostic_gworld = diagnostic_world = diagnostic_level = diagnostic_actor_data = 0;
+    diagnostic_actor_count = 0;
+    diagnostic_read_failures = 0;
+    diagnostic_failure_address = 0;
+    diagnostic_failure_errno = 0;
+}
 
 /* ========== SKELETON / BONE READING ========== */
 static int resolved_mesh_off = -2;  /* -2 = not searched, -1 = not found */
@@ -1009,6 +1096,9 @@ static int self_verified = 0;
 static uint64_t verified_uworld = 0;
 static int match_was_verified = 0;
 static float last_camera_timestamp = -1.0f;
+static int camera_position_plaintext = 0;
+static int local_player_controlled = 0;
+static long long camera_sampled_at_ms = 0;
 static unsigned stale_camera_frames = 0;
 static int resolved_camera_manager_off = -1;
 static int resolved_camera_cache_off = -1;
@@ -1016,25 +1106,35 @@ static int camera_candidate_offsets[128];
 static float camera_candidate_timestamps[128];
 static int camera_candidate_count = 0;
 
-/* Remote network pawns normally have no Controller on a client. Identify
- * combatants through their reflected class hierarchy instead: the local pawn's
- * direct parent is the common character base used by human and AI pawns. */
+/* Do not compare with generic ancestors of the local pawn: lobby/spectator
+ * pawns can reach Actor/Object within five levels and admit the whole world.
+ * Require the matching SDK's native Character -> Pawn registration pair.
+ * Blueprint indices may vary, so only this native anchor is compared. */
 static int is_character_class(uint64_t cls, uint64_t local_class) {
-    if (!is_any_ptr(cls) || !is_any_ptr(local_class)) return 0;
-    uint64_t local_chain[5] = {0};
-    uint64_t current = local_class;
-    for (int i = 0; i < 5 && is_any_ptr(current); i++) {
-        local_chain[i] = current;
-        current = read_ptr(current + 0x40); /* UStruct::SuperStruct */
-    }
-    for (int depth = 0; depth < 12 && is_any_ptr(cls); depth++) {
-        for (int i = 0; i < 5; i++)
-            if (local_chain[i] != 0 && cls == local_chain[i]) return 1;
-        uint64_t next = read_ptr(cls + 0x40);
+    (void)local_class;
+    for (int depth = 0; depth < 24 && is_any_ptr(cls); depth++) {
+        int32_t index = -1, parent_index = -1;
+        uint64_t next = 0;
+        if (read_mem(cls + 0x24, &index, sizeof(index)) != sizeof(index) ||
+            read_mem(cls + 0x40, &next, sizeof(next)) != sizeof(next)) return 0;
+        if (index == 0xD7 && is_any_ptr(next) &&
+            read_mem(next + 0x24, &parent_index, sizeof(parent_index)) == sizeof(parent_index) &&
+            parent_index == 0xD5) return 1;
         if (next == cls) break;
         cls = next;
     }
     return 0;
+}
+
+static int pawn_is_controlled(uint64_t pawn, uint64_t pc) {
+    if (!is_telemetry_ptr(pawn) || !is_telemetry_ptr(pc) ||
+        !is_character_class(read_ptr(pawn + OFF_UOBJECT_CLASS), 0) ||
+        read_ptr(pawn + OFF_APAWN_CONTROLLER) != pc) return 0;
+    uint64_t state = read_ptr(pawn + OFF_APAWN_PLAYER_STATE);
+    uint8_t dead = 1;
+    return is_telemetry_ptr(state) &&
+        read_ptr(state + OFF_PLAYER_STATE_PAWN_PRIVATE) == pawn &&
+        read_mem(pawn + OFF_CHARACTER_LAST_IS_DEAD, &dead, 1) == 1 && dead == 0;
 }
 
 enum LootKind {
@@ -1069,18 +1169,32 @@ static int loot_kind_from_class(uint64_t cls) {
     return LOOT_NONE;
 }
 
-static int read_loot_position(uint64_t root, float out[3]) {
+/* Captured 1.202 ARM64 getters dispatch through the decoder when Index is not
+ * UINT16_MAX (in encryption mode 2), independently of bEncrypted. Only the
+ * unregistered sentinel plus a clear flag is safe without reading that mode. */
+static int enc_handler_unmanaged(const uint8_t handler[4]) {
+    return handler[0] == 0xFF && handler[1] == 0xFF && handler[2] == 0;
+}
+
+#include "position-decoder.h"
+
+static int read_plain_world_position(uint64_t root, float out[3], PositionObservation *observation) {
     float transform[12];
     if (read_mem(root + 0x210, transform, sizeof(transform)) != sizeof(transform)) {
         static unsigned errors = 0;
-        if (errors++ < 5) fprintf(stderr, "[!] Cannot read loot world transform\n");
+        if (errors++ < 5) fprintf(stderr, "[!] Cannot read component world transform\n");
         return 0;
     }
     const uint8_t *handler = (const uint8_t *)transform + 0x28;
-    if (handler[2]) {
+    if (observation) {
+        observation->world_index = handler[0] | ((int)handler[1] << 8);
+        observation->world_encrypted = handler[2];
+        observation->world_flags = handler[3];
+    }
+    if (!enc_handler_unmanaged(handler)) {
         static unsigned encrypted = 0;
         if ((encrypted++ % 300) == 0)
-            fprintf(stderr, "[!] Skipping encrypted loot transform without a verified decoder\n");
+            fprintf(stderr, "[!] Skipping managed/encrypted component transform without a verified decoder\n");
         return 0;
     }
     float norm = 0;
@@ -1094,6 +1208,59 @@ static int read_loot_position(uint64_t root, float out[3]) {
         if (!isfinite(out[i]) || fabsf(out[i]) > 10000000) return 0;
     }
     return out[0] != 0 || out[1] != 0 || out[2] != 0;
+}
+
+/* A clear bounds tag alone is insufficient: the component's independently
+ * tagged world transform must be plaintext and agree within 50 cm. This is a
+ * consistency check, not a decoder or line-of-sight test. Other CLI position
+ * sources and legacy raw visual coordinates remain unverified. */
+static int read_actor_position(uint64_t root, int offset, float out[3], int *plaintext,
+                               PositionObservation *observation) {
+    uint8_t vector[16];
+    *plaintext = 0;
+    if (observation) {
+        memset(observation, 0, sizeof(*observation));
+        observation->root = root;
+        observation->bounds_index = observation->bounds_encrypted = observation->bounds_flags = -1;
+        observation->world_index = observation->world_encrypted = observation->world_flags = -1;
+    }
+    ssize_t got = read_mem(root + (uint64_t)offset, vector, sizeof(vector));
+    if (got < 12) return 0;
+    memcpy(out, vector, 12);
+    for (int i = 0; i < 3; i++)
+        if (!isfinite(out[i]) || fabsf(out[i]) > 10000000.0f) return 0;
+    if (observation) {
+        observation->present = 1;
+        memcpy(observation->bounds, out, sizeof(observation->bounds));
+        if (got == sizeof(vector) && offset == OFF_PROXIMA_ROOT_WORLD_LOCATION) {
+            observation->bounds_index = vector[12] | ((int)vector[13] << 8);
+            observation->bounds_encrypted = vector[14];
+            observation->bounds_flags = vector[15];
+        }
+    }
+    /* Copy coordinates and their encryption tag together. A separate tag
+     * read could describe a different engine update than the coordinates. */
+    *plaintext = got == sizeof(vector) && offset == OFF_PROXIMA_ROOT_WORLD_LOCATION &&
+        enc_handler_unmanaged(vector + 0x0C);
+    if (*plaintext) {
+        float world[3], distance_squared = 0;
+        if (!read_plain_world_position(root, world, observation)) *plaintext = 0;
+        else {
+            for (int i = 0; i < 3; i++) {
+                float delta = world[i] - out[i];
+                distance_squared += delta * delta;
+            }
+            if (distance_squared > 50.0f * 50.0f) *plaintext = 0;
+        }
+    }
+    return 1;
+}
+
+static int actor_rendered_on_screen(uint64_t actor) {
+    uint64_t mesh = read_ptr(actor + 0x3D0); /* ACharacter::Mesh, matching SDK */
+    if (!is_telemetry_ptr(mesh)) return 0;
+    uint8_t flags = 0;
+    return read_mem(mesh + 0x8B8, &flags, 1) == 1 && (flags & 1) != 0;
 }
 
 static uint64_t cached_local_class = 0;
@@ -1346,8 +1513,17 @@ static int select_advancing_camera_cache(uint64_t camera_manager) {
 static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
                              int root_off, int pos_off, int use_ctw) {
     (void)use_ctw; /* ComponentToWorld mode is retained for CLI compatibility. */
+    diagnostic_read_failures = 0;
+    diagnostic_failure_address = 0;
+    diagnostic_failure_errno = 0;
+    diagnostic_gworld = gworld_addr;
+    diagnostic_world = diagnostic_level = diagnostic_actor_data = 0;
+    diagnostic_actor_count = 0;
+    diagnostic_status = "world unavailable";
+    local_player_controlled = 0;
     uint64_t uworld = read_ptr(gworld_addr);
     if (!is_any_ptr(uworld)) return -1;
+    diagnostic_world = uworld;
     if (verified_uworld != uworld) {
         verified_uworld = uworld;
         match_was_verified = 0;
@@ -1357,12 +1533,15 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         health_layout_clock = 0;
     }
 
+    diagnostic_status = "level unavailable";
     uint64_t level = read_ptr(uworld + OFF_UWORLD_PERSISTENT_LEVEL);
     if (!is_any_ptr(level)) return -1;
+    diagnostic_level = level;
 
     uint64_t actor_data;
     int32_t actor_count;
 
+    diagnostic_status = "actor array unavailable";
     if (actor_source == 0) {
         uint64_t cluster = read_ptr(level + OFF_ULEVEL_ACTOR_CLUSTER);
         if (!is_any_ptr(cluster)) return -1;
@@ -1374,7 +1553,10 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         actor_count = read_i32(level + off + 8);
     }
 
+    diagnostic_actor_data = actor_data;
+    diagnostic_actor_count = actor_count;
     if (!is_any_ptr(actor_data) || actor_count <= 0 || actor_count > 50000) return -1;
+    diagnostic_status = "world sampled";
 
     self_entity_id[0] = 0;
     self_verified = 0;
@@ -1385,6 +1567,8 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
     uint64_t local_pc = 0;
     uint64_t local_root = 0;
     uint64_t local_class = 0;
+    camera_position_plaintext = 0;
+    camera_sampled_at_ms = 0;
     int camera_valid = 0;
     float camera_x = 0, camera_y = 0, camera_z = 0;
     float camera_pitch = 0, camera_yaw = 0, camera_fov = 0;
@@ -1463,12 +1647,22 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             uint64_t cache = camera_manager + (uint64_t)resolved_camera_cache_off;
             uint64_t pov = cache + OFF_CAMERA_CACHE_POV;
             float timestamp = read_float(cache);
-            camera_x = read_float(pov + OFF_POV_LOCATION) / 100.0f;
-            camera_y = read_float(pov + OFF_POV_LOCATION + 4) / 100.0f;
-            camera_z = read_float(pov + OFF_POV_LOCATION + 8) / 100.0f;
+            uint8_t camera_vector[16];
+            float camera_location[3];
+            if (read_mem(pov + OFF_POV_LOCATION, camera_vector, sizeof(camera_vector)) !=
+                sizeof(camera_vector)) goto camera_done;
+            camera_position_plaintext = enc_handler_unmanaged(camera_vector + 0x0C);
+            memcpy(camera_location, camera_vector, sizeof(camera_location));
+            camera_x = camera_location[0] / 100.0f;
+            camera_y = camera_location[1] / 100.0f;
+            camera_z = camera_location[2] / 100.0f;
             camera_pitch = read_float(pov + OFF_POV_ROTATION);
             camera_yaw = read_float(pov + OFF_POV_ROTATION + 4);
             camera_fov = read_float(pov + OFF_POV_FOV);
+            struct timespec camera_sample_time;
+            clock_gettime(CLOCK_REALTIME, &camera_sample_time);
+            camera_sampled_at_ms = (long long)camera_sample_time.tv_sec * 1000 +
+                camera_sample_time.tv_nsec / 1000000;
             camera_valid = camera_x == camera_x && camera_y == camera_y && camera_z == camera_z &&
                 camera_pitch == camera_pitch && camera_yaw == camera_yaw &&
                 fabsf(camera_x) < 100000.0f && fabsf(camera_y) < 100000.0f &&
@@ -1482,6 +1676,8 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         }
     }
 camera_done:
+
+    local_player_controlled = pawn_is_controlled(local_pawn, local_pc);
 
     if (!is_any_ptr(local_pawn) || !is_any_ptr(local_class) || !is_any_ptr(local_root)) {
         if (!is_any_ptr(local_pc) || !is_any_ptr(cached_local_class)) return 0;
@@ -1591,7 +1787,8 @@ camera_done:
                             read_fstring(state + OFF_PLAYER_STATE_NAME, name, sizeof(name));
                             if (!name[0])
                                 read_fstring(state + OFF_PLAYER_STATE_NAME_PRIVATE, name, sizeof(name));
-                            is_character = name[0] != '\0';
+                            is_character = name[0] != '\0' &&
+                                read_ptr(state + OFF_PLAYER_STATE_PAWN_PRIVATE) == actor;
                         }
                     }
                 }
@@ -1669,21 +1866,24 @@ camera_done:
     int diag_non_origin = 0;
     for (int i = 0; i < to_read && num_entities < MAX_ACTORS; i++) {
         if (!is_any_ptr(actor_ptrs[i])) continue;
+        /* Actor storage can be recycled before the next discovery pass. This
+         * identity check applies to characters as well as loot. */
+        if (read_ptr(actor_ptrs[i] + OFF_UOBJECT_CLASS) != cached_actor_classes[i]) {
+            cache_age = 20;
+            continue;
+        }
         diag_actor_ptr++;
 
         int is_self_pawn = (local_pawn != 0 && actor_ptrs[i] == local_pawn);
         diag_controller++;
 
         if (cached_actor_kinds[i] != LOOT_NONE) {
-            if (read_ptr(actor_ptrs[i] + OFF_UOBJECT_CLASS) != cached_actor_classes[i]) {
-                cache_age = 20;
-                continue;
-            }
             uint64_t loot_root = read_ptr(actor_ptrs[i] + root_off);
             float position[3];
-            if (!is_any_ptr(loot_root) || !read_loot_position(loot_root, position)) continue;
+            if (!is_any_ptr(loot_root) || !read_plain_world_position(loot_root, position, NULL)) continue;
             Entity *loot = &entities[num_entities++];
             memset(loot, 0, sizeof(*loot));
+            loot->class_address = cached_actor_classes[i];
             snprintf(loot->id, sizeof(loot->id), "ent_%llx",
                      (unsigned long long)actor_ptrs[i]);
             snprintf(loot->kind, sizeof(loot->kind), "loot");
@@ -1723,9 +1923,18 @@ camera_done:
         if (!is_any_ptr(root)) continue;
         diag_root++;
 
-        float wx = read_float(root + pos_off);
-        float wy = read_float(root + pos_off + 4);
-        float wz = read_float(root + pos_off + 8);
+        float position[3];
+        int position_plaintext = 0;
+        PositionObservation position_observation;
+        int raw_position_read = read_actor_position(root, pos_off, position, &position_plaintext, &position_observation);
+        if (!position_plaintext && pos_off == OFF_PROXIMA_ROOT_WORLD_LOCATION &&
+            position_decode_actor(actor_ptrs[i], root, position)) {
+            /* The legacy wire flag describes the emitted coordinates. The raw
+             * source remains tagged/encrypted in positionTrace. */
+            position_plaintext = 1;
+            position_observation.decoded = 1;
+        } else if (!raw_position_read) continue;
+        float wx = position[0], wy = position[1], wz = position[2];
 
         if (wx != wx || wy != wy || wz != wz) continue;
         if (fabsf(wx) > 10000000 || fabsf(wy) > 10000000 || fabsf(wz) > 10000000) continue;
@@ -1761,6 +1970,8 @@ camera_done:
         }
 
         Entity *e = &entities[num_entities];
+        memset(e, 0, sizeof(*e));
+        e->class_address = cached_actor_classes[i];
         snprintf(e->id, sizeof(e->id), "ent_%llx", (unsigned long long)actor_ptrs[i]);
 
         /* Resolve class name and actor name via FName */
@@ -1774,6 +1985,7 @@ camera_done:
                 int32_t cls_name_idx = read_i32(cls + OFF_UOBJECT_NAME);
                 resolve_fname(cls_name_idx, cls_name, sizeof(cls_name));
             }
+            snprintf(e->class_name, sizeof(e->class_name), "%s", cls_name);
         }
         char player_name[64] = {0};
         if (has_playerstate) {
@@ -1808,6 +2020,9 @@ camera_done:
         e->x = mx;
         e->y = my;
         e->z = mz;
+        e->position_plaintext = position_plaintext;
+        e->position_observation = position_observation;
+        e->rendered_on_screen = actor_rendered_on_screen(actor_ptrs[i]);
         e->yaw = read_float(root + OFF_USCENE_RELATIVE_YAW);
         e->pitch = read_float(root + OFF_USCENE_RELATIVE_PITCH);
         /* Matching SDK chain:
@@ -2017,6 +2232,11 @@ camera_done:
     /* Fallback self: if pawn not matched, create synthetic self from PC data */
     if (self_entity_id[0] == 0 && local_pc && num_entities > 0 && num_entities < MAX_ACTORS) {
         Entity *e = &entities[num_entities];
+        memset(e, 0, sizeof(*e));
+        e->class_address = 0;
+        e->class_name[0] = 0;
+        e->position_plaintext = 0;
+        e->rendered_on_screen = 0;
         snprintf(e->id, sizeof(e->id), "self");
         strncpy(e->name, "Self", sizeof(e->name) - 1);
         strncpy(e->kind, "player", sizeof(e->kind) - 1);
@@ -2085,6 +2305,40 @@ static void close_radar_sock(void) {
     if (persistent_sock >= 0) { close(persistent_sock); persistent_sock = -1; }
 }
 
+static int format_diagnostics(char *buffer, size_t size) {
+    return snprintf(buffer, size,
+        "\"diagnostics\":{\"status\":\"%s\",\"gworld\":\"0x%llx\","
+        "\"world\":\"0x%llx\",\"level\":\"0x%llx\",\"actorArray\":\"0x%llx\","
+        "\"actorCount\":%d,\"readFailures\":%u,\"failureAddress\":\"0x%llx\","
+        "\"failureErrno\":%d}",
+        diagnostic_status, (unsigned long long)diagnostic_gworld,
+        (unsigned long long)diagnostic_world, (unsigned long long)diagnostic_level,
+        (unsigned long long)diagnostic_actor_data, diagnostic_actor_count,
+        diagnostic_read_failures, (unsigned long long)diagnostic_failure_address,
+        diagnostic_failure_errno);
+}
+
+static int post_diagnostics(void) {
+    int sock = get_radar_sock();
+    if (sock < 0) return -1;
+    char body[1024];
+    body[0] = '{';
+    int length = format_diagnostics(body + 1, sizeof(body) - 3);
+    if (length < 0 || (size_t)length >= sizeof(body) - 3) {
+        fprintf(stderr, "[!] Diagnostic snapshot exceeds buffer\n");
+        return -1;
+    }
+    body[length + 1] = '}';
+    body[length + 2] = '\n';
+    ssize_t sent = send(sock, body, (size_t)length + 3, MSG_NOSIGNAL);
+    if (sent != length + 3) {
+        fprintf(stderr, "[!] Diagnostic send failed: %s\n", strerror(errno));
+        close_radar_sock();
+        return -1;
+    }
+    return 0;
+}
+
 static int post_to_radar(void) {
     int sock = get_radar_sock();
     if (sock < 0) return -1;
@@ -2095,42 +2349,77 @@ static int post_to_radar(void) {
 
     char body[131072];
     int off = 0;
-    off += snprintf(body + off, sizeof(body) - off,
-        "{\"self\":\"%s\",\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
-        self_entity_id[0] ? self_entity_id : "");
-    for (int i = 0; i < num_entities; i++) {
-        if (off > (int)sizeof(body) - 1536) break;
+#define APPEND_SNAPSHOT(...) do { \
+    int written = snprintf(body + off, sizeof(body) - (size_t)off, __VA_ARGS__); \
+    if (written < 0 || (size_t)written >= sizeof(body) - (size_t)off) { \
+        fprintf(stderr, "[!] Entity snapshot exceeds buffer\n"); \
+        return -1; \
+    } \
+    off += written; \
+} while (0)
+    body[off++] = '{';
+    int diagnostic_length = format_diagnostics(body + off, sizeof(body) - (size_t)off);
+    if (diagnostic_length < 0 || (size_t)diagnostic_length >= sizeof(body) - (size_t)off) {
+        fprintf(stderr, "[!] Entity diagnostics exceed buffer\n");
+        return -1;
+    }
+    off += diagnostic_length;
+    APPEND_SNAPSHOT(
+        ",\"cameraSampledAt\":%lld,\"cameraTimestamp\":%.6f,\"cameraPositionPlaintext\":%s,\"localPlayerControlled\":%s,\"self\":\"%s\",\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
+        camera_sampled_at_ms, (double)last_camera_timestamp, camera_position_plaintext ? "true" : "false",
+        local_player_controlled ? "true" : "false", self_entity_id[0] ? self_entity_id : "");
+    int i;
+    for (i = 0; i < num_entities; i++) {
+        if (off > (int)sizeof(body) - 8192) break;
         if (i > 0) body[off++] = ',';
         char escaped_name[256];
+        char escaped_class[256];
         json_escape(entities[i].name, escaped_name, sizeof(escaped_name));
-        off += snprintf(body + off, sizeof(body) - off,
-            "{\"id\":\"%s\",\"kind\":\"%s\",\"x\":%.1f,\"y\":%.1f,\"z\":%.1f,"
-            "\"yaw\":%.1f,\"pitch\":%.1f,\"fov\":%.1f,\"name\":\"%s\",\"health\":%.1f,\"maxHealth\":%.1f,"
-            "\"healthKnown\":%s,"
+        json_escape(entities[i].class_name, escaped_class, sizeof(escaped_class));
+        APPEND_SNAPSHOT(
+            "{\"id\":\"%s\",\"kind\":\"%s\",\"x\":%.3f,\"y\":%.3f,\"z\":%.3f,"
+            "\"yaw\":%.4f,\"pitch\":%.4f,\"fov\":%.1f,\"name\":\"%s\",\"health\":%.1f,\"maxHealth\":%.1f,"
+            "\"className\":\"%s\",\"classAddress\":\"0x%llx\","
+            "\"healthKnown\":%s,\"positionPlaintext\":%s,\"positionDecoded\":%s,\"renderedOnScreen\":%s,"
             "\"halfHeight\":%.2f,\"dead\":%s,\"team\":%d,\"lastSeen\":%lld",
             entities[i].id, entities[i].kind[0] ? entities[i].kind : "player",
             entities[i].x, entities[i].y, entities[i].z,
             entities[i].yaw, entities[i].pitch, entities[i].fov, escaped_name, entities[i].health,
-            entities[i].max_health, entities[i].health_known ? "true" : "false",
+            entities[i].max_health, escaped_class, (unsigned long long)entities[i].class_address,
+            entities[i].health_known ? "true" : "false",
+            entities[i].position_plaintext ? "true" : "false",
+            entities[i].position_observation.decoded ? "true" : "false",
+            entities[i].rendered_on_screen ? "true" : "false",
             entities[i].half_height, entities[i].dead ? "true" : "false",
             entities[i].team, now_ms);
+        if (entities[i].position_observation.present) {
+            const PositionObservation *observation = &entities[i].position_observation;
+            APPEND_SNAPSHOT(
+                ",\"positionTrace\":{\"root\":\"0x%llx\",\"boundsX\":%.3f,\"boundsY\":%.3f,"
+                "\"boundsZ\":%.3f,\"boundsIndex\":%d,\"boundsEncrypted\":%d,\"boundsFlags\":%d,"
+                "\"worldIndex\":%d,\"worldEncrypted\":%d,\"worldFlags\":%d}",
+                (unsigned long long)observation->root,
+                observation->bounds[0] / 100.0f, observation->bounds[1] / 100.0f,
+                observation->bounds[2] / 100.0f, observation->bounds_index,
+                observation->bounds_encrypted, observation->bounds_flags,
+                observation->world_index, observation->world_encrypted, observation->world_flags);
+        }
         if (entities[i].has_bones) {
-            off += snprintf(body + off, sizeof(body) - off, ",\"bones\":[");
+            APPEND_SNAPSHOT(",\"bones\":[");
             for (int b = 0; b < NUM_SKELETON_BONES; b++) {
                 if (b > 0) body[off++] = ',';
-                off += snprintf(body + off, sizeof(body) - off,
+                APPEND_SNAPSHOT(
                     "[%.2f,%.2f,%.2f]",
                     entities[i].bone_pos[b][0],
                     entities[i].bone_pos[b][1],
                     entities[i].bone_pos[b][2]);
             }
-            off += snprintf(body + off, sizeof(body) - off, "]");
+            APPEND_SNAPSHOT("]");
         }
         body[off++] = '}';
     }
-    off += snprintf(body + off, sizeof(body) - off, "]}");
-
-    body[off++] = '\n';
+    APPEND_SNAPSHOT("],\"entitiesTruncated\":%s}\n", i < num_entities ? "true" : "false");
+#undef APPEND_SNAPSHOT
 
     ssize_t sent = send(sock, body, off, MSG_NOSIGNAL);
     if (sent != off) {
@@ -2642,6 +2931,8 @@ int main(int argc, char **argv) {
                  * and wait for gameplay instead of exiting after startup. */
                 while (running && num_candidates == 0) {
                     fprintf(stderr, "[*] No active gameplay world; waiting for a match...\n");
+                    diagnostic_status = "waiting for gameplay";
+                    post_diagnostics();
                     sleep(15);
                     parse_maps();
                     scan_for_gworld();
@@ -2689,6 +2980,7 @@ int main(int argc, char **argv) {
                             game_pid, active_pid);
                     num_entities = 0;
                     self_entity_id[0] = 0;
+                    diagnostics_game_unavailable();
                     post_to_radar();
                     if (maps_file) { fclose(maps_file); maps_file = NULL; }
                     if (mem_fd >= 0) { close(mem_fd); mem_fd = -1; }
@@ -2704,6 +2996,7 @@ int main(int argc, char **argv) {
                     memcpy(saved_self, self_entity_id, sizeof(saved_self));
                     num_entities = 0;
                     self_entity_id[0] = 0;
+                    diagnostics_game_unavailable();
                     post_to_radar();
                     num_entities = saved_count;
                     memcpy(self_entity_id, saved_self, sizeof(self_entity_id));
@@ -2743,6 +3036,8 @@ int main(int argc, char **argv) {
                 consecutive_failures = 0;
             } else {
                 consecutive_failures++;
+                if (consecutive_failures == 1 || consecutive_failures % 30 == 0)
+                    post_diagnostics();
             }
             int need_rescan = consecutive_failures > 10 ||
                               zero_entity_frames > 150; /* ~5s of 0 entities */
@@ -2753,6 +3048,7 @@ int main(int argc, char **argv) {
                             game_pid, active_pid);
                     num_entities = 0;
                     self_entity_id[0] = 0;
+                    diagnostics_game_unavailable();
                     post_to_radar();
                     if (maps_file) { fclose(maps_file); maps_file = NULL; }
                     if (mem_fd >= 0) { close(mem_fd); mem_fd = -1; }

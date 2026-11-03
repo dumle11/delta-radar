@@ -1,0 +1,45 @@
+{
+  "reportDate": "2026-11-03",
+  "scope": "Historical captures only; no new device attachment or key recovery",
+  "initialSample": {
+    "characters": 29,
+    "bothBoundsAndRootFlagged": 4,
+    "bothFlagsClear": 25
+  },
+  "followUpSample": {
+    "remoteActors": 7,
+    "relativeFlagged": 7,
+    "distinctCachedMovementVectors": 3,
+    "cachedMovementFlagsClear": 7
+  },
+  "algorithmIdentified": false,
+  "keyRecovered": false,
+  "reaRetainedRecordsForPartialElf": 0,
+  "captureFiles": [
+    {
+      "name": "delta-live-actor-audit.jsonl",
+      "sha256": "d4504b735d5ce92cc59de506cc06035918761af27447a4603ce25e1e6ec0783d",
+      "bytes": 12586
+    },
+    {
+      "name": "delta-live-position-probe-current.jsonl",
+      "sha256": "56ebc8e7830c27fe8e1bc21d59df79bdfba4827ca89376d0cde9d594ef3f4ff7",
+      "bytes": 24078
+    },
+    {
+      "name": "delta-live-position-camera.jsonl",
+      "sha256": "919bc8adcdeff98b2c478014bc1b9c6c9912fc52f95a5760d8a8454afd345022",
+      "bytes": 18483
+    },
+    {
+      "name": "delta-live-accessors.jsonl",
+      "sha256": "2aa0258c7e23e09a1b8cf6ffc47a43626ed88fdefd3c278febc927cc5a2c47ee",
+      "bytes": 8912
+    },
+    {
+      "name": "manifest.json",
+      "sha256": "0918bf9dba2d45ebebc7c7d6d98ee81f8114c8a54f2fb5319e21ae0bbbefdad6",
+      "bytes": 4639
+    }
+  ]
+}

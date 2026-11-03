@@ -48,6 +48,31 @@ object Settings {
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    fun aimEnabled(ctx: Context) = prefs(ctx).getBoolean("aim_enabled", false)
+    fun setAimEnabled(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("aim_enabled", value).apply() }
+    fun aimCircle(ctx: Context) = prefs(ctx).getBoolean("aim_circle", true)
+    fun setAimCircle(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("aim_circle", value).apply() }
+    fun aimFov(ctx: Context) = prefs(ctx).getInt("aim_fov", 15).coerceIn(5, 45)
+    fun setAimFov(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_fov", value.coerceIn(5, 45)).apply() }
+    fun aimStrength(ctx: Context) = prefs(ctx).getInt("aim_strength", 30).coerceIn(10, 60)
+    fun setAimStrength(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_strength", value.coerceIn(10, 60)).apply() }
+    fun autoShoot(ctx: Context) = prefs(ctx).getBoolean("auto_shoot", false)
+    fun setAutoShoot(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("auto_shoot", value).apply() }
+    fun aimLookPoint(ctx: Context) = prefs(ctx).let {
+        AimMath.lookPointOrDefault(it.getFloat("aim_look_x", .7f), it.getFloat("aim_look_y", .55f))
+    }
+    fun aimFirePoint(ctx: Context): Pair<Float, Float>? = prefs(ctx).let {
+        if (!it.contains("aim_fire_x")) null else it.getFloat("aim_fire_x", 0f) to it.getFloat("aim_fire_y", 0f)
+    }
+    fun resetAimLookPoint(ctx: Context) {
+        prefs(ctx).edit().remove("aim_look_x").remove("aim_look_y").apply()
+    }
+    fun setAimTouchPoint(ctx: Context, fire: Boolean, x: Float, y: Float) {
+        val key = if (fire) "aim_fire" else "aim_look"
+        prefs(ctx).edit().putFloat("${key}_x", x.coerceIn(.02f, .98f))
+            .putFloat("${key}_y", y.coerceIn(.02f, .98f)).apply()
+    }
+
     fun drawEnemyLines(ctx: Context) = prefs(ctx).getBoolean(LINES_KEY, false)
     fun setDrawEnemyLines(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(LINES_KEY, v).apply() }
 

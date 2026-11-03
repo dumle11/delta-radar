@@ -11,6 +11,9 @@ import android.net.LocalSocket
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -31,9 +34,22 @@ class EntityFeedService : Service() {
     private var activeClient: LocalSocket? = null
     private val entities = ConcurrentHashMap<String, JSONObject>()
     private val missingFrames = ConcurrentHashMap<String, Int>()
+    private var diagnosticData: JSONObject? = null
+    private var diagnosticEntities: JSONArray? = null
+    private var diagnosticReceivedAt = 0L
+    private var frameSequence = 0L
+    private lateinit var positionTrace: PositionTraceRecorder
+    private val traceHandler = Handler(Looper.getMainLooper())
+    private val traceDeadline = Runnable {
+        positionTrace.expire(SystemClock.elapsedRealtime())
+    }
 
     @Volatile var selfId: String? = null
     @Volatile var lastUpdateTs = 0L
+    @Volatile var cameraSampledAt = 0L; private set
+    @Volatile var cameraTimestamp = -1.0; private set
+    @Volatile var cameraPositionPlaintext = false; private set
+    @Volatile var localPlayerControlled = false; private set
     @Volatile var entityCount = 0
     @Volatile var isFeedRunning = false
     @Volatile var feedError: String? = null
@@ -55,6 +71,10 @@ class EntityFeedService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        positionTrace = PositionTraceRecorder(PositionTraceFile(filesDir)) { message, error ->
+            Log.e(TAG, message, error)
+            log("$message: ${error.message ?: error.javaClass.simpleName}")
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             getSystemService(NotificationManager::class.java).createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "Delta Radar", NotificationManager.IMPORTANCE_LOW)
@@ -74,6 +94,8 @@ class EntityFeedService : Service() {
 
     override fun onDestroy() {
         running.set(false)
+        traceHandler.removeCallbacks(traceDeadline)
+        positionTrace.close()
         try { activeClient?.close() } catch (_: Exception) {}
         try { localServer?.close() } catch (_: Exception) {}
         clearEntities()
@@ -117,10 +139,20 @@ class EntityFeedService : Service() {
         }
     }
 
-    fun ingest(jsonLine: String): Int = try {
+    @Synchronized fun ingest(jsonLine: String): Int {
+        return try {
         val json = JSONObject(jsonLine)
         val nextSelf = json.optString("self", "").ifEmpty { null }
-        val list = json.optJSONArray("entities") ?: return 0
+        val receivedAt = System.currentTimeMillis()
+        val list = json.optJSONArray("entities")
+        json.optJSONObject("diagnostics")?.let {
+            diagnosticData = it
+            diagnosticEntities = list
+            diagnosticReceivedAt = receivedAt
+        }
+        positionTrace.offer(json, receivedAt, SystemClock.elapsedRealtime())
+        if (list == null) return 0
+        frameSequence++
         val seen = HashSet<String>(list.length())
         var accepted = 0
 
@@ -141,13 +173,15 @@ class EntityFeedService : Service() {
             val e = JSONObject()
             for (key in listOf(
                 "id", "kind", "name", "team", "x", "y", "z", "yaw", "pitch", "fov",
-                "health", "maxHealth", "healthKnown", "halfHeight", "dead", "bones"
+                "health", "maxHealth", "healthKnown", "halfHeight", "dead", "bones",
+                "positionPlaintext", "positionDecoded", "renderedOnScreen"
             )) if (raw.has(key) && !raw.isNull(key)) e.put(key, raw.get(key))
             if (!e.has("kind")) e.put("kind", "player")
             if (!e.has("team")) e.put("team", 0)
             if (!e.has("maxHealth")) e.put("maxHealth", 100.0)
             if (!e.has("halfHeight")) e.put("halfHeight", 1.05)
-            e.put("lastSeen", System.currentTimeMillis())
+            e.put("lastSeen", receivedAt)
+            e.put("seenFrame", frameSequence)
             entities[id] = e
             missingFrames.remove(id)
             seen.add(id)
@@ -170,31 +204,105 @@ class EntityFeedService : Service() {
                 } else missingFrames[id] = misses
             }
         }
+        cameraSampledAt = json.optLong("cameraSampledAt", 0L)
+        cameraTimestamp = json.optDouble("cameraTimestamp", -1.0).takeIf { it.isFinite() } ?: -1.0
+        cameraPositionPlaintext = json.optBoolean("cameraPositionPlaintext", false)
+        localPlayerControlled = json.optBoolean("localPlayerControlled", false)
         selfId = nextSelf?.takeIf { it in seen }
-        lastUpdateTs = System.currentTimeMillis()
+        lastUpdateTs = receivedAt
         entityCount = entities.size
         accepted
-    } catch (e: Exception) {
-        Log.w(TAG, "Entity ingest: ${e.message}")
-        0
+        } catch (e: Exception) {
+            Log.w(TAG, "Entity ingest: ${e.message}")
+            0
+        }
     }
 
-    fun getSnapshot(): JSONObject {
+    @Synchronized fun getSnapshot(): JSONObject {
         val result = JSONObject()
         selfId?.let { result.put("self", it) }
         val array = JSONArray()
         entities.values.forEach { array.put(JSONObject(it.toString())) }
         result.put("entities", array)
         result.put("ts", lastUpdateTs)
+        result.put("frameSequence", frameSequence)
+        result.put("cameraSampledAt", cameraSampledAt)
+        result.put("cameraTimestamp", cameraTimestamp)
+        result.put("cameraPositionPlaintext", cameraPositionPlaintext)
+        result.put("localPlayerControlled", localPlayerControlled)
         return result
     }
 
-    fun clearEntities() {
+    internal fun positionTraceStatus(): String {
+        positionTrace.expire(SystemClock.elapsedRealtime())
+        return positionTrace.status
+    }
+    internal fun isPositionTraceRecording(): Boolean {
+        positionTrace.expire(SystemClock.elapsedRealtime())
+        return positionTrace.isRecording()
+    }
+    internal fun startPositionTrace() {
+        if (positionTrace.start(System.currentTimeMillis(), SystemClock.elapsedRealtime())) {
+            traceHandler.removeCallbacks(traceDeadline)
+            traceHandler.postDelayed(traceDeadline, PositionTraceRecorder.DURATION_MS)
+            log("Position trace started; recording existing scanner snapshots only")
+        }
+    }
+    internal fun stopPositionTrace() {
+        traceHandler.removeCallbacks(traceDeadline)
+        positionTrace.stop()
+        log("Position trace stopped")
+    }
+
+    @Synchronized fun clearEntities() {
+        cameraSampledAt = 0L
+        cameraTimestamp = -1.0
+        cameraPositionPlaintext = false
+        localPlayerControlled = false
         entities.clear()
         missingFrames.clear()
         selfId = null
         lastUpdateTs = 0L
         entityCount = 0
+        diagnosticData = null
+        diagnosticEntities = null
+        diagnosticReceivedAt = 0L
+        frameSequence = 0L
+    }
+
+    @Synchronized internal fun getDiagnosticReport(): DiagnosticReport? {
+        val data = diagnosticData ?: return null
+        val list = diagnosticEntities
+        val total = list?.length() ?: -1
+        val actors = ArrayList<DiagnosticActor>(minOf(total.coerceAtLeast(0), DiagnosticTable.MAX_ROWS))
+        for (i in 0 until minOf(total, DiagnosticTable.MAX_ROWS)) {
+            val actor = list?.optJSONObject(i) ?: continue
+            val id = actor.optString("id", "")
+            val address = if (id.startsWith("ent_")) "0x${id.removePrefix("ent_")}" else "synthetic"
+            val health = if (actor.optBoolean("healthKnown", false))
+                "${actor.optDouble("health")}/${actor.optDouble("maxHealth")}" else "unknown"
+            val status = if (!actor.has("dead")) "unknown" else if (actor.optBoolean("dead")) "dead" else "alive*"
+            val kind = actor.optString("kind", "unknown")
+            val position = when {
+                kind == "loot" -> "plaintext transform"
+                actor.optBoolean("positionDecoded", false) -> "decoded bounds"
+                actor.optBoolean("positionPlaintext", false) -> "checks passed"
+                else -> "unverified"
+            }
+            actors.add(DiagnosticActor(address, kind, actor.optString("name", "unknown"),
+                actor.optString("classAddress", "unknown").takeUnless { it == "0x0" } ?: "unknown",
+                actor.optString("className", "").ifEmpty { "unknown" }, health, status, position))
+        }
+        fun address(key: String) = data.optString(key, "unknown").takeUnless { it == "0x0" } ?: "unavailable"
+        return DiagnosticReport(diagnosticReceivedAt, data.optString("status", "unknown"),
+            address("gworld"), address("world"), address("level"), address("actorArray"),
+            if (data.has("actorCount")) data.optInt("actorCount").toString() else "unknown",
+            data.optInt("readFailures"), address("failureAddress"), data.optInt("failureErrno"),
+            actors, total)
+    }
+
+    override fun dump(fd: java.io.FileDescriptor, writer: java.io.PrintWriter, args: Array<out String>) {
+        writer.println(getSnapshot().toString())
     }
 
     private val logLines = mutableListOf<String>()

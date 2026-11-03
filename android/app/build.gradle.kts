@@ -36,13 +36,15 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }
 
 // Ship the reader with the APK so launcher and native protocol stay in sync.
 val scannerAssets = layout.buildDirectory.dir("generated/scannerAssets")
 val prepareScannerAssets by tasks.registering(Sync::class) {
     val scannerDir = rootProject.projectDir.parentFile.resolve("scanner")
-    val reader = scannerDir.resolve("memscan-legacy")
+    val reader = providers.gradleProperty("scannerBinary").orNull?.let { file(it) }
+        ?: scannerDir.resolve("memscan-legacy")
     from(reader) { rename { "memscan_legacy" } }
     doFirst {
         require(reader.isFile) { "The scanner binary is required" }

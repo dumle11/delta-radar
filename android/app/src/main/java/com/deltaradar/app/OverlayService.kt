@@ -19,6 +19,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
+import android.widget.Switch
+import android.widget.Toast
 import kotlin.concurrent.thread
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -30,16 +32,20 @@ class OverlayService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var bubbleView: View? = null
     private var menuView: View? = null
-    private var isMenuOpen = false
+    @Volatile private var isMenuOpen = false
     private var selectedTab = 0
     private var bubbleHidden = false
-    private var overlaysHidden = false
+    @Volatile private var overlaysHidden = false
     private var enemyLinesView: EnemyLinesView? = null
+    private var aimFovView: AimFovView? = null
+    @Volatile private var calibrationView: View? = null
+    private lateinit var aimController: AimController
     private var bubbleX = 0; private var bubbleY = 0
 
     private val logLines = mutableListOf<String>()
     private val maxLogLines = 100
     private var logTextView: TextView? = null
+    private var diagnosticRefreshRunnable: Runnable? = null
     private var overlayRefreshRunnable: Runnable? = null
     private val projectionExecutor = Executors.newSingleThreadExecutor { r ->
         Thread(r, "delta-projection").apply { isDaemon = true }
@@ -53,14 +59,16 @@ class OverlayService : Service() {
         super.onCreate()
         wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         sInstance = this
+        aimController = AimController(this)
         bubbleX = dpToPx(8); bubbleY = dpToPx(100)
         ensureEnemyLinesWindow()
+        ensureAimWindow()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_SHOW -> { overlaysHidden = false; if (bubbleView == null && !isMenuOpen) showBubble() }
-            ACTION_HIDE -> { overlaysHidden = true; enemyLinesView?.clear(); removeBubble(); if (isMenuOpen) closeMenu(false) }
+            ACTION_HIDE -> { overlaysHidden = true; aimController.paused = true; aimController.frame = null; aimFovView?.visibility = View.GONE; enemyLinesView?.clear(); removeBubble(); if (isMenuOpen) closeMenu(false) }
             else -> { overlaysHidden = false; if (bubbleView == null && !isMenuOpen) showBubble() }
         }
         return START_NOT_STICKY
@@ -90,34 +98,46 @@ class OverlayService : Service() {
     fun refreshEnemyLines() {
         refreshCount++
         val service = EntityFeedService.instance
-        if (service == null) { if (refreshCount % 300 == 1L) android.util.Log.w("DeltaRadar", "refresh: no EntityFeedService instance"); return }
+        if (service == null) { aimController.frame = null; if (refreshCount % 300 == 1L) android.util.Log.w("DeltaRadar", "refresh: no EntityFeedService instance"); return }
         if (service.lastUpdateTs == 0L || System.currentTimeMillis() - service.lastUpdateTs > 750L) {
+            aimController.frame = null
             handler.post { enemyLinesView?.clear() }
             return
         }
         val selfId = service.selfId
         if (selfId.isNullOrEmpty()) {
             if (refreshCount % 300 == 1L) android.util.Log.w("DeltaRadar", "refresh: no selfId, entities=${service.entityCount}")
+            aimController.frame = null
             handler.post { enemyLinesView?.clear() }
             return
         }
-        val entities = service.getSnapshot().optJSONArray("entities") ?: return
+        val snapshot = service.getSnapshot()
+        val entities = snapshot.optJSONArray("entities") ?: return
         val byId = HashMap<String, org.json.JSONObject>(entities.length())
 
         var mx = 0.0; var my = 0.0; var mz = 0.0; var myYaw = 0.0; var myPitch = 0.0
         var cameraFov = 80.0
         var foundSelf = false
+        var selfDead = true
+        val sourceTimeMs = snapshot.optLong("ts", 0)
+        val sourceFrame = snapshot.optLong("frameSequence", 0L)
+        val cameraSampledAt = snapshot.optLong("cameraSampledAt", 0L)
+        val cameraTime = snapshot.optDouble("cameraTimestamp", -1.0)
+        val cameraPlaintext = snapshot.optBoolean("cameraPositionPlaintext", false)
         for (i in 0 until entities.length()) {
             val e = entities.getJSONObject(i)
             byId[e.optString("id")] = e
             if (e.optString("id") == selfId) {
                 foundSelf = true
+                selfDead = e.optBoolean("dead", false) ||
+                    (e.optBoolean("healthKnown", false) && e.optDouble("health", 0.0) <= .01)
                 mx = e.optDouble("x"); my = e.optDouble("y"); mz = e.optDouble("z")
                 myYaw = e.optDouble("yaw"); myPitch = e.optDouble("pitch")
                 cameraFov = e.optDouble("fov", 80.0).coerceIn(5.0, 150.0)
             }
         }
         if (!foundSelf) {
+            aimController.frame = null
             handler.post { enemyLinesView?.clear() }
             return
         }
@@ -138,10 +158,23 @@ class OverlayService : Service() {
         val renderDist = com.deltaradar.app.Settings.renderDistance(this).toDouble()
 
         val enemyFrames = mutableListOf<EnemyLinesView.Enemy>()
+        val aimTargets = mutableListOf<AimMath.Target>()
+        val collectAimTargets = !selfDead && cameraPlaintext &&
+            cameraTime > 0 && (Settings.aimEnabled(this) || Settings.autoShoot(this))
         val rejected = mutableListOf<String>()
+        var hiddenPlayers = 0
+        val projectionTime = System.currentTimeMillis()
         for ((id, ent) in byId) {
             if (id == selfId) continue
             val kind = ent.optString("kind", "player")
+            if (PlayerPositionPolicy.hidePlayer(
+                    kind, ent.optBoolean("positionPlaintext", false),
+                    ent.optLong("seenFrame", -1L), sourceFrame,
+                    cameraPlaintext, cameraTime, cameraSampledAt, projectionTime
+                )) {
+                hiddenPlayers++
+                continue
+            }
             val name = ent.optString("name", id)
             val ex = ent.optDouble("x")
             val ey = ent.optDouble("y")
@@ -161,6 +194,24 @@ class OverlayService : Service() {
             val healthKnown = ent.optBoolean("healthKnown", false)
             if (ent.optBoolean("dead", false) || (healthKnown && health <= 0.01)) {
                 rejected.add("$id:dead"); continue
+            }
+            // Targeting is independent of each category's drawing switches.
+            if (collectAimTargets && (kind == "player" || kind == "ai") && team == 2 &&
+                healthKnown && health > .01 && sourceFrame > 0 &&
+                ent.optLong("seenFrame", -1L) == sourceFrame &&
+                ent.optBoolean("positionPlaintext", false)) {
+                val hh = ent.optDouble("halfHeight", 1.05).coerceIn(.5, 2.5)
+                val body = ProjectionMath.project(dx, dy, dz + hh * .2,
+                    myYaw, myPitch, hfovDeg, screenAspect)
+                val top = ProjectionMath.project(dx, dy, dz + hh,
+                    myYaw, myPitch, hfovDeg, screenAspect)
+                val bottom = ProjectionMath.project(dx, dy, dz - hh,
+                    myYaw, myPitch, hfovDeg, screenAspect)
+                val height = kotlin.math.abs(bottom.y - top.y)
+                aimTargets.add(AimMath.Target(id, body.x, body.y,
+                    height * .12f / screenAspect.toFloat(), height * .2f,
+                    kind, team, onScreen = body.onScreen && top.inFront && bottom.inFront,
+                    positionPlaintext = true, renderedOnScreen = ent.optBoolean("renderedOnScreen", false)))
             }
             val features = when {
                 !isCombatEntity -> lootFeatures
@@ -206,7 +257,7 @@ class OverlayService : Service() {
 
             var boneScreenX: FloatArray? = null
             var boneScreenY: FloatArray? = null
-            val bonesArr = ent.optJSONArray("bones")
+            val bonesArr = if (PlayerPositionPolicy.useRawBones(kind)) ent.optJSONArray("bones") else null
             if (bonesArr != null && bonesArr.length() >= 16) {
                 val bsx = FloatArray(bonesArr.length())
                 val bsy = FloatArray(bonesArr.length())
@@ -241,8 +292,14 @@ class OverlayService : Service() {
             ))
         }
 
+        aimController.frame = if (selfDead || !snapshot.optBoolean("localPlayerControlled", false) ||
+            !cameraPlaintext || cameraTime <= 0) null
+        else AimController.Frame(aimTargets, metrics.widthPixels, metrics.heightPixels, sourceTimeMs,
+            cameraTime, myYaw, myPitch, hfovDeg, cameraSampledAt)
         enemyFrames.sortBy { it.distanceMeters }
-        val frame = EnemyLinesView.Frame(meScreen, enemyFrames)
+        val warning = if (hiddenPlayers > 0)
+            getString(R.string.unverified_players_hidden, hiddenPlayers) else null
+        val frame = EnemyLinesView.Frame(meScreen, enemyFrames, warning)
         // Building and writing a full per-entity signature whenever any actor
         // crossed a one-metre boundary produced logcat traffic almost every
         // frame. On this device that competes with rendering and the scanner.
@@ -252,7 +309,8 @@ class OverlayService : Service() {
             lastProjectionLogAt = projectionNow
             android.util.Log.i(
                 "DeltaRadar",
-                "Overlay frame: rendered=${enemyFrames.size} rejected=${rejected.size} feed=${service.entityCount}"
+                "Overlay frame: rendered=${enemyFrames.size} rejected=${rejected.size} " +
+                    "unverifiedPlayers=$hiddenPlayers feed=${service.entityCount}"
             )
         }
         handler.post {
@@ -277,6 +335,16 @@ class OverlayService : Service() {
         stopOverlayRefresh()
         val r = object : Runnable {
             override fun run() {
+                aimController.paused = overlaysHidden || isMenuOpen || calibrationView != null
+                aimFovView?.apply {
+                    radiusPercent = Settings.aimFov(this@OverlayService)
+                    visibility = if (!aimController.paused && aimController.gameForeground &&
+                        Settings.aimCircle(this@OverlayService)) View.VISIBLE else View.GONE
+                }
+                menuView?.findViewById<TextView>(R.id.aimStatus)?.apply {
+                    val next = aimController.status
+                    if (text.toString() != next) text = next
+                }
                 if (projectionInFlight.compareAndSet(false, true)) {
                     projectionExecutor.execute {
                         try { refreshEnemyLines() } finally { projectionInFlight.set(false) }
@@ -333,6 +401,8 @@ class OverlayService : Service() {
     private fun openMenu() {
         if (isMenuOpen) return
         isMenuOpen = true
+        aimController.paused = true
+        aimFovView?.visibility = View.GONE
         removeBubble()
 
         val view = LayoutInflater.from(this).inflate(R.layout.overlay_menu, null)
@@ -344,13 +414,11 @@ class OverlayService : Service() {
 
         logTextView = view.findViewById(R.id.logText)
         synchronized(logLines) { logTextView?.text = logLines.joinToString("\n") }
-        view.findViewById<ScrollView>(R.id.logScroll).post {
-            view.findViewById<ScrollView>(R.id.logScroll).fullScroll(View.FOCUS_DOWN)
-        }
 
         setupTabs(view)
         setupGeneralTab(view)
         setupVisualTab(view)
+        setupAimTab(view)
         updateOverlayStatus(view)
 
         view.findViewById<View>(R.id.btnClose).setOnClickListener { closeMenu() }
@@ -358,11 +426,37 @@ class OverlayService : Service() {
 
         wm.addView(view, params)
         menuView = view
+        view.findViewById<TextView>(R.id.positionTraceToggle).setOnClickListener {
+            val service = EntityFeedService.instance
+            if (service == null) {
+                Toast.makeText(this, "Entity feed is not running", Toast.LENGTH_SHORT).show()
+            } else if (service.isPositionTraceRecording()) service.stopPositionTrace()
+            else service.startPositionTrace()
+        }
+        val diagnosticRefresh = object : Runnable {
+            override fun run() {
+                if (menuView !== view) return
+                if (selectedTab == 3) {
+                    val service = EntityFeedService.instance
+                    view.findViewById<TextView>(R.id.positionTraceToggle).text =
+                        if (service?.isPositionTraceRecording() == true) "Stop position trace"
+                        else "Start position trace"
+                    view.findViewById<TextView>(R.id.positionTraceStatus).text =
+                        (service?.positionTraceStatus() ?: "Trace unavailable: entity feed is not running") +
+                            "\nPrivate files: files/position-trace-{current,previous}.jsonl"
+                    view.findViewById<TextView>(R.id.diagnosticText).text = DiagnosticTable.format(
+                        service?.getDiagnosticReport(), System.currentTimeMillis())
+                }
+                handler.postDelayed(this, 1_000)
+            }
+        }
+        diagnosticRefreshRunnable = diagnosticRefresh
+        handler.post(diagnosticRefresh)
     }
 
     private fun setupTabs(view: View) {
-        val tabs = listOf(R.id.tabGeneral, R.id.tabVisual, R.id.tabLogs)
-        val panels = listOf(R.id.generalScroll, R.id.visualScroll, R.id.logScroll)
+        val tabs = listOf(R.id.tabGeneral, R.id.tabVisual, R.id.tabAim, R.id.tabLogs)
+        val panels = listOf(R.id.generalScroll, R.id.visualScroll, R.id.aimScroll, R.id.logScroll)
         fun select(index: Int) {
             selectedTab = index
             tabs.forEachIndexed { i, id ->
@@ -375,7 +469,135 @@ class OverlayService : Service() {
             }
         }
         tabs.forEachIndexed { i, id -> view.findViewById<View>(id).setOnClickListener { select(i) } }
-        select(selectedTab)
+        select(selectedTab.coerceIn(tabs.indices))
+    }
+
+    private fun ensureAimWindow() {
+        if (aimFovView != null || !AndroidSettings.canDrawOverlays(this)) return
+        val view = AimFovView(this)
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        try { wm.addView(view, params); aimFovView = view }
+        catch (e: Exception) { android.util.Log.w("DeltaRadar", "Aim circle: ${e.message}") }
+    }
+
+    private fun setupAimTab(view: View) {
+        fun toggle(id: Int, value: Boolean, save: (Boolean) -> Unit) {
+            view.findViewById<Switch>(id).apply {
+                isChecked = value
+                setOnCheckedChangeListener { _, checked -> save(checked) }
+            }
+        }
+        toggle(R.id.aimEnabled, Settings.aimEnabled(this)) {
+            Settings.setAimEnabled(this, it); aimController.resetFeedback()
+        }
+        toggle(R.id.aimCircle, Settings.aimCircle(this)) { Settings.setAimCircle(this, it) }
+        toggle(R.id.aimAutoShoot, Settings.autoShoot(this)) { Settings.setAutoShoot(this, it) }
+        fun slider(id: Int, label: Int, minimum: Int, value: Int, title: String, save: (Int) -> Unit) {
+            val text = view.findViewById<TextView>(label)
+            text.text = "$title: $value%"
+            view.findViewById<SeekBar>(id).apply {
+                progress = value - minimum
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                        val next = progress + minimum
+                        text.text = "$title: $next%"
+                        if (fromUser) save(next)
+                    }
+                    override fun onStartTrackingTouch(bar: SeekBar) {}
+                    override fun onStopTrackingTouch(bar: SeekBar) {}
+                })
+            }
+        }
+        slider(R.id.aimFovSlider, R.id.aimFovLabel, 5, Settings.aimFov(this), "FOV radius") {
+            Settings.setAimFov(this, it)
+        }
+        slider(R.id.aimStrengthSlider, R.id.aimStrengthLabel, 10, Settings.aimStrength(this), "Aim strength") {
+            Settings.setAimStrength(this, it)
+        }
+        view.findViewById<TextView>(R.id.aimStatus).text = aimController.status
+        val fire = Settings.aimFirePoint(this)
+        val look = Settings.aimLookPoint(this)
+        val lookLabel = "Camera drags start at ${(look.first * 100).toInt()}%, ${(look.second * 100).toInt()}%. No aim activation button is needed. "
+        view.findViewById<TextView>(R.id.aimCalibration).text = lookLabel + if (fire == null)
+            "Only auto shoot needs a saved fire button. Customize the drag area only if your HUD controls cover the default area."
+        else "Fire button saved at ${(fire.first * 100).toInt()}%, ${(fire.second * 100).toInt()}%."
+        view.findViewById<View>(R.id.aimSetLook).setOnClickListener { calibrateAimTouch(false) }
+        view.findViewById<View>(R.id.aimDefaultLook).setOnClickListener {
+            Settings.resetAimLookPoint(this)
+            aimController.resetFeedback()
+            setupAimTab(view)
+        }
+        view.findViewById<View>(R.id.aimSetFire).setOnClickListener { calibrateAimTouch(true) }
+    }
+
+    private fun calibrateAimTouch(fire: Boolean) {
+        aimController.paused = true
+        aimController.frame = null
+        closeMenu(false)
+        val capture = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(0x18000000)
+            isFocusableInTouchMode = true
+        }
+        val instructions = TextView(this).apply {
+            text = if (fire) "Tap the centre of your fire button · Back cancels"
+                else "Tap an empty look area on the right side · Back cancels"
+            setTextColor(Color.WHITE); setBackgroundColor(0xDD101820.toInt())
+            gravity = Gravity.CENTER
+            setPadding(16, 16, 16, 16)
+        }
+        capture.addView(instructions, android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP))
+        fun finish() {
+            if (calibrationView !== capture) return
+            try { wm.removeView(capture) } catch (_: Exception) {}
+            calibrationView = null
+            openMenu()
+        }
+        capture.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_UP) {
+                if (event.y <= instructions.height) {
+                    finish()
+                } else if (!fire && !AimMath.isLookPoint(event.x / capture.width, event.y / capture.height)) {
+                    Toast.makeText(this, "Choose an empty look area on the right side", Toast.LENGTH_SHORT).show()
+                } else {
+                    Settings.setAimTouchPoint(this, fire, event.x / capture.width, event.y / capture.height)
+                    aimController.resetFeedback()
+                    Toast.makeText(this, "Touch position saved", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            }
+            true
+        }
+        capture.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == android.view.KeyEvent.KEYCODE_BACK) {
+                if (event.action == android.view.KeyEvent.ACTION_UP) finish()
+                true
+            } else false
+        }
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        calibrationView = capture
+        wm.addView(capture, params)
+        capture.requestFocus()
+        handler.postDelayed({ finish() }, 30_000)
     }
 
     private fun setupGeneralTab(view: View) {
@@ -696,6 +918,8 @@ class OverlayService : Service() {
     }
 
     private fun closeMenu(showBubbleAfter: Boolean = true) {
+        diagnosticRefreshRunnable?.let { handler.removeCallbacks(it) }
+        diagnosticRefreshRunnable = null
         menuView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         menuView = null; logTextView = null; isMenuOpen = false
         if (showBubbleAfter) showBubble()
@@ -708,11 +932,24 @@ class OverlayService : Service() {
         }
         handler.post {
             synchronized(logLines) { logTextView?.text = logLines.joinToString("\n") }
-            menuView?.findViewById<ScrollView>(R.id.logScroll)?.fullScroll(View.FOCUS_DOWN)
         }
     }
 
+    override fun dump(fd: java.io.FileDescriptor, writer: java.io.PrintWriter, args: Array<out String>) {
+        writer.println("Aim: ${aimController.status}")
+        writer.println("Fault: ${aimController.faultMessage() ?: "none"}")
+        writer.println("Gestures: ${aimController.gesturesSent}; confirmed: ${aimController.correctionsConfirmed}; fire presses: ${aimController.shotsSent}")
+        writer.println("Look area: ${Settings.aimLookPoint(this)}")
+    }
+
     override fun onDestroy() {
+        diagnosticRefreshRunnable?.let { handler.removeCallbacks(it) }
+        diagnosticRefreshRunnable = null
+        aimController.close()
+        calibrationView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
+        calibrationView = null
+        aimFovView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
+        aimFovView = null
         stopOverlayRefresh()
         projectionExecutor.shutdownNow()
         enemyLinesView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
