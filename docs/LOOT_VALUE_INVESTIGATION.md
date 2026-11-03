@@ -773,3 +773,39 @@ matches. Production APK/native and pins remain unchanged. Private evidence:
 captures, native disassembly and dispatch flags. Positive nonnull ItemSpace
 capture remains unvalidated. Identify a concrete new data path before requesting
 another match; repeating already-passed price panels will not resolve this gap.
+
+
+## One-command Nearby-cache capture prepared; user released to queue
+
+Further read-only LootingServer method inspection showed SyncItemsBeforeFetch
+working on already supplied item records and slots. Its dirty-container handler
+also obtains GetSubPickups before incrementally updating Nearby slots. The
+separate `InventoryServer._mapGid2Items` is grouped by ESlotGroup; Nearby is a
+distinct group from Player and DeadBody. Previous shallow Player-map samples
+do not establish that unopened contents are absent from the Nearby group.
+
+Added `scanner/tools/capture_loot_cache.py` to capture that remaining cache path
+efficiently before/after one interaction. It verifies the content-addressed
+diagnostic hash, requires a valid fresh pinned radar frame for live captures,
+rediscovers fresh Lua roots and the Nearby enum, and records bounded snapshots
+of LootingServer's _cachedData, _slotItemMap, _nearbyPickupMapping and _fetchScope,
+plus InventoryServer's Nearby item/slot maps. Child/table/sample limits and
+partial flags are retained; no Lua functions are invoked and no items moved.
+All raw cache values remain under ignored evidence/local. A --lobby option
+marks its output explicitly as preparation, never a live-match result.
+
+The lobby check completed in 4.486 s / 25 bounded diagnostic calls and read
+all named cache roots. Nearby's item map was empty in that lobby check; the
+slot map existed. _cachedData contained an InvMgr userdata reference, which
+was not dereferenced or interpreted as target loot. Validation also confirmed
+stale/stopped-frame rejection before any Lua reads, duplicate-label refusal
+without changing the earlier sample, invalid-label rejection and Python compile.
+No APK/native changes were needed.
+
+The user has been told they can queue now and asked to confirm spawning.
+The specific next experiment is a native/cache snapshot while a target stays
+closed, a second native check that search has not occurred during capture,
+then matched native/cache samples after opening. No price details panels are
+needed. This tests an additional data path; pre-opening item visibility remains
+unproven. Private preparation evidence: `lobby-cache-startup.json` and
+`cache-collector-validation.json` under `unopened-container-20261103/`.

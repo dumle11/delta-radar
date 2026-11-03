@@ -1,5 +1,29 @@
 ## Pre-opening loot investigation — 2026-11-03 (latest)
 
+Next live check is now prepared; the user has been told they can queue and
+asked to confirm spawning with radar ON/minimum 0. Keep working when they
+reply. New `capture_loot_cache.py` captures freshly rooted loot-UI caches in
+one bounded command (~4.5 s in the lobby). It verifies the deployed diagnostic,
+requires a fresh pinned frame in live mode, resolves ESlotGroup.Nearby rather
+than hardcoding it, and reads LootingServer._cachedData / _slotItemMap /
+_nearbyPickupMapping / _fetchScope plus InventoryServer's Nearby item/slot maps.
+Limits and partial-child flags are explicit. It never invokes Lua methods.
+Lobby/startup, stale-frame rejection, duplicate-label preservation and invalid
+label checks passed. Positive live cache capture remains pending.
+
+After spawn, get the user beside one unopened target. Capture its native
+state, run the cache collector, then recheck the same target is still unopened
+before requesting search. Capture native/cache state after opening without
+extra price-panel requests. Compare the actual after-search catalog IDs with
+the before cache, respecting child/sample limits. This is the new test's purpose;
+do not repeat prior UI price comparisons. Last confirmed scanner state was
+stopped after the third match; do not start/stop/reinstall either app unless
+needed for the newly confirmed match.
+
+---
+
+## Third-match findings and diagnostic details
+
 The user wants actual contents before the first open/search. That feature is
 not established. Keep the installed working APK/native `21cdaadf...` /
 `135e3893...`; production code/pins were unchanged. The user died during the
