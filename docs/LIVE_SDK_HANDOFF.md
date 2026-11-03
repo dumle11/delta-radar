@@ -47,6 +47,15 @@ remaining. No crash was reported during this completed run; this does not
 establish the historical SIGBUS cause or universal stability. Minimum remains
 0 until restored for normal play; the user has been reminded to use 20k.
 
+The user entered another Zero Dam Easy match with radar ON/minimum 0. Fresh
+feed and the actual pinned scanner executable were verified. The safe selected
+as "special" was again `BP_Interactor_Container_SafeBox_C`, metadata kind 2:
+unknown before search, one item afterwards, Empress Earring UI/native/marker
+all **13,186**. No runtime change was required. Scanner remains running for
+this second match. Next requested test: an unopened filing cabinet with its
+interaction prompt visible. Kind-3/5 acceptance remains pending; do not infer
+it from the user's visual description of this safe.
+
 Exact artifacts and verification: ignored `container-links-build-20261103`.
 The user's saved filter is ON, but its minimum was already **0** before these
 tests; preferences were restored and retained. Use 0 for the initial container

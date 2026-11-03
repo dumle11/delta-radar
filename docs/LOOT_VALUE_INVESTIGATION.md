@@ -574,3 +574,32 @@ check found zero project scanner processes remaining. This is one completed
 live run, not a diagnosis or resolution of historical SIGBUS exits. The user
 was reminded that the retained diagnostic minimum is 0 and normal play should
 use the intended 20k cutoff. Private outcome proof is `match-outcome.json`.
+
+
+## Second match: user-selected special safe also passed after search
+
+The user spawned on Zero Dam Easy with radar ON and minimum 0. The native feed
+was fresh and its actual peer executable matched the pinned `135e3893...`
+candidate. At spawn several unopened SingleItemContainer safe actors had empty
+CachedPickups/CachedOpenBox fields; this does not establish that those actors
+were the later user-selected safe or that no alternate client state exists.
+
+The first requested safe capture instead showed a Computer/Ammo Crate. It was
+explicitly rejected as an unconfirmed target. After the user aimed at the actual
+safe prompt, a separate before sample matched `BP_Interactor_Container_SafeBox_C`
+within about 1.1 m: metadata kind 2, search incomplete, zero readable contents,
+unknown value. The class was the same as the previously verified regular safe,
+despite the user's description of it as special.
+
+Searching exposed one item, catalog ID `15080050001`, with native/diagnostic
+value **13,186** and a visible on-screen marker. Its details panel named it
+Empress Earring and displayed **13,186**, exactly matching the marker. At the
+intended 20k minimum it would be excluded; no live threshold toggle was repeated.
+The user was released to loot normally, and a filing cabinet was requested next.
+
+This extends verified safe coverage in a fresh match but does not validate the
+new kind-3/5 linked-content reader or pre-search valuable-loot detection. No
+source/runtime changes, app restarts or pickup/empty repeat were needed.
+Private proof is `container-links-live-20261103/special-safe-summary.json`.
+Only `special-safe-confirmed-before.json` is the accepted safe before sample;
+`special-safe-before.json` belongs to the earlier Computer/Ammo Crate location.
