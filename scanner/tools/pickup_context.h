@@ -18,7 +18,7 @@ typedef struct {
 } PCEntry;
 typedef struct { PCEntry *entries; unsigned count; int valid; } PCTable;
 typedef struct { uint64_t address; unsigned char header[32]; } PCGuard;
-typedef struct { PCGuard guards[600]; unsigned count, records; int complete; } PCContext;
+typedef struct { PCGuard guards[4096]; unsigned count, records; int complete; } PCContext;
 
 static int pc_emit(PCContext *ctx) {
     if (ctx->records >= PC_MAX_RECORDS) { ctx->complete = 0; return 0; }
@@ -161,12 +161,19 @@ static void pc_items(PCContext *ctx, uint64_t address, const char *group) {
     pc_free(&map);
 }
 
-static void pc_slots(PCContext *ctx, uint64_t address, const char *group) {
+static void pc_slots(PCContext *ctx, uint64_t address, const char *group, int64_t bag, int64_t rig) {
     PCTable slots = pc_load(ctx, address);
-    if (slots.count > PC_MAX_SLOTS) { ctx->complete = 0; pc_free(&slots); return; }
+    int player = !strcmp(group, "Player"); unsigned selected = 0;
+    if (!pc_emit(ctx)) { pc_free(&slots); return; }
+    printf("{\"record\":\"slotSet\",\"group\":\"%s\",\"readable\":%s,\"entries\":%u,\"backpackRigOnly\":%s}\n",
+           group, slots.valid ? "true" : "false", slots.count, player ? "true" : "false");
     for (unsigned i = 0; i < slots.count; i++) {
         PCEntry *entry = &slots.entries[i];
         if (entry->key_tag != 19 || entry->value.tag != 69) { ctx->complete = 0; continue; }
+        /* Player also holds the entire lobby stash. Its slot count can exceed
+         * 64 even though only these two verified enum slots are destinations. */
+        if (player && entry->key != (uint64_t)bag && entry->key != (uint64_t)rig) continue;
+        if (++selected > PC_MAX_SLOTS) { ctx->complete = 0; break; }
         PCTable slot = pc_load(ctx, entry->value.value);
         int64_t kind = 0;
         if (!slot.valid || !pc_integer(pc_field(&slot, "SlotType"), &kind) ||
@@ -208,7 +215,9 @@ static void pc_slots(PCContext *ctx, uint64_t address, const char *group) {
 
 static int pickup_context(void) {
     PCContext ctx = {.complete = 1};
-    loot_values.read_budget = 32768;
+    /* One-shot research, not a per-frame reader. Lobby Player includes cached
+     * stash items: 135 of 255 items alone consumed the original 32K budget. */
+    loot_values.read_budget = 131072;
     uint64_t vm = lv_ptr(&loot_values, ue4_base + 0x1fc9cd70);
     unsigned char type = 0; LVValue reg, roots[2];
     uint64_t g = lv_ptr(&loot_values, vm + 24);
@@ -228,6 +237,10 @@ static int pickup_context(void) {
     /* Retain only named slot enums. These are diagnostic labels, not approval
      * to treat equipment slots, safe boxes or pockets as writable destinations. */
     PCTable types = pc_load(&ctx, slot_types);
+    int64_t bag = -1, rig = -1;
+    if (!pc_integer(pc_field(&types, "BagContainer"), &bag) || bag <= 0 ||
+        !pc_integer(pc_field(&types, "ChestHangingContainer"), &rig) || rig <= 0 || bag == rig)
+        ctx.complete = 0;
     const char *names[] = {"BagContainer", "ChestHangingContainer", "NearbyContainer", "DeadbodyLootBox", "SafeBoxContainer", "Pocket"};
     for (unsigned j = 0; j < sizeof(names)/sizeof(names[0]); j++) {
         int64_t n; if (pc_integer(pc_field(&types, names[j]), &n) && pc_emit(&ctx))
@@ -246,7 +259,8 @@ static int pickup_context(void) {
         printf("{\"record\":\"group\",\"name\":\"%s\",\"value\":%ld,\"itemsAvailable\":%s,\"slotsAvailable\":%s}\n",
                names_group[i], group, items.tag == 69 ? "true" : "false", spaces.tag == 69 ? "true" : "false");
         if (items.tag == 69) pc_items(&ctx, items.value, names_group[i]);
-        if (spaces.tag == 69) pc_slots(&ctx, spaces.value, names_group[i]);
+        if (spaces.tag == 69 && (!strcmp(names_group[i], "Player") ? bag > 0 && rig > 0 && bag != rig : 1))
+            pc_slots(&ctx, spaces.value, names_group[i], bag, rig);
         /* A missing group is not equivalent to a known empty inventory. */
         if (items.tag != 69 || spaces.tag != 69) ctx.complete = 0;
     }

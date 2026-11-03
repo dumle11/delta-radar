@@ -59,8 +59,8 @@ away from Android's main thread.
   are checked again at completion. These checks do not make the multi-table
   read an atomic transaction.
 - Bounds hash tables at 8,192 entries, arrays at 1,024, items at 256/group,
-  slots at 64/group, copied-table guards at 600, data output at 4,096 records,
-  memory reads at 32,768 and process lifetime at eight seconds. Limits/read
+  slots at 64/group, copied-table guards at 4,096, data output at 4,096 records,
+  memory reads at 131,072 and process lifetime at eight seconds. Limits/read
   failures remain explicit incomplete results, never known-empty contents.
   A missing inventory group also keeps native completeness false.
 - Always emits `actionReady: false`. It has no Lua invocation or game writes.
@@ -92,8 +92,32 @@ capture label cannot overwrite existing evidence.
 Private build identity/reports: ignored
 `scanner/build/pickup-probe-build.json` and
 `evidence/local/session/auto-pickup-20261103/`.
-The diagnostic is **built only, not deployed or live-tested**. Do not mistake
+The initial diagnostic was built while disconnected. On reconnection it was
+deployed separately and exercised in the lobby (see below). Do not mistake
 the older deployed loot probe manifest for this candidate.
+
+## Reconnection and lobby preparation
+
+USB/root access and the unchanged installed radar/native hashes were verified.
+The game was in the lobby with one existing project scanner; it was left
+running. No game restart, reinstall or item interaction was performed.
+
+The initial diagnostic reached its 32K-read budget after 135 of 255 cached
+Player items. The one-shot budget is now 128K, with the eight-second deadline
+and output bounds unchanged. Player had 107 cached slot records, including
+stash slots. The reader now selects only the freshly resolved backpack/rig
+enum slots from that group, instead of rejecting the entire set at 64 slots.
+This behavior is covered by a 107-slot owned fixture.
+
+The latest separate diagnostic is `c4be83fc...`, deployed and hash-verified.
+`reconnected-lobby-3.json` is a complete capture of its output: 264 cached
+items across Player/Nearby/DeadBody, 705 copied tables and about 69K reads left.
+Backpack/rig dimensions are zero in this lobby snapshot, and the inner native
+completeness flag remains false. These are cached lobby records, not verified
+live carried contents or an actionable pickup context. `actionReady` remains
+false. The next useful sample is an actual open container in a match.
+
+Private proof is under `evidence/local/session/auto-pickup-20261103/`.
 
 ## Next live work after reconnection
 

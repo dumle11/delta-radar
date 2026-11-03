@@ -1,18 +1,25 @@
 ## Auto-pickup development — 2026-11-03 (latest)
 
 The user paused pre-opening container research and selected a manual **Take
-best loot** button in an open container. Phone is now disconnected. Continue
+best loot** button in an open container. Phone is reconnected; the user expects
+to be ready to play about 30 minutes after their latest connection message. Continue
 from [the auto-pickup checkpoint](AUTO_PICKUP.md), which records implemented
 ranking/space/session logic, the separate bounded read-only inventory probe,
 offline checks and exact remaining live work. No pickup button/input adapter,
 transfer, automatic drop or working auto-pickup APK exists yet. The installed
-radar/native and deployment pins are unchanged; no new match is needed until
-the phone is reconnected and the diagnostic schema has passed a lobby read.
+radar/native and deployment pins are unchanged. USB/root and exact installed
+hashes passed verification; the separate diagnostic has now run in the lobby.
+The initial 32K budget and all-Player-slot ceiling were too small for cached
+stash data. A 128K one-shot budget and enum-selected backpack/rig slots fixed
+those coverage limits. Latest diagnostic `c4be83fc...` is deployed/hash-verified.
+The final lobby capture read 264 cached items with 69K reads left; zero bag/rig
+dimensions and native completeness=false remain non-actionable. No item/game
+interaction was sent; one pre-existing project scanner was left running.
 
 Branch: `codex/auto-pickup`, based on `c2bac96`. Offline checks: 56 JVM tests
 (16 pickup tests), zero lint errors/168 warnings, ASan/UBSan native fixtures,
-API-31 compile with warnings as errors, nine Python capture tests. Built-only
-diagnostic manifest is ignored `scanner/build/pickup-probe-build.json`; it is
+API-31 compile with warnings as errors, nine Python capture tests. Current
+diagnostic deployment manifest is ignored `scanner/build/pickup-probe-build.json`; it is
 not the existing deployed `loot-probe-deployment.json`.
 
 ---

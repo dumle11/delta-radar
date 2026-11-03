@@ -97,6 +97,27 @@ static void full_context_fixture(void) {
     field(data, 0, "gid", 19, gid + 1); context_output(out, sizeof(out));
     assert(!strstr(out, "\"record\":\"item\""));
     assert(strstr(out, "\"complete\":false,\"actionReady\":false"));
+    /* A lobby stash can add 100+ Player slots. Read only the two enum-verified
+     * destinations, without treating unrelated stash slots as carried space. */
+    field(data, 0, "gid", 19, gid);
+    uint64_t player_slots = table(7, 0), small_empty = table(0, 0);
+    number_key(slots, 0, 1, 69, player_slots);
+    for (unsigned i = 0; i < 107; i++) {
+        unsigned kind = i < 2 ? 300 + i : 1000 + i;
+        uint64_t s = table(4, 0);
+        number_key(player_slots, i, kind, 69, s);
+        field(s, 0, "SlotType", 19, kind); field(s, 1, "Width", 19, 3); field(s, 2, "Length", 19, 2);
+        field(s, 3, "_slotGroupId", 19, 1); field(s, 4, "_totalCapacity", 19, 6);
+        field(s, 5, "serverUpdateCount", 19, 1);
+        const char *map_names[] = {"_itemsPosition", "_itemsAbsLocX", "_itemsAbsLocY", "_spaceBatch", "_containItems"};
+        for (unsigned j = 0; j < 5; j++) field(s, 6 + j, map_names[j], 69, small_empty);
+    }
+    char filtered[16384]; context_output(filtered, sizeof(filtered));
+    assert(strstr(filtered, "\"entries\":107,\"backpackRigOnly\":true"));
+    assert(strstr(filtered, "\"group\":\"Player\",\"SlotType\":300"));
+    assert(strstr(filtered, "\"group\":\"Player\",\"SlotType\":301"));
+    assert(!strstr(filtered, "\"SlotType\":1002"));
+    assert(strstr(filtered, "\"complete\":true,\"actionReady\":false"));
     /* Even a readable oversized position map cannot generate unbounded output. */
     field(data, 0, "gid", 19, gid);
     uint64_t nearby_slots = table(0, 0), position_map = table(13, 0), empty_map = table(0, 0);
