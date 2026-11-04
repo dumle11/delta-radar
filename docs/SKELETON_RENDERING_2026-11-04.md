@@ -1,6 +1,10 @@
 # Animated skeleton rendering — November 4, 2026
 
-The installed reader and APK now send and render animated world-space bone
+The shape and scheduling in this initial implementation are superseded by
+[the tracking update](TRACKING_RENDERING_2026-11-04.md), which uses 19 body joints
+and removes screen-space interpolation. The following records the initial work.
+
+The installed reader and APK initially sent and rendered animated world-space bone
 positions with each mesh's real parent hierarchy. Skeleton mode no longer draws
 the fixed screen-space stick figure. Player, teammate and bot poses use the same
 verified path. Existing position and camera checks remain in force.

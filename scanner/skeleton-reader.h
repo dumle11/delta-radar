@@ -18,6 +18,12 @@ typedef struct {
     int32_t count, object_name;
     int16_t parents[MAX_SKELETON_BONES];
 } SkeletonHierarchy;
+/* Supported rig identified by its complete raw parent topology. These are
+ * measured body joints, not finger/IK/weapon helper chains. */
+static const int16_t skeleton_body_indices[] = {1,4,6,7,10,30,31,32,34,35,38,58,59,60,61,62,63,64,65};
+static const int16_t skeleton_body_parents[] = {-1,0,1,2,3,1,5,6,1,8,9,0,11,12,13,0,15,16,17};
+static const int16_t skeleton_rig_parents[] = {-1,0,1,2,3,4,5,6,7,7,7,10,11,12,10,10,15,16,17,10,19,20,21,10,23,24,10,26,27,6,4,30,31,4,33,34,35,35,35,38,39,40,38,38,43,44,45,38,47,48,49,38,51,52,38,54,55,34,1,58,59,60,1,62,63,64,0,66,67,67,0,70,0,72,72};
+#define SKELETON_BODY_COUNT ((int)(sizeof(skeleton_body_indices)/sizeof(*skeleton_body_indices)))
 static SkeletonHierarchy skeleton_hierarchies[16];
 static unsigned skeleton_next_cache;
 
@@ -104,26 +110,29 @@ static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root) {
         const SkeletonHierarchy *hierarchy = skeleton_hierarchy(&state);
         size_t bytes = (size_t)state.pose.count * sizeof(*pose);
         if (!hierarchy || read_mem(state.pose.data, pose, bytes) != (ssize_t)bytes) return;
+        if (state.info.count < (int)(sizeof(skeleton_rig_parents)/sizeof(*skeleton_rig_parents)) ||
+            memcmp(hierarchy->parents, skeleton_rig_parents, sizeof(skeleton_rig_parents))) return;
         SkeletonTransform parent = state.root_world, world = state.mesh_world;
         float relative[3]; memcpy(relative, state.relative, sizeof(relative));
         parent.translation[0] = e->x * 100;
         parent.translation[1] = e->y * 100;
         parent.translation[2] = e->z * 100;
         skeleton_transform_point(&parent, relative, world.translation);
-        for (int i = 0; i < state.pose.count; i++) {
-            if (!skeleton_transform_valid(&pose[i])) return;
-            for (int j = 0; j < 3; j++) if (fabsf(pose[i].translation[j]) > 2000) return;
-            float point[3]; skeleton_transform_point(&world, pose[i].translation, point);
+        for (int i = 0; i < SKELETON_BODY_COUNT; i++) {
+            int source = skeleton_body_indices[i];
+            if (!skeleton_transform_valid(&pose[source])) return;
+            for (int j = 0; j < 3; j++) if (fabsf(pose[source].translation[j]) > 2000) return;
+            float point[3]; skeleton_transform_point(&world, pose[source].translation, point);
             for (int j = 0; j < 3; j++) {
                 if (!isfinite(point[j]) || fabsf(point[j]) > 10000000) return;
                 e->bone_pos[i][j] = point[j] / 100;
             }
-            e->bone_parent[i] = hierarchy->parents[i];
+            e->bone_parent[i] = skeleton_body_parents[i];
         }
         if (read_mem(state.pose.data, verify, bytes) != (ssize_t)bytes ||
             memcmp(pose, verify, bytes) || !skeleton_read_state(actor, root, &after) ||
             memcmp(&state, &after, sizeof(state))) continue;
-        e->bone_count = state.pose.count; e->has_bones = 1; return;
+        e->bone_count = SKELETON_BODY_COUNT; e->has_bones = 1; return;
     }
 }
 #endif

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.deltaradar.app.AimMathTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-04T09:35:21" hostname="Adams-MacBook-Pro-2.local" time="0.01">
+<testsuite name="com.deltaradar.app.AimMathTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-11-04T10:18:02" hostname="Adams-MacBook-Pro-2.local" time="0.009">
   <properties/>
-  <testcase name="shootsOnlyWhenCrosshairIsInsideTorso" classname="com.deltaradar.app.AimMathTest" time="0.001"/>
+  <testcase name="shootsOnlyWhenCrosshairIsInsideTorso" classname="com.deltaradar.app.AimMathTest" time="0.0"/>
   <testcase name="rejectsTeammatesUnknownTeamsLootDeadAndOffscreenTargets" classname="com.deltaradar.app.AimMathTest" time="0.007"/>
-  <testcase name="usesACircleInPixelsOnWideScreens" classname="com.deltaradar.app.AimMathTest" time="0.0"/>
+  <testcase name="usesACircleInPixelsOnWideScreens" classname="com.deltaradar.app.AimMathTest" time="0.001"/>
   <testcase name="handlesRotationAndInvalidViewport" classname="com.deltaradar.app.AimMathTest" time="0.0"/>
   <testcase name="diagonalOutsideCircleCannotBeSelected" classname="com.deltaradar.app.AimMathTest" time="0.0"/>
   <testcase name="oldCentreLookPointMigratesToTheMeasuredRightHandArea" classname="com.deltaradar.app.AimMathTest" time="0.0"/>

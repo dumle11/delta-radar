@@ -31,14 +31,13 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         val boneScreenX: FloatArray? = null,
         val boneScreenY: FloatArray? = null,
         val boneParents: IntArray? = null,
+        val bodyBounds: FloatArray? = null,
         val team: Int = 2
     )
     data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>, val warning: String? = null)
 
     private var frame: Frame? = null
     private var receivedAt = 0L
-    private var transitionStartedAt = 0L
-    private var previousById = emptyMap<String, Enemy>()
     private var playerFeatures = 0
     private var botFeatures = 0
     private var teammateFeatures = 0
@@ -107,9 +106,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
 
     fun submit(value: Frame, receivedAtMs: Long) {
         if (value.me == null || (value.enemies.isEmpty() && value.warning == null)) { clear(); return }
-        previousById = frame?.enemies?.associateBy { it.id }.orEmpty()
         frame = value; receivedAt = receivedAtMs
-        transitionStartedAt = SystemClock.elapsedRealtime()
         removeCallbacks(expire)
         visibility = VISIBLE
         invalidate()
@@ -117,7 +114,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     }
 
     fun clear() {
-        removeCallbacks(expire); frame = null; previousById = emptyMap(); visibility = GONE
+        removeCallbacks(expire); frame = null; visibility = GONE
     }
 
     override fun onDetachedFromWindow() { clear(); super.onDetachedFromWindow() }
@@ -131,7 +128,6 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         val me = data.me ?: return
         val padding = 2f * density
         val occupied = mutableListOf<RectF>()
-        val blend = ((SystemClock.elapsedRealtime() - transitionStartedAt) / 50f).coerceIn(0f, 1f)
 
         data.warning?.let { warning ->
             val left = 8f * density
@@ -145,10 +141,8 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         }
 
         for (enemy in data.enemies) {
-            val previous = previousById[enemy.id]
-            fun lerp(from: Float, to: Float): Float = from + (to - from) * blend
-            val ex = lerp(previous?.screenX ?: enemy.screenX, enemy.screenX) * width
-            val ey = lerp(previous?.screenY ?: enemy.screenY, enemy.screenY) * height
+            val ex = enemy.screenX * width
+            val ey = enemy.screenY * height
             val mx = me.first * width
             val my = me.second * height
             val isLoot = enemy.kind == "loot" || enemy.kind == "objective"
@@ -195,11 +189,11 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
             val hasSkeleton = entityMode == Settings.DRAW_MODE_SKELETON &&
                 enemy.boneParents != null && enemy.boneScreenX != null && enemy.boneScreenY != null
             if ((enemy.onScreen || hasSkeleton) && (drawBody || drawHealth)) {
-                val headX = lerp(previous?.headX ?: enemy.headX, enemy.headX) * width
-                val headY = lerp(previous?.headY ?: enemy.headY, enemy.headY) * height
-                val feetX = lerp(previous?.feetX ?: enemy.feetX, enemy.feetX) * width
-                val feetY = lerp(previous?.feetY ?: enemy.feetY, enemy.feetY) * height
-                val boxH = kotlin.math.abs(feetY - headY).coerceIn(7 * density, 180 * density)
+                val headX = enemy.headX * width
+                val headY = enemy.headY * height
+                val feetX = enemy.feetX * width
+                val feetY = enemy.feetY * height
+                val boxH = kotlin.math.abs(feetY - headY).coerceAtLeast(1f)
                 boxHeightForLabel = boxH
                 val centerX = (headX + feetX) * 0.5f
                 val top = minOf(headY, feetY)
@@ -215,7 +209,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                     "loot" -> 0.65f
                     else -> 0.45f
                 }
-                val healthLeft = centerX - healthBoxW * 0.5f
+                val healthLeft = enemy.bodyBounds?.get(0)?.times(width) ?: (centerX - healthBoxW * 0.5f)
                 when (if (drawBody) entityMode else Settings.DRAW_MODE_OFF) {
                     Settings.DRAW_MODE_SKELETON -> {
                         val bx = enemy.boneScreenX
@@ -224,18 +218,8 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                         if (bx != null && by != null && parents != null &&
                             bx.size == by.size && bx.size == parents.size) {
                             boxPaint.strokeWidth = density * thicknessScale
-                            val prior = previous?.takeIf {
-                                it.boneParents?.contentEquals(parents) == true &&
-                                    it.boneScreenX?.size == bx.size && it.boneScreenY?.size == by.size
-                            }
-                            fun boneX(i: Int): Float {
-                                val old = prior?.boneScreenX?.get(i)
-                                return (if (old != null && old.isFinite()) lerp(old, bx[i]) else bx[i]) * width
-                            }
-                            fun boneY(i: Int): Float {
-                                val old = prior?.boneScreenY?.get(i)
-                                return (if (old != null && old.isFinite()) lerp(old, by[i]) else by[i]) * height
-                            }
+                            fun boneX(i: Int): Float = bx[i] * width
+                            fun boneY(i: Int): Float = by[i] * height
                             for (child in 1 until parents.size) {
                                 val parent = parents[child]
                                 if (parent !in 0 until child || !bx[child].isFinite() || !by[child].isFinite() ||
@@ -252,9 +236,9 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                             "loot" -> 0.65f
                             else -> 0.45f
                         }
-                        val left = centerX - boxW * 0.5f
-                        val right = centerX + boxW * 0.5f
-                        val boxRect = RectF(left, top, right, bottom)
+                        val bounds = enemy.bodyBounds
+                        val boxRect = if (bounds != null) RectF(bounds[0]*width,bounds[1]*height,bounds[2]*width,bounds[3]*height)
+                            else RectF(centerX-boxW*0.5f,top,centerX+boxW*0.5f,bottom)
                         canvas.drawRect(boxRect, boxShadowPaint)
                         canvas.drawRect(boxRect, boxPaint)
                     }
@@ -320,6 +304,5 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                 }
             }
         }
-        if (blend < 1f) postInvalidateOnAnimation()
     }
 }

@@ -33,6 +33,15 @@ class SkeletonProjectionTest {
         assertTrue(pose.y[1].isNaN())
     }
 
+    @Test fun cameraRollIsAppliedToTheSameWorldJoints() {
+        val pose=SkeletonProjection.project(listOf(SkeletonProjection.Joint(10.0,2.0,0.0),
+            SkeletonProjection.Joint(10.0,2.0,1.0)),intArrayOf(-1,0),camera,0.0,0.0,90.0,2.0,90.0)!!
+        assertEquals(.5f,pose.x[0],.0001f)
+        assertEquals(.3f,pose.y[0],.0001f)
+        assertEquals(.45f,pose.x[1],.0001f)
+        assertEquals(.3f,pose.y[1],.0001f)
+    }
+
     @Test fun malformedCoordinatesAndCyclesRejectThePose() {
         val points = listOf(SkeletonProjection.Joint(10.0, 0.0, 0.0), SkeletonProjection.Joint(11.0, 1.0, 0.0))
         assertNull(project(points, intArrayOf(-1, 1)))

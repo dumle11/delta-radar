@@ -21,7 +21,8 @@ object ProjectionMath {
         lineOriginX: Double = 0.5,
         lineOriginY: Double = 0.02,
         edgeMargin: Double = 0.018,
-        clipToEdge: Boolean = true
+        clipToEdge: Boolean = true,
+        rollDegrees: Double = 0.0
     ): Point {
         val yaw = Math.toRadians(yawDegrees)
         val pitch = Math.toRadians(pitchDegrees)
@@ -31,9 +32,12 @@ object ProjectionMath {
         val sp = sin(pitch)
 
         val horizontalForward = dx * cy + dy * sy
-        val right = -dx * sy + dy * cy
+        val unrolledRight = -dx * sy + dy * cy
         val forward = horizontalForward * cp + dz * sp
-        val up = -horizontalForward * sp + dz * cp
+        val unrolledUp = -horizontalForward * sp + dz * cp
+        val roll = Math.toRadians(rollDegrees)
+        val right = unrolledRight * cos(roll) - unrolledUp * sin(roll)
+        val up = unrolledRight * sin(roll) + unrolledUp * cos(roll)
         val inFront = forward > 0.05
 
         val tanHalfHorizontal = tan(Math.toRadians(horizontalFovDegrees.coerceIn(5.0, 150.0) / 2.0))

@@ -32,6 +32,16 @@ class EntityFeedService : Service() {
     private val running = AtomicBoolean(false)
     private var localServer: LocalServerSocket? = null
     private var activeClient: LocalSocket? = null
+    private var cameraServer: LocalServerSocket? = null
+    private var cameraClient: LocalSocket? = null
+    @Volatile private var cameraConnected = false
+    @Volatile private var liveCamera: LiveCamera? = null
+    @Volatile private var cameraPackets = 0L
+    @Volatile private var cameraFrames = 0L
+    @Volatile internal var projectedFrames = 0L
+    private var nativeGamePid = 0
+    private var nativeWorld = ""
+    @Volatile private var publishedWorld = JSONObject()
     private val entities = ConcurrentHashMap<String, JSONObject>()
     private val missingFrames = ConcurrentHashMap<String, Int>()
     private var diagnosticData: JSONObject? = null
@@ -88,7 +98,7 @@ class EntityFeedService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (running.compareAndSet(false, true)) startListener()
+        if (running.compareAndSet(false, true)) { startListener(); startCameraListener() }
         return START_STICKY
     }
 
@@ -96,6 +106,8 @@ class EntityFeedService : Service() {
         running.set(false)
         traceHandler.removeCallbacks(traceDeadline)
         positionTrace.close()
+        try { cameraClient?.close() } catch (_: Exception) {}
+        try { cameraServer?.close() } catch (_: Exception) {}
         try { activeClient?.close() } catch (_: Exception) {}
         try { localServer?.close() } catch (_: Exception) {}
         clearEntities()
@@ -139,9 +151,37 @@ class EntityFeedService : Service() {
         }
     }
 
+    private fun startCameraListener() = thread(isDaemon = true, name = "camera-feed") {
+        try {
+            val server = LocalServerSocket("delta_radar_camera")
+            cameraServer = server
+            while (running.get()) {
+                val client = try { server.accept() } catch (_: Exception) { break }
+                cameraClient = client; cameraConnected = true
+                try {
+                    BufferedReader(InputStreamReader(client.inputStream), 8192).use { input ->
+                        while (running.get()) {
+                            val line = input.readLine() ?: break
+                            try {
+                                val next = LiveCamera.parse(JSONObject(line))
+                                if (next.timestamp != liveCamera?.timestamp || next.world != liveCamera?.world) cameraFrames++
+                                liveCamera = next; cameraPackets++
+                            }
+                            catch (_: Exception) { liveCamera = null }
+                        }
+                    }
+                } catch (_: Exception) { /* The native sampler reconnects. */ }
+                finally { cameraConnected = false; liveCamera = null; client.close() }
+            }
+        } catch (e: Exception) { Log.w(TAG, "Camera feed: ${e.message}") }
+        finally { cameraConnected = false; liveCamera = null }
+    }
+
     @Synchronized fun ingest(jsonLine: String): Int {
         return try {
         val json = JSONObject(jsonLine)
+        nativeGamePid = json.optInt("gamePid", 0)
+        nativeWorld = json.optJSONObject("diagnostics")?.optString("world", "") ?: ""
         val nextSelf = json.optString("self", "").ifEmpty { null }
         val receivedAt = System.currentTimeMillis()
         val list = json.optJSONArray("entities")
@@ -175,12 +215,18 @@ class EntityFeedService : Service() {
                 "id", "kind", "name", "team", "x", "y", "z", "yaw", "pitch", "fov",
                 "health", "maxHealth", "healthKnown", "halfHeight", "dead", "bones",
                 "positionPlaintext", "positionDecoded", "renderedOnScreen",
-                "bonesVerified", "boneCount", "boneParents"
+                "bonesVerified", "boneCount", "boneParents", "sampledAt"
             )) if (raw.has(key) && !raw.isNull(key)) e.put(key, raw.get(key))
             if (!e.has("kind")) e.put("kind", "player")
             if (!e.has("team")) e.put("team", 0)
             if (!e.has("maxHealth")) e.put("maxHealth", 100.0)
             if (!e.has("halfHeight")) e.put("halfHeight", 1.05)
+            val old = entities[id]
+            if (old != null && old.optString("name") == e.optString("name")) {
+                val v = WorldMotion.velocity(e.optDouble("x"), e.optDouble("y"), e.optDouble("z"), e.optLong("sampledAt"),
+                    old.optDouble("x"), old.optDouble("y"), old.optDouble("z"), old.optLong("sampledAt"))
+                e.put("velocityX",v.x).put("velocityY",v.y).put("velocityZ",v.z)
+            }
             e.put("lastSeen", receivedAt)
             e.put("seenFrame", frameSequence)
             entities[id] = e
@@ -212,6 +258,14 @@ class EntityFeedService : Service() {
         selfId = nextSelf?.takeIf { it in seen }
         lastUpdateTs = receivedAt
         entityCount = entities.size
+        val array = JSONArray()
+        entities.values.forEach { array.put(it) }
+        val published = JSONObject().put("entities",array).put("ts",lastUpdateTs)
+            .put("frameSequence",frameSequence).put("gamePid",nativeGamePid).put("world",nativeWorld)
+            .put("cameraSampledAt",cameraSampledAt).put("cameraTimestamp",cameraTimestamp)
+            .put("cameraPositionPlaintext",cameraPositionPlaintext).put("localPlayerControlled",localPlayerControlled)
+        selfId?.let { published.put("self",it) }
+        publishedWorld = published
         accepted
         } catch (e: Exception) {
             Log.w(TAG, "Entity ingest: ${e.message}")
@@ -219,18 +273,19 @@ class EntityFeedService : Service() {
         }
     }
 
-    @Synchronized fun getSnapshot(): JSONObject {
+    fun getSnapshot(): JSONObject {
+        val world = publishedWorld
         val result = JSONObject()
-        selfId?.let { result.put("self", it) }
-        val array = JSONArray()
-        entities.values.forEach { array.put(JSONObject(it.toString())) }
-        result.put("entities", array)
-        result.put("ts", lastUpdateTs)
-        result.put("frameSequence", frameSequence)
-        result.put("cameraSampledAt", cameraSampledAt)
-        result.put("cameraTimestamp", cameraTimestamp)
-        result.put("cameraPositionPlaintext", cameraPositionPlaintext)
-        result.put("localPlayerControlled", localPlayerControlled)
+        world.keys().forEach { key -> result.put(key,world.get(key)) }
+        result.put("cameraPackets",cameraPackets).put("cameraFrames",cameraFrames).put("projectedFrames",projectedFrames)
+        if (cameraConnected) {
+            val c = liveCamera
+            val usable = c?.usable(world.optInt("gamePid"),world.optString("world"),System.currentTimeMillis()) == true
+            result.put("cameraPositionPlaintext",usable)
+            result.put("cameraSampledAt",c?.sampledAt ?: 0).put("cameraTimestamp",c?.timestamp ?: -1.0)
+            if (usable) result.put("camera",c!!.json())
+        }
+        result.put("snapshotAt",System.currentTimeMillis())
         return result
     }
 
@@ -261,6 +316,7 @@ class EntityFeedService : Service() {
         cameraPositionPlaintext = false
         localPlayerControlled = false
         entities.clear()
+        publishedWorld = JSONObject()
         missingFrames.clear()
         selfId = null
         lastUpdateTs = 0L

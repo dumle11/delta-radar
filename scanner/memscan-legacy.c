@@ -23,6 +23,8 @@
 #include <sys/uio.h>
 #include <sys/syscall.h>
 #include <time.h>
+#include <pthread.h>
+#include <stdatomic.h>
 
 #define GAME_PKG "com.proxima.dfm"
 #define RADAR_SOCKET_NAME "delta_radar_feed"
@@ -65,6 +67,10 @@ typedef struct {
 } MemRegion;
 
 static int game_pid = -1;
+static _Atomic uint64_t camera_stream_cache;
+static _Atomic uint64_t camera_stream_world;
+static _Atomic unsigned camera_stream_version;
+static long long sample_time_ms(void) { struct timespec t; clock_gettime(CLOCK_REALTIME,&t);return (long long)t.tv_sec*1000+t.tv_nsec/1000000; }
 static int mem_fd = -1;
 static uint64_t ue4_base = 0, ue4_end = 0;
 static MemRegion regions[MAX_REGIONS];
@@ -845,6 +851,7 @@ typedef struct {
     int native_team;
     float bone_pos[MAX_SKELETON_BONES][3]; /* world-space bone positions in meters */
     int has_bones, bone_count;
+    long long sampled_at_ms;
     int16_t bone_parent[MAX_SKELETON_BONES];
 } Entity;
 
@@ -1458,6 +1465,11 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
                 fabsf(camera_x) < 100000.0f && fabsf(camera_y) < 100000.0f &&
                 fabsf(camera_z) < 100000.0f && camera_fov >= 5.0f && camera_fov <= 180.0f;
             if (camera_valid) {
+                if (atomic_load(&camera_stream_cache) != cache || atomic_load(&camera_stream_world) != uworld) {
+                    atomic_fetch_add(&camera_stream_version,1);
+                    atomic_store(&camera_stream_cache,cache);atomic_store(&camera_stream_world,uworld);
+                    atomic_fetch_add(&camera_stream_version,1);
+                }
                 if (timestamp == last_camera_timestamp) stale_camera_frames++;
                 else { last_camera_timestamp = timestamp; stale_camera_frames = 0; }
                 /* UE stops advancing CameraCache when the game is backgrounded. */
@@ -1724,6 +1736,7 @@ camera_done:
             position_plaintext = 1;
             position_observation.decoded = 1;
         } else if (!raw_position_read) continue;
+        long long position_sampled_at = sample_time_ms();
         float wx = position[0], wy = position[1], wz = position[2];
 
         if (wx != wx || wy != wy || wz != wz) continue;
@@ -1761,6 +1774,7 @@ camera_done:
 
         Entity *e = &entities[num_entities];
         memset(e, 0, sizeof(*e));
+        e->sampled_at_ms = position_sampled_at;
         e->class_address = cached_actor_classes[i];
         snprintf(e->id, sizeof(e->id), "ent_%llx", (unsigned long long)actor_ptrs[i]);
 
@@ -1993,6 +2007,7 @@ camera_done:
     if (self_entity_id[0] == 0 && local_pc && num_entities > 0 && num_entities < MAX_ACTORS) {
         Entity *e = &entities[num_entities];
         memset(e, 0, sizeof(*e));
+        e->sampled_at_ms = sample_time_ms();
         e->class_address = 0;
         e->class_name[0] = 0;
         e->position_plaintext = 0;
@@ -2125,8 +2140,8 @@ static int post_to_radar(void) {
     }
     off += diagnostic_length;
     APPEND_SNAPSHOT(
-        ",\"cameraSampledAt\":%lld,\"cameraTimestamp\":%.6f,\"cameraPositionPlaintext\":%s,\"localPlayerControlled\":%s,\"self\":\"%s\",\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
-        camera_sampled_at_ms, (double)last_camera_timestamp, camera_position_plaintext ? "true" : "false",
+        ",\"gamePid\":%d,\"cameraSampledAt\":%lld,\"cameraTimestamp\":%.6f,\"cameraPositionPlaintext\":%s,\"localPlayerControlled\":%s,\"self\":\"%s\",\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
+        game_pid, camera_sampled_at_ms, (double)last_camera_timestamp, camera_position_plaintext ? "true" : "false",
         local_player_controlled ? "true" : "false", self_entity_id[0] ? self_entity_id : "");
     int i;
     for (i = 0; i < num_entities; i++) {
@@ -2139,12 +2154,12 @@ static int post_to_radar(void) {
         json_escape(entities[i].name, escaped_name, sizeof(escaped_name));
         json_escape(entities[i].class_name, escaped_class, sizeof(escaped_class));
         APPEND_SNAPSHOT(
-            "{\"id\":\"%s\",\"kind\":\"%s\",\"x\":%.3f,\"y\":%.3f,\"z\":%.3f,"
+            "{\"id\":\"%s\",\"kind\":\"%s\",\"sampledAt\":%lld,\"x\":%.3f,\"y\":%.3f,\"z\":%.3f,"
             "\"yaw\":%.4f,\"pitch\":%.4f,\"fov\":%.1f,\"name\":\"%s\",\"health\":%.1f,\"maxHealth\":%.1f,"
             "\"className\":\"%s\",\"classAddress\":\"0x%llx\","
             "\"healthKnown\":%s,\"positionPlaintext\":%s,\"positionDecoded\":%s,\"renderedOnScreen\":%s,"
             "\"halfHeight\":%.2f,\"dead\":%s,\"team\":%d,\"lastSeen\":%lld",
-            entities[i].id, entities[i].kind[0] ? entities[i].kind : "player",
+            entities[i].id, entities[i].kind[0] ? entities[i].kind : "player", entities[i].sampled_at_ms,
             entities[i].x, entities[i].y, entities[i].z,
             entities[i].yaw, entities[i].pitch, entities[i].fov, escaped_name, entities[i].health,
             entities[i].max_health, escaped_class, (unsigned long long)entities[i].class_address,
@@ -2197,8 +2212,9 @@ static int post_to_radar(void) {
     return 0;
 }
 
-static volatile int running = 1;
+static _Atomic int running = 1;
 static void sig_handler(int sig) { (void)sig; running = 0; }
+#include "camera-stream.h"
 
 #define WORLD_CACHE_PATH "/data/local/tmp/delta-world.cache"
 
@@ -2680,6 +2696,7 @@ int main(int argc, char **argv) {
     }
 
     if (mode_run) {
+        if (use_vm_readv) camera_stream_start();
         if (use_gworld == 0) {
             if (load_world_cache(game_pid, &use_gworld, &use_actor_src)) {
                 fprintf(stderr, "[+] Reusing verified world cache GWorld@0x%lx actorsrc=%d\n",
@@ -2772,6 +2789,7 @@ int main(int argc, char **argv) {
                     game_missing = 0;
                 }
             }
+            long long extraction_started_ms = sample_time_ms();
             int n = read_entities_sdk(use_gworld, use_actor_src,
                                       use_root_off, use_pos_off, use_ctw);
             if (n >= 0) {
@@ -2850,7 +2868,8 @@ int main(int argc, char **argv) {
                 consecutive_failures = 0;
                 zero_entity_frames = 0;
             }
-            usleep(33000); /* ~30 Hz data feed */
+            long long remaining_ms = 16 - (sample_time_ms() - extraction_started_ms);
+            if (remaining_ms > 0) usleep((useconds_t)remaining_ms * 1000);
         }
         fprintf(stderr, "\n[*] Stopped\n");
         if (mem_fd >= 0) close(mem_fd);

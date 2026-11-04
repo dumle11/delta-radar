@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.deltaradar.app.ProjectionMathTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-04T09:35:22" hostname="Adams-MacBook-Pro-2.local" time="0.001">
+<testsuite name="com.deltaradar.app.ProjectionMathTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-11-04T10:18:03" hostname="Adams-MacBook-Pro-2.local" time="0.001">
   <properties/>
   <testcase name="yAxisIsForwardAtZeroYaw" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
-  <testcase name="behindTargetNotInFront" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
+  <testcase name="behindTargetNotInFront" classname="com.deltaradar.app.ProjectionMathTest" time="0.001"/>
   <testcase name="lookingUpMovesAWorldAnchoredTargetDownTheScreen" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
   <testcase name="narrowScopeUsesItsActualFieldOfView" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
   <testcase name="offscreenClampsToEdge" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
-  <testcase name="xAxisMovesUp" classname="com.deltaradar.app.ProjectionMathTest" time="0.001"/>
+  <testcase name="xAxisMovesUp" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
   <testcase name="zAxisMovesRight" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
   <testcase name="behindTargetsPreserveSideAlongBottomEdge" classname="com.deltaradar.app.ProjectionMathTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>
