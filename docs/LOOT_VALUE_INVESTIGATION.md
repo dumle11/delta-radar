@@ -1,5 +1,8 @@
 # Loot value investigation — 2026-11-03
 
+Historical investigation. Implementation, installed build and working-branch
+decisions advanced afterward; see [CURRENT_STATUS.md](CURRENT_STATUS.md).
+
 Development branch: `codex/loot-value-investigation`. Preserve remote
 `OnePlus-all-working-lines` and tag `working-v1-2026-11-03` as the working baseline.
 The installed APK, pinned production scanner and production sources were not

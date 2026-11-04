@@ -1,5 +1,9 @@
 # Offline code audit — 2026-11-04
 
+Historical audit. Its branch/build status and pickup research notes are
+superseded by [CURRENT_STATUS.md](CURRENT_STATUS.md). Pickup and aim features
+were subsequently cancelled; outstanding instructions below are not active work.
+
 Completed on `codex/audit-cleanup`, starting from `codex/auto-pickup` at
 `5c80a1f`. No device access, installation, match testing or deployment-pin
 changes. The frozen working branch/tag remain unchanged. Start future work

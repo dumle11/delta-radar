@@ -1,8 +1,9 @@
-# Verified scanner deployment and startup — 2026-11-02
+# Verified scanner deployment and startup
 
-Historical baseline: the current SDK repair changes offsets, decoding and binary
-identity. See [the current handoff](LIVE_SDK_HANDOFF.md) and
-scanner/deployment.properties for the installed version.
+For the accepted build, rollback bundle and remaining work, start with
+[CURRENT_STATUS.md](CURRENT_STATUS.md). The root-grant toast section below
+describes the accepted 2026-11-04 update; older dated sections retain their
+original validation counts and identities as historical records.
 
 ## Root-grant toast fix installed — 2026-11-04
 
@@ -60,7 +61,9 @@ scanner. Opening MainActivity alone still does not start a scan.
 
 Readiness waits briefly for the launched child to exec the pinned binary rather
 than assuming nohup's returned PID has already exec'd. Background health checks
-verify the exact executable and session argument every three seconds. A confirmed
+originally verified the exact executable and session argument every three
+seconds. The current toast fix uses fresh verified-peer traffic first and keeps
+that root inspection as its fallback. A confirmed
 exit or reused PID revokes the old lease before a new verified session, limited
 to three recoveries in a rolling minute. Unknown/failed/uncertain checks revoke
 the lease and surface a failure; they do not dispatch another launch. A failed

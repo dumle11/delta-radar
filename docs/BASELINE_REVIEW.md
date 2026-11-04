@@ -1,5 +1,8 @@
 # Baseline repair — 2026-11-02
 
+Historical intake/baseline review. Its installed-app inventory and verification
+state are superseded by [CURRENT_STATUS.md](CURRENT_STATUS.md).
+
 Reviewed baseline: `master` at `a448200d0e645dab34c920ae3a4f7e8f14ef7d0e`.
 Completed first-repair scope: Android snapshot lifetime, truthful feed status, and cancellation of queued
 rendering across Hide/Stop. No scanner, entity-category controls, projection

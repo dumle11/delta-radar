@@ -1,5 +1,8 @@
 # OnePlus working checkpoint — 2026-11-03
 
+Historical checkpoint. The accepted 2026-11-04 pair, new frozen source tag and
+rollback bundle are documented in [CURRENT_STATUS.md](CURRENT_STATUS.md).
+
 Saved at the user's request after the first live check of the offline audit build.
 Remote branch: `OnePlus-all-working-lines`. Annotated tag:
 `working-v1-2026-11-03`. The tested application/native source is commit

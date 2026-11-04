@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "tag": "oneplus-working-2026-11-04",
+  "sourceCommit": "3f2ad5156fc6a70799ec724ada8446743574ab3c",
+  "workingBranch": "OnePlus-all-working-lines",
+  "acceptedDate": "2026-11-04",
+  "acceptance": "User reported that the installed APK is working; individual edge cases and long-session stability remain open.",
+  "deviceTarget": "OnePlus 7T / ARM64 / Android 12 API 31",
+  "artifacts": {
+    "delta-radar.apk": {
+      "sha256": "75c20508e740c0ece6a21a3fa0915b2b868c8952a3a268fd7bab4f31a1ed52db",
+      "bytes": 5653433
+    },
+    "delta-radar-scanner-api31": {
+      "sha256": "b7e4964591076cbefc65add5e94f59b0cdadea53982bb2f0f38374aff93f72c4",
+      "bytes": 16301392
+    }
+  },
+  "nativeIdentity": {
+    "project": "delta-radar",
+    "api": 31,
+    "embeddedBaseRevision": "b95dd6a8a5eb552c7cf63d2ee994800c47f4fa32",
+    "sourceSha256": "dfdfce09b627a400c831f8344adbf526cf90906f508ca014b41caa9084b54ed8",
+    "deploymentPath": "/data/local/tmp/delta-radar/scanner-api31-b7e4964591076cbe"
+  },
+  "validation": {
+    "jvm": {
+      "tests": 66,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "lintErrors": 0,
+    "lintWarnings": 145,
+    "androidAppAndInstrumentationBuilds": "passed",
+    "arm64Api31Build": "passed with warnings as errors",
+    "native": "14 ASan/UBSan programs passed before heartbeat-only change; affected camera fixture passed again after that change."
+  },
+  "provenanceNote": "The installed native identity embeds the pre-commit base revision plus exact source-input hash. The source checkpoint commit includes those inputs; a rebuild can have a different revision and binary hash."
+}

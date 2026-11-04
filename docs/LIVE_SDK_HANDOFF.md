@@ -1,6 +1,7 @@
-> Latest entry point: [SESSION_HANDOFF.md](SESSION_HANDOFF.md). The offline
-> audit on `codex/audit-cleanup` supersedes the branch/build/test totals below;
-> these sections preserve the preceding live-session findings.
+> Historical session log. Start with [CURRENT_STATUS.md](CURRENT_STATUS.md).
+> Branches, sleep/halt messages, installed identities and next-step requests
+> below describe earlier sessions. Auto-loot/backpack replacement and aim assist
+> were subsequently cancelled; their instructions are not an active agenda.
 
 ## Stopped for the night — 2026-11-04
 

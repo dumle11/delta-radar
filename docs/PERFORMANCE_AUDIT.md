@@ -1,5 +1,9 @@
 # Offline latency audit — 2026-11-02
 
+Historical audit of an earlier candidate. Branch names, counts, installed state
+and device-check status below describe that audit only. Current accepted build
+and the next measurement plan are in [CURRENT_STATUS.md](CURRENT_STATUS.md).
+
 This candidate is on `working-v1`, in [PR #2](https://github.com/dumle11/delta-radar/pull/2).
 The phone was off and charging during this audit. These are source-level fixes
 with local regression coverage; device responsiveness, player alignment and

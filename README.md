@@ -13,6 +13,10 @@ confirmed the installed APK works on 2026-11-04. Earlier experiment branches
 remain historical references; the `working-v1-2026-11-03` tag preserves the
 original OnePlus checkpoint.
 
+Start with [current status and next work](docs/CURRENT_STATUS.md). The accepted
+source is frozen at tag `oneplus-working-2026-11-04`; the matching APK/scanner
+rollback bundle is archived locally with checksums and restore instructions.
+
 ## Current installed build
 
 The [selective POC integration](docs/POC_INTEGRATION_2026-11-04.md) adds health,
@@ -24,12 +28,12 @@ user confirmed this APK works. The installed scanner identity is pinned in
 for the tested pair; individual rendering and container-discovery limits remain
 documented in the integration notes.
 
-See [the live SDK handoff](docs/LIVE_SDK_HANDOFF.md) for current results, build
-identity and remaining human-player coordinate issues. Nearby loot alignment is
-confirmed; the full player overlay is still under verification.
+The [earlier live SDK handoff](docs/LIVE_SDK_HANDOFF.md) is historical. Use the
+current-status page for installed identities and remaining device checks.
 
-The [offline performance audit](docs/PERFORMANCE_AUDIT.md) describes the latest
-latency and cache fixes, regression results, and remaining device checks.
+The [earlier performance audit](docs/PERFORMANCE_AUDIT.md) explains previous
+latency/cache changes. Current stability and performance measurements are
+tracked on the current-status page.
 
 The [saved OnePlus checkpoint](docs/ONEPLUS_WORKING_CHECKPOINT.md) records the
 2026-11-03 live-tested build, exact executable hashes and remaining acceptance
@@ -70,8 +74,9 @@ device/binary inventory, known source limitations, and test procedure. A
 successful build does not establish correct game positions or a working feed.
 
 Frames are complete snapshots. An explicit empty frame clears the previous
-world; missing actors are removed on the next frame. A validated camera frame
-expires after 750 ms without fresh input. The UI distinguishes connected,
+world; missing actors are removed on the next frame. Entity frames expire after
+750 ms; the separate camera must be at most 100 ms old, and timestamped combat
+samples over 150 ms old are omitted. The UI distinguishes connected,
 idle, stale, and waiting states. Hide invalidates pending rendering work.
 
 Local checks (Java 17 and a correctly configured local Android SDK required):

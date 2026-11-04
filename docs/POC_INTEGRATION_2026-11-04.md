@@ -1,5 +1,9 @@
 # Selective poc-wip integration — 2026-11-04
 
+This is the chronological integration record. Later installation, root-toast
+fix and user acceptance supersede its earlier not-installed/live-halt states.
+Use [CURRENT_STATUS.md](CURRENT_STATUS.md) for current identities and next work.
+
 Source reviewed: `origin/poc-wip` at `ea410c5`. Integrated into the existing
 `codex/audit-cleanup` working tree, preserving its uncommitted startup work and
 cancelled-feature cleanup. No branch switch, merge, device access, installation,
