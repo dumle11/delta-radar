@@ -7,11 +7,13 @@
 static LootValueReader loot_values;
 static uint64_t ue4_base;
 #include "../tools/pickup_context.h"
+#include "../tools/pickup_ui_link.h"
 #define BASE UINT64_C(0x200000000)
 static unsigned char bytes[2 * 1024 * 1024];
 static size_t used;
 static uint64_t mutate_address;
 static unsigned mutate_reads;
+static unsigned mutate_byte_offset;
 static uint64_t main_vm;
 static uint64_t alloc(size_t n) {
     uint64_t p = BASE + used; used = (used + n + 7) & ~(size_t)7;
@@ -24,7 +26,7 @@ static int fixture_read(void *unused, uint64_t p, void *out, size_t n) {
     (void)unused;
     if (p == ue4_base + 0x1fc9cd70 && n == 8) { memcpy(out, &main_vm, 8); return 1; }
     if (p < BASE || p - BASE > sizeof(bytes) || n > sizeof(bytes) - (p - BASE)) return 0;
-    if (p == mutate_address && ++mutate_reads == 2) bytes[p - BASE] ^= 1;
+    if (p == mutate_address && ++mutate_reads == 2) bytes[p - BASE + mutate_byte_offset] ^= 1;
     memcpy(out, bytes + p - BASE, n); return 1;
 }
 static void ptr(uint64_t p, uint64_t v) { put(p, &v, 8); }
@@ -149,6 +151,35 @@ static void full_context_fixture(void) {
     unsigned lines = 0; for (char *p = large_output; *p; p++) if (*p == '\n') lines++;
     assert(lines == PC_MAX_RECORDS + 1); free(large_output);
 }
+static void ui_link_fixture(void) {
+    reset_budget();
+    uint64_t item = table(3, 0), view = table(3, 0), slot = table(1, 0), wrapper = alloc(64), object = alloc(64);
+    uint64_t gid = UINT64_C(0xf123456789abcde0);
+    field(item, 0, "gid", 19, gid); field(item, 1, "id", 19, UINT64_C(15080050238));
+    field(item, 2, "num", 19, 1); field(item, 3, "width", 19, 2); field(item, 4, "length", 19, 1);
+    field(item, 5, "InSlot", 69, slot); field(slot, 0, "_slotGroupId", 19, 3); field(slot, 1, "SlotType", 19, 302);
+    field(view, 0, "item", 69, item); field(view, 1, "__cppinst", 71, wrapper);
+    field(view, 2, "_has_destroy_", 1, 0); field(view, 3, "_is_enable_", 1, 1);
+    field(view, 4, "bIsShow", 1, 0); field(view, 5, "_bDraging", 1, 0); field(view, 6, "_viewSearchState", 19, 0);
+    bytes[wrapper - BASE + 8] = 7; ptr(wrapper + 24, 24); ptr(wrapper + 56, object);
+    PCEntry entry = {.key = item, .key_tag = 69, .value = {.value = view, .tag = 69}};
+    PCContext ctx = {.complete = 1}; PUICell cell = {0};
+    assert(pui_cell_link(&ctx, &entry, 3, 302, &cell) && ctx.complete);
+    assert(cell.gid == gid && cell.catalog == UINT64_C(15080050238) && cell.widget == object);
+    assert(cell.columns == 1 && cell.rows == 2 && cell.raw_show == 0 && cell.enabled == 1);
+    /* False raw-show is retained, not guessed to mean invisible. */
+    field(view, 0, "item", 69, item + 8); ctx = (PCContext){.complete = 1};
+    assert(!pui_cell_link(&ctx, &entry, 3, 302, &cell) && !ctx.complete);
+    field(view, 0, "item", 69, item); ctx = (PCContext){.complete = 1};
+    assert(!pui_cell_link(&ctx, &entry, 1, 302, &cell));
+    ctx = (PCContext){.complete = 1}; assert(!pui_cell_link(&ctx, &entry, 3, 108001, &cell));
+    ptr(wrapper + 24, 32); ctx = (PCContext){.complete = 1};
+    assert(!pui_cell_link(&ctx, &entry, 3, 302, &cell)); ptr(wrapper + 24, 24);
+    field(view, 2, "_has_destroy_", 1, 1); ctx = (PCContext){.complete = 1};
+    assert(!pui_cell_link(&ctx, &entry, 3, 302, &cell)); field(view, 2, "_has_destroy_", 1, 0);
+    mutate_address = wrapper; mutate_reads = 0; mutate_byte_offset = 56; ctx = (PCContext){.complete = 1};
+    assert(!pui_cell_link(&ctx, &entry, 3, 302, &cell)); mutate_address = 0; mutate_byte_offset = 0;
+}
 int main(void) {
     loot_values.read = fixture_read; reset_budget();
     PCContext ctx = {.complete = 1};
@@ -191,7 +222,7 @@ int main(void) {
     }
     ctx = (PCContext){.complete = 1}; copied = pc_load(&ctx, big);
     assert(copied.valid && ctx.complete && copied.count == 1725); pc_free(&copied);
-    reset_budget(); full_context_fixture();
+    reset_budget(); full_context_fixture(); ui_link_fixture();
     puts("pickup context owned-memory tests passed");
     return 0;
 }

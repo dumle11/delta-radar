@@ -21,10 +21,21 @@ actor remained briefly with catalog cleared to zero, so neither actor presence
 nor disappearance alone is a valid confirmation. Earlier Reader-drop evidence
 remains ambiguous.
 
+New candidate: `loot_probe.c pickup-ui` follows the fresh persistent UI root,
+reads ItemBase-keyed source/backpack/rig cell maps, verifies reverse item/slot
+links and stable wrappers, and emits raw render geometry/tokens. It always
+keeps actionReady=false. Host capture supports `--mode pickup-ui` with the
+same pinned live guards. Native ASan/UBSan fixtures and API31 compile pass;
+13 Python tests pass. Closed/no-selector live capture and old pickup-context
+regression pass. The combined reader's open-container path is still pending
+live verification; separate exploratory cell proof does not establish it.
+The optional next-open-container request is pending while the user plays.
+
 Raw proof stays in ignored `auto-pickup-20261103/match2-*`. See
 [AUTO_PICKUP.md](AUTO_PICKUP.md#second-live-match--2026-11-04-checkpoint).
-Remaining: bounded native UI acquisition, viewport/touch conversion and
-clipping, action lifecycle and app integration. No new manual steps needed now.
+Remaining: verify the combined open-container reader, viewport/touch
+conversion and clipping, action lifecycle and app integration. No additional
+manual drop or price-panel tests needed now.
 
 ---
 

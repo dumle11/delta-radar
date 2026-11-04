@@ -335,3 +335,46 @@ The user was released to continue playing. No further manual steps have been
 requested. A bounded live UI acquisition adapter, reliable viewport/clipping
 conversion, action lifecycle and app button remain to implement. There is
 still no operational auto-pickup APK, automatic touch input or game write.
+
+## Bounded UI reader candidate — 2026-11-04
+
+`loot_probe.c pickup-ui` now uses copied Lua tables to follow the fresh
+persistent RootUI and MobileBagPanel current subview. For an ordinary
+SceneBox selector, it reads the source, own backpack and rig view maps. It
+verifies ItemBase→cell→ItemBase pointer agreement, GID/catalog/count/shape,
+slot group/type and the observed stable userdata wrapper before copying
+registry/class-verified native geometry. Duplicate GIDs in one view map reject
+the capture. It emits root render geometry and per-cell affine transforms,
+raw flags and private widget/view tokens; these are not phone touch points.
+
+Acquisition is one-shot, limited to 32K Lua reads, 64 root children, 256 cells
+per slot, 4,096 output records, copied-table guards and the existing eight-
+second process deadline. The same header/payload-copy and final-header
+caveats apply: this is not an atomic inventory/UI transaction. Output always
+keeps `actionReady: false`; it makes no remote calls or writes and sends no
+input. Missing/unsupported UI paths remain explicit. Only ordinary SceneBox
+is currently supported; player-body view routing remains to implement.
+
+The capture tool accepts `--mode pickup-ui`, retaining pinned live-frame
+before/after guards, current PID, schema/count/completion checks and private
+non-overwriting labels. Thirteen Python fixtures pass, including separate UI
+framing/truncation/action-flag/mode checks. Native owned-memory fixtures now
+cover the live table-keyed link shape, signed high-bit GIDs, normalized
+dimensions, raw-show=false preservation, wrong reverse link/group/slot, dead
+view, wrong wrapper size and concurrent wrapper payload change. ASan/UBSan
+and API31 warnings-as-errors builds pass. No Android sources changed in this
+reader step; the prior 73 JVM tests/lint results remain the latest.
+
+The deployed diagnostic hash and exact source inputs are recorded privately
+in `scanner/build/pickup-probe-build.json`. Live `pickup-ui` captures with no
+selector returned complete/stable/no cells, bound to the current match. The
+normal pickup-context mode also passed a live regression capture after the
+new dispatch was added. **The combined native reader's open-container branch
+has not yet been live-verified.** The earlier successful cell observations
+used separate exploratory reads and do not replace that check.
+
+An optional request is pending for the user to confirm the next ordinary
+container opened during normal play. Do not demand another price panel or
+repeat the ground-drop test; both needed observations are already saved.
+The match is still in progress with no outcome reported, and radar remains
+running for play. No automatic input/button or updated production APK exists.

@@ -732,13 +732,12 @@ static int native_ui_methods(void) {
 /* The verified GetCachedGeometry wrapper only reads Widget's cached Slate
  * pointer (+138/140, or weak +128/130) and copies 0x48 bytes at Slate+f0.
  * This diagnostic mirrors those reads without calling it or touching refs. */
-static int widget_geometry(uint64_t obj) {
+static int copy_widget_geometry(uint64_t obj, float out[18], char name[128], int *copied_slot) {
     int32_t index = read_i32(obj + 0x24);
     if (index <= 0 || object_at(index) != obj) return 0;
     uint64_t fn = object_at(0x326b), expected = read_ptr(fn + OFF_UOBJECT_OUTER);
     if (!fn || read_ptr(fn + 0xd8) != ue4_base + 0x1a9cfb3c) return 0;
-    char name[128] = {0};
-    if (!resolve_fname(read_i32(expected + OFF_UOBJECT_NAME), name, sizeof(name)) || strcmp(name, "Widget")) return 0;
+    if (!resolve_fname(read_i32(expected + OFF_UOBJECT_NAME), name, 128) || strcmp(name, "Widget")) return 0;
     uint64_t cls = read_ptr(obj + OFF_UOBJECT_CLASS), cur = cls;
     for (unsigned depth = 0; depth < 16 && cur && cur != expected; depth++) cur = read_ptr(cur + 0x40);
     if (cur != expected) return 0;
@@ -753,11 +752,17 @@ static int widget_geometry(uint64_t obj) {
         read_mem(slate + 0xf0, after, sizeof(after)) != sizeof(after) || memcmp(bytes, after, sizeof(bytes)) ||
         read_ptr(obj + slot) != slate || read_ptr(obj + slot + 8) != control ||
         read_i32(control + 8) < 1 || object_at(index) != obj) return 0;
-    char escaped[256]; resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name));
+    if (!resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, 128)) return 0;
+    memcpy(out, bytes, sizeof(bytes)); *copied_slot = slot; return 1;
+}
+
+static int widget_geometry(uint64_t obj) {
+    float floats[18]; char name[128] = {0}, escaped[256]; int slot;
+    if (!copy_widget_geometry(obj, floats, name, &slot)) return 0;
     json_escape(name, escaped, sizeof(escaped));
     printf("{\"record\":\"widgetGeometry\",\"class\":\"%s\",\"slot\":%d,\"floats\":[", escaped, slot);
-    for (unsigned i = 0; i < sizeof(bytes) / 4; i++) {
-        float f; memcpy(&f, bytes + i * 4, 4); if (i) printf(",");
+    for (unsigned i = 0; i < 18; i++) {
+        float f = floats[i]; if (i) printf(",");
         if (isfinite(f)) printf("%.9g", f); else printf("null");
     }
     puts("]}"); return 1;
@@ -789,6 +794,8 @@ static int ui_objects(const char *filter) {
 }
 
 #include "pickup_context.h"
+#include "pickup_ui_link.h"
+#include "pickup_ui.h"
 
 int main(int argc, char **argv) {
     alarm(8);
@@ -810,6 +817,8 @@ int main(int argc, char **argv) {
         if (!pickup_context()) return 3;
         printf("{\"record\":\"pickupContextEnd\",\"gamePid\":%d,\"capturedElapsedMs\":%lu}\n",
                game_pid, diag_now_ms());
+    } else if (!strcmp(argv[1], "pickup-ui") && argc == 2) {
+        if (!pickup_ui()) return 3;
     } else if (!strcmp(argv[1], "inventory-cache") && argc == 2) {
         if (!inventory_cache()) return 3;
     } else if (!strcmp(argv[1], "lua-price-metadata")) {

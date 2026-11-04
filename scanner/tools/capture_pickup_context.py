@@ -27,11 +27,14 @@ def validated_probe(manifest):
     return probe
 
 
-def capture(adb, manifest, pins, lobby=False, run=subprocess.run, clock=time.time):
+def capture(adb, manifest, pins, lobby=False, run=subprocess.run, clock=time.time, mode='pickup-context'):
     """The injected command runner is also used by owned-fixture tests."""
+    if mode not in ('pickup-context', 'pickup-ui'):
+        raise ValueError('invalid read-only diagnostic mode')
+    ui = mode == 'pickup-ui'
     probe = validated_probe(manifest)
     sha = manifest['sha256']
-    sample = dict(schemaVersion=1, hostStarted=clock(), lobbyCheck=lobby,
+    sample = dict(schemaVersion=1, mode=mode, hostStarted=clock(), lobbyCheck=lobby,
                   probe=manifest, complete=False, liveFrameVerified=False,
                   actionReady=False, steps=[])
 
@@ -69,19 +72,21 @@ def capture(adb, manifest, pins, lobby=False, run=subprocess.run, clock=time.tim
         if not lobby:
             before, before_self = frame('frame-before')
             sample['frameBefore'] = before
-        stdout = command('pickup-context', ['shell', '-T', 'su -c ' + shlex.quote(
-            shlex.join([probe, 'pickup-context']))])
+        stdout = command(mode, ['shell', '-T', 'su -c ' + shlex.quote(
+            shlex.join([probe, mode]))])
         records = [json.loads(line) for line in stdout.splitlines() if line.startswith('{')]
         sample['records'] = records
-        begins = [r for r in records if r.get('record') == 'pickupContextBegin']
-        summaries = [r for r in records if r.get('record') == 'pickupContextSummary']
-        ends = [r for r in records if r.get('record') == 'pickupContextEnd']
+        prefix = 'pickupUi' if ui else 'pickupContext'
+        begins = [r for r in records if r.get('record') == prefix + 'Begin']
+        summaries = [r for r in records if r.get('record') == prefix + 'Summary']
+        ends = summaries if ui else [r for r in records if r.get('record') == prefix + 'End']
         if len(begins) != 1 or len(summaries) != 1 or len(ends) != 1:
             raise RuntimeError('missing/duplicate diagnostic completion records')
         begin, summary, end = begins[0], summaries[0], ends[0]
-        if (records[0] != begin or records[-1] != end or records[-2] != summary or
+        framing = 2 if ui else 3
+        if (records[0] != begin or records[-1] != end or records[-(1 if ui else 2)] != summary or
                 begin.get('schemaVersion') != 1 or summary.get('actionReady') is not False or
-                len(records) > 4099 or summary.get('dataRecords') != len(records) - 3 or
+                len(records) > 4096 + framing or summary.get('dataRecords') != len(records) - framing or
                 not isinstance(begin.get('gamePid'), int) or begin['gamePid'] <= 0 or
                 end.get('gamePid') != begin['gamePid'] or
                 not 0 <= end['capturedElapsedMs'] - begin['capturedElapsedMs'] <= 8000):
@@ -113,6 +118,7 @@ def main():
     parser.add_argument('--label', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--lobby', action='store_true')
+    parser.add_argument('--mode', choices=('pickup-context', 'pickup-ui'), default='pickup-context')
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', args.label):
         parser.error('invalid label')
@@ -131,7 +137,7 @@ def main():
     try:
         # Reserve once, before any device reads. A repeat label never overwrites.
         with dest.open('x') as handle:
-            sample = capture([args.adb, '-s', args.serial], manifest, pins, args.lobby)
+            sample = capture([args.adb, '-s', args.serial], manifest, pins, args.lobby, mode=args.mode)
             handle.write(json.dumps(sample, indent=2) + '\n')
     except FileExistsError:
         parser.error('label already exists')

@@ -47,6 +47,10 @@ class Commands:
                 dict(record='pickupContextSummary', complete=self.native_complete,
                      actionReady=self.action_ready, dataRecords=0),
                 dict(record='pickupContextEnd', gamePid=123, capturedElapsedMs=120)]
+            if args[-1].endswith("pickup-ui'") or args[-1].endswith('pickup-ui'):
+                records = [dict(record='pickupUiBegin', schemaVersion=1, gamePid=123, capturedElapsedMs=100),
+                    dict(record='pickupUiSummary', complete=self.native_complete,
+                         actionReady=self.action_ready, dataRecords=0, gamePid=123, capturedElapsedMs=120)]
             if self.truncate:
                 records.pop()
             output = '\n'.join(json.dumps(r) for r in records)
@@ -57,9 +61,26 @@ class Commands:
 
 
 class CaptureTest(unittest.TestCase):
-    def capture(self, commands, lobby=False):
+    def capture(self, commands, lobby=False, mode='pickup-context'):
         return module.capture(['adb-fixture', '-s', 'fixture'], MANIFEST, PINS,
-                              lobby=lobby, run=commands, clock=lambda: 100.0)
+                              lobby=lobby, run=commands, clock=lambda: 100.0, mode=mode)
+
+    def test_ui_capture_uses_its_own_framing_and_live_guards(self):
+        commands = Commands(); result = self.capture(commands, mode='pickup-ui')
+        self.assertTrue(result['complete']); self.assertTrue(result['liveFrameVerified'])
+        self.assertEqual('pickup-ui', result['mode']); self.assertFalse(result['actionReady'])
+        self.assertEqual(5, len(commands.calls))
+
+    def test_ui_truncation_and_action_flag_are_rejected(self):
+        for option in ('truncate', 'action_ready'):
+            commands = Commands(); setattr(commands, option, True)
+            self.assertFalse(self.capture(commands, mode='pickup-ui')['complete'])
+
+    def test_unknown_mode_is_rejected_before_device_reads(self):
+        commands = Commands()
+        with self.assertRaises(ValueError):
+            self.capture(commands, mode='pickup-ui; input tap 1 1')
+        self.assertEqual([], commands.calls)
 
     def test_live_context_is_bound_before_and_after_and_never_actionable(self):
         commands = Commands(); result = self.capture(commands)
