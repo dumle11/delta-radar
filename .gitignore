@@ -5,7 +5,7 @@
 # Reproducible native outputs are local artifacts.
 /scanner/build/
 
-# Ignore additional generated files in the upstream tracked build trees.
+# Generated Android build state stays local.
 /android/.gradle/
 /android/.kotlin/
 /android/app/build/
@@ -14,3 +14,6 @@
 
 /scanner/tools/__pycache__/
 /scanner/tests/__pycache__/
+
+# Finder metadata
+.DS_Store
