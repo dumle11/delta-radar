@@ -10,7 +10,7 @@ import android.os.SystemClock
 import android.view.View
 import kotlin.math.roundToInt
 
-class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View(context) {
+class EnemyLinesView(context: Context) : View(context) {
     companion object {
         const val FRESHNESS_MS = EntitySnapshotStore.FRESHNESS_MS
         private val BONE_CONNECTIONS = intArrayOf(
@@ -82,8 +82,9 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     private val rounded = RectF()
     private val lootEdgeMarker = Path()
     private val candidateLabel = RectF()
+    private val labelBounds = Array(EntitySnapshotStore.MAX_ENTITIES) { RectF() }
     private val fontMetrics = Paint.FontMetrics()
-    private val expire = Runnable { clear(); onExpired() }
+    private val expire = Runnable { clear() }
 
     init {
         visibility = GONE
@@ -138,7 +139,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                 .put("botFeatures", botFeatures).put("lootFeatures", lootFeatures)
         }
         val padding = 2f * density
-        val occupied = mutableListOf<RectF>()
+        var occupiedCount = 0
         for (enemy in data.enemies) {
             // Tracers, labels and boxes must use the same camera sample.
             // Blending screen coordinates adds lag during every camera turn.
@@ -316,13 +317,17 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
 
                 for (attempt in 0..5) {
                     candidateLabel.set(lx, ly, lx + rowWidth, ly + labelHeight)
-                    if (occupied.none { RectF.intersects(it, candidateLabel) }) break
+                    var overlaps = false
+                    for (i in 0 until occupiedCount) {
+                        if (RectF.intersects(labelBounds[i], candidateLabel)) { overlaps = true; break }
+                    }
+                    if (!overlaps) break
                     ly -= labelHeight + 2 * density
                     if (ly < 0f) { ly = (labelTopY + 3 * density).coerceAtMost(height - labelHeight); break }
                 }
 
-                val occupiedRect = RectF(lx, ly, lx + rowWidth, ly + labelHeight)
-                occupied.add(occupiedRect)
+                if (occupiedCount < labelBounds.size)
+                    labelBounds[occupiedCount++].set(lx, ly, lx + rowWidth, ly + labelHeight)
                 if (drawName) {
                     rounded.set(lx, ly, lx + nameWidth, ly + labelHeight)
                     canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelBgPaint)

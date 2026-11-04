@@ -135,12 +135,7 @@ static int pickup_ui(void) {
         pc_free(&children); pc_free(&root);
     }
     pc_free(&globals); pc_free(&groups); pc_free(&kinds); pc_free(&pickup_types); pc_free(&loot); pc_free(&selected);
-    int stable = 1;
-    for (unsigned i = 0; i < ctx.count; i++) {
-        unsigned char now[32];
-        if (!lv_read(&loot_values, ctx.guards[i].address, now, sizeof(now)) ||
-            memcmp(now + 10, ctx.guards[i].header + 10, 22)) stable = 0;
-    }
+    int stable = pc_guards_stable(&ctx);
     if (!stable || lv_ptr(&loot_values, ue4_base + 0x1fc9cd70) != vm) ctx.complete = 0;
     printf("{\"record\":\"pickupUiSummary\",\"complete\":%s,\"actionReady\":false,\"guardsStable\":%s,\"dataRecords\":%u,\"tablesCopied\":%u,\"readsRemaining\":%u,\"gamePid\":%d,\"capturedElapsedMs\":%lu}\n",
            ctx.complete ? "true" : "false", stable ? "true" : "false", ctx.records, ctx.count, loot_values.read_budget, game_pid, diag_now_ms());

@@ -49,7 +49,10 @@ static PCTable pc_load(PCContext *ctx, uint64_t address) {
     size_t nb = nn * sizeof(LVNode), ab = na * sizeof(LVValue);
     nodes = malloc(nb); check_nodes = malloc(nb);
     array = malloc(ab ? ab : 1); check_array = malloc(ab ? ab : 1);
-    t.entries = calloc(PC_MAX_ENTRIES, sizeof(PCEntry));
+    /* Most copied tables contain only a handful of fields. Do not allocate
+     * and zero the maximum 8K-entry slab for every one of them. */
+    size_t capacity = na + nn < PC_MAX_ENTRIES ? na + nn : PC_MAX_ENTRIES;
+    t.entries = calloc(capacity, sizeof(PCEntry));
     if (!nodes || !check_nodes || !array || !check_array || !t.entries ||
         !lv_read(&loot_values, np, nodes, nb) || (ab && !lv_read(&loot_values, ap, array, ab))) goto fail;
     for (unsigned i = 0; i < na + nn; i++) {
@@ -98,6 +101,17 @@ static LVValue pc_field(const PCTable *t, const char *name) {
     for (unsigned i = 0; i < t->count; i++)
         if (!strcmp(t->entries[i].name, name)) return t->entries[i].value;
     return (LVValue){0};
+}
+
+static int pc_guards_stable(PCContext *ctx) {
+    int stable = 1;
+    for (unsigned i = 0; i < ctx->count; i++) {
+        unsigned char now[32];
+        if (!lv_read(&loot_values, ctx->guards[i].address, now, sizeof(now)) ||
+            memcmp(now + 10, ctx->guards[i].header + 10, 22)) stable = 0;
+    }
+    if (!stable) ctx->complete = 0;
+    return stable;
 }
 static LVValue pc_numeric(const PCTable *t, int64_t key) {
     for (unsigned i = 0; i < t->count; i++) {
@@ -328,12 +342,7 @@ static int pickup_context(void) {
         ctx.complete = ctx.complete && previous_complete;
     }
     pc_free(&enums); pc_free(&item_groups); pc_free(&slot_groups);
-    int guards_stable = 1;
-    for (unsigned i = 0; i < ctx.count; i++) {
-        unsigned char now[32];
-        if (!lv_read(&loot_values, ctx.guards[i].address, now, sizeof(now)) ||
-            memcmp(now + 10, ctx.guards[i].header + 10, 22)) { ctx.complete = 0; guards_stable = 0; }
-    }
+    int guards_stable = pc_guards_stable(&ctx);
     if (lv_ptr(&loot_values, ue4_base + 0x1fc9cd70) != vm) ctx.complete = 0;
     printf("{\"record\":\"pickupContextSummary\",\"complete\":%s,\"actionReady\":false,\"pricesAvailable\":%s,\"tablesCopied\":%u,\"dataRecords\":%u,\"readsRemaining\":%u,\"rootsComplete\":%s,\"guardsStable\":%s}\n",
            ctx.complete ? "true" : "false", loot_values.node_count ? "true" : "false", ctx.count, ctx.records, loot_values.read_budget,

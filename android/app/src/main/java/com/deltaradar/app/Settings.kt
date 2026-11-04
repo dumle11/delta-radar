@@ -1,7 +1,6 @@
 package com.deltaradar.app
 
 import android.content.Context
-import android.graphics.Color
 
 object Settings {
     private const val PREFS = "delta_radar"
@@ -50,20 +49,16 @@ object Settings {
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun drawEnemyLines(ctx: Context) = prefs(ctx).getBoolean(LINES_KEY, false)
-    fun setDrawEnemyLines(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(LINES_KEY, v).apply() }
+    private fun drawEnemyLines(ctx: Context) = prefs(ctx).getBoolean(LINES_KEY, false)
 
-    fun showEnemyLabels(ctx: Context) = prefs(ctx).getBoolean(LABELS_KEY, false)
-    fun setShowEnemyLabels(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(LABELS_KEY, v).apply() }
+    private fun showEnemyLabels(ctx: Context) = prefs(ctx).getBoolean(LABELS_KEY, false)
 
-    fun showPlayers(ctx: Context) = prefs(ctx).getBoolean(SHOW_PLAYERS_KEY, true)
-    fun setShowPlayers(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(SHOW_PLAYERS_KEY, v).apply() }
+    private fun showPlayers(ctx: Context) = prefs(ctx).getBoolean(SHOW_PLAYERS_KEY, true)
 
-    fun showTeammates(ctx: Context) = prefs(ctx).getBoolean(SHOW_TEAMMATES_KEY, false)
-    fun setShowTeammates(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(SHOW_TEAMMATES_KEY, v).apply() }
+    private fun showTeammates(ctx: Context) = prefs(ctx).getBoolean(SHOW_TEAMMATES_KEY, false)
 
-    fun showLoot(ctx: Context) = prefs(ctx).getBoolean(SHOW_LOOT_KEY, false)
-    fun setShowLoot(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(SHOW_LOOT_KEY, v).apply() }
+    private fun showLoot(ctx: Context) = prefs(ctx).getBoolean(SHOW_LOOT_KEY, false)
+    private fun setShowLoot(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(SHOW_LOOT_KEY, v).apply() }
 
     fun lootValueFilter(ctx: Context) = prefs(ctx).getBoolean(LOOT_VALUE_FILTER_KEY, false)
     fun setLootValueFilter(ctx: Context, enabled: Boolean) {

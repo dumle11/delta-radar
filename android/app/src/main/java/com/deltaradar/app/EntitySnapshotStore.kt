@@ -5,7 +5,12 @@ import org.json.JSONObject
 
 /** Complete scanner frames, committed atomically and aged with a monotonic clock. */
 class EntitySnapshotStore(private val clock: () -> Long) {
-    companion object { const val FRESHNESS_MS = 750L }
+    companion object {
+        const val FRESHNESS_MS = 750L
+        // Current scanner bounds are 512 actors and roughly 1 MiB of JSON.
+        const val MAX_FRAME_CHARS = 2 * 1024 * 1024
+        const val MAX_ENTITIES = 1024
+    }
 
     data class Status(
         val receivedAtMs: Long, val sequence: Long, val fresh: Boolean,
@@ -19,6 +24,7 @@ class EntitySnapshotStore(private val clock: () -> Long) {
     private var worldGeneration = 0L
 
     @Synchronized fun ingest(line: String): Boolean {
+        if (line.length > MAX_FRAME_CHARS) return false
         // Validate the entire frame before changing the visible snapshot or its age.
         val arrivedAt = clock()
         var capturedAt = arrivedAt
@@ -29,8 +35,10 @@ class EntitySnapshotStore(private val clock: () -> Long) {
                 // device boot clock. Socket backlog must not rejuvenate old data.
                 capturedAt = input.getLong("capturedElapsedMs")
                 require(capturedAt >= 0 && arrivedAt - capturedAt in 0 until FRESHNESS_MS)
+                require(capturedAt >= receivedAtMs) // Reject an older still-fresh buffered frame.
             }
             val list = input.getJSONArray("entities")
+            require(list.length() <= MAX_ENTITIES)
             val self = input.optString("self", "")
             val ids = HashSet<String>()
             val accepted = JSONArray()

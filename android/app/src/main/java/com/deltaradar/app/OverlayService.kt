@@ -75,7 +75,7 @@ class OverlayService : Service() {
 
     private fun ensureEnemyLinesWindow() {
         if (enemyLinesView != null || !AndroidSettings.canDrawOverlays(this)) return
-        val view = EnemyLinesView(this) { menuView?.let { updateOverlayStatus(it) } }
+        val view = EnemyLinesView(this)
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -91,8 +91,6 @@ class OverlayService : Service() {
         try { wm.addView(view, params); enemyLinesView = view }
         catch (e: Exception) { android.util.Log.w("DeltaRadar", "Overlay window: ${e.message}") }
     }
-
-    @Volatile private var refreshCount = 0L
 
     /** May be called by the feed thread. Intermediate snapshots are not queued. */
     fun requestEnemyLinesRefresh() {
@@ -125,7 +123,6 @@ class OverlayService : Service() {
 
     private fun refreshEnemyLines(finished: () -> Unit) {
         val generation = lifecycle.capture() ?: run { finished(); return }
-        refreshCount++
         val service = EntityFeedService.instance
         if (service == null) {
             publishProjection(finished) { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
@@ -221,11 +218,8 @@ class OverlayService : Service() {
                 kind == "player" -> playerFeatures
                 else -> botFeatures
             }
-            if (isCombatEntity && features and Settings.FEATURE_ENABLED == 0) {
-                rejected.add("$id:type-off"); continue
-            }
-            if (!isCombatEntity && features and Settings.FEATURE_ENABLED == 0) {
-                rejected.add("$id:loot-off"); continue
+            if (features and Settings.FEATURE_ENABLED == 0) {
+                rejected.add("$id:${if (isCombatEntity) "type-off" else "loot-off"}"); continue
             }
 
             val halfHeight = when (kind) {
@@ -240,20 +234,13 @@ class OverlayService : Service() {
             // Only draw entities in the camera-facing hemisphere. Targets
             // behind the player must not produce bottom-edge tracers or labels.
             if (!point.inFront) { rejected.add("$id:behind"); continue }
-            // The replicated actor origin sits above the rendered model's visual
-            // centre in this build. Keep the measured capsule height, but lower
-            // the whole box so its bottom follows the character's feet.
-            // RootComponent is the centre of the character capsule.  Applying
-            // an additional downward bias made boxes slide below operators on
-            // hills and as the camera pitched.  Project the actual capsule
-            // endpoints instead; perspective supplies the required scaling.
-            val visualCenterDrop = 0.0
+            // RootComponent is the capsule centre; project its actual endpoints.
             val head = ProjectionMath.project(
-                ex - mx, ey - my, baseZ - mz + halfHeight - visualCenterDrop,
+                ex - mx, ey - my, baseZ - mz + halfHeight,
                 myYaw, myPitch, hfovDeg, screenAspect
             )
             val feet = ProjectionMath.project(
-                ex - mx, ey - my, baseZ - mz - halfHeight - visualCenterDrop,
+                ex - mx, ey - my, baseZ - mz - halfHeight,
                 myYaw, myPitch, hfovDeg, screenAspect
             )
 
@@ -423,7 +410,6 @@ class OverlayService : Service() {
         setupTabs(view)
         setupGeneralTab(view)
         setupVisualTab(view)
-        updateOverlayStatus(view)
 
         view.findViewById<View>(R.id.btnClose).setOnClickListener { closeMenu() }
         view.findViewById<View>(R.id.menuBackground).setOnClickListener { closeMenu() }
@@ -471,59 +457,6 @@ class OverlayService : Service() {
     }
 
     private fun setupVisualTab(view: View) {
-        val lines = com.deltaradar.app.Settings.drawEnemyLines(this)
-        val labels = com.deltaradar.app.Settings.showEnemyLabels(this)
-        updateToggle(view.findViewById(R.id.toggleEnemyLinesState), lines)
-        updateToggle(view.findViewById(R.id.toggleEnemyLabelsState), labels)
-
-        view.findViewById<LinearLayout>(R.id.toggleEnemyLines).setOnClickListener {
-            val enabled = !com.deltaradar.app.Settings.drawEnemyLines(this)
-            com.deltaradar.app.Settings.setDrawEnemyLines(this, enabled)
-            updateToggle(view.findViewById(R.id.toggleEnemyLinesState), enabled)
-            updateOverlayStatus(view)
-        }
-        view.findViewById<LinearLayout>(R.id.toggleEnemyLabels).setOnClickListener {
-            val enabled = !com.deltaradar.app.Settings.showEnemyLabels(this)
-            com.deltaradar.app.Settings.setShowEnemyLabels(this, enabled)
-            updateToggle(view.findViewById(R.id.toggleEnemyLabelsState), enabled)
-            updateOverlayStatus(view)
-        }
-
-        val showPlayers = com.deltaradar.app.Settings.showPlayers(this)
-        updateToggle(view.findViewById(R.id.toggleShowPlayersState), showPlayers)
-        view.findViewById<LinearLayout>(R.id.toggleShowPlayers).setOnClickListener {
-            val enabled = !com.deltaradar.app.Settings.showPlayers(this)
-            com.deltaradar.app.Settings.setShowPlayers(this, enabled)
-            updateToggle(view.findViewById(R.id.toggleShowPlayersState), enabled)
-        }
-
-        val showTeammates = com.deltaradar.app.Settings.showTeammates(this)
-        updateToggle(view.findViewById(R.id.toggleShowTeammatesState), showTeammates)
-        view.findViewById<LinearLayout>(R.id.toggleShowTeammates).setOnClickListener {
-            val enabled = !com.deltaradar.app.Settings.showTeammates(this)
-            com.deltaradar.app.Settings.setShowTeammates(this, enabled)
-            updateToggle(view.findViewById(R.id.toggleShowTeammatesState), enabled)
-        }
-
-        val showLoot = com.deltaradar.app.Settings.showLoot(this)
-        updateToggle(view.findViewById(R.id.toggleShowLootState), showLoot)
-        view.findViewById<LinearLayout>(R.id.toggleShowLoot).setOnClickListener {
-            val enabled = !com.deltaradar.app.Settings.showLoot(this)
-            com.deltaradar.app.Settings.setShowLoot(this, enabled)
-            updateToggle(view.findViewById(R.id.toggleShowLootState), enabled)
-        }
-
-        // Lines, names, distance and visibility are now configured per entity
-        // type below. Keep the old rows hidden so upgraded installs can still
-        // migrate their saved values without presenting conflicting controls.
-        view.findViewById<View>(R.id.toggleEnemyLines).visibility = View.GONE
-        view.findViewById<View>(R.id.enemyLinesDetails).visibility = View.GONE
-        view.findViewById<View>(R.id.toggleEnemyLabels).visibility = View.GONE
-        view.findViewById<View>(R.id.enemyLabelsDetails).visibility = View.GONE
-        view.findViewById<View>(R.id.toggleShowPlayers).visibility = View.GONE
-        view.findViewById<View>(R.id.toggleShowTeammates).visibility = View.GONE
-        view.findViewById<View>(R.id.toggleShowLoot).visibility = View.GONE
-
         setupEntityFeaturePanel(view, R.id.playerFeatureContainer, Settings.EntityType.PLAYER)
         setupEntityFeaturePanel(view, R.id.teammateFeatureContainer, Settings.EntityType.TEAMMATE)
         setupEntityFeaturePanel(view, R.id.botFeatureContainer, Settings.EntityType.BOT)
@@ -790,23 +723,6 @@ class OverlayService : Service() {
         update(currentMode)
         buttons.forEachIndexed { i, btn ->
             btn.setOnClickListener { update(modes[i]); onSelect(modes[i]) }
-        }
-    }
-
-    private fun updateOverlayStatus(view: View) {
-        val lines = com.deltaradar.app.Settings.drawEnemyLines(this)
-        val labels = com.deltaradar.app.Settings.showEnemyLabels(this)
-        val service = EntityFeedService.instance
-        val entities = service?.entityCount ?: 0
-        view.findViewById<TextView>(R.id.enemyLinesDetails).text = when {
-            !lines -> "Lines are disabled"
-            entities == 0 -> "Waiting for entity data"
-            else -> "Drawing lines to enemies"
-        }
-        view.findViewById<TextView>(R.id.enemyLabelsDetails).text = when {
-            !labels -> "Labels are disabled"
-            entities == 0 -> "Waiting for entity data"
-            else -> "Showing name and distance"
         }
     }
 

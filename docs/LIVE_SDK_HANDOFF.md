@@ -1,4 +1,8 @@
-## Stopped for the night — 2026-11-04 (resume here)
+> Latest entry point: [SESSION_HANDOFF.md](SESSION_HANDOFF.md). The offline
+> audit on `codex/audit-cleanup` supersedes the branch/build/test totals below;
+> these sections preserve the preceding live-session findings.
+
+## Stopped for the night — 2026-11-04
 
 The user reported being killed in match two and asked to finish/save everything
 for sleep. **No further match or test requests tonight.** Radar is stopped;

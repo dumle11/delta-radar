@@ -38,7 +38,7 @@ class CommandRunner(private val spawn: (List<String>) -> Process = {
             try {
                 process.inputStream.use { stream ->
                     val buffer = ByteArray(4096)
-                    while (reading.get() || stream.available() > 0) {
+                    while (!Thread.currentThread().isInterrupted && (reading.get() || stream.available() > 0)) {
                         val available = stream.available()
                         if (available <= 0) { Thread.sleep(5); continue }
                         val count = stream.read(buffer, 0, minOf(buffer.size, available))
@@ -65,6 +65,10 @@ class CommandRunner(private val spawn: (List<String>) -> Process = {
             return Result("", null, false, true)
         } finally {
             reading.set(false)
+            // A descendant may keep producing after its parent exited. Do not
+            // leave a daemon and pipe draining forever after the bounded join.
+            reader.interrupt()
+            try { process.inputStream.close() } catch (_: Exception) {}
             cancellation.release(process)
         }
     }

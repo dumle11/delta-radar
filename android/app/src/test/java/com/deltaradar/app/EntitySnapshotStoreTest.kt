@@ -4,6 +4,27 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class EntitySnapshotStoreTest {
+    @Test fun olderStillFreshFrameCannotRewindCameraOrClearTheWorld() {
+        now = 1_000
+        assertTrue(store.ingest(frame(entity("current")).replaceFirst("{", "{\"capturedElapsedMs\":900,")))
+        val current = store.snapshot()
+        now = 1_100
+        for (older in listOf(frame(entity("old")), """{"self":"","entities":[]}""")) {
+            assertFalse(store.ingest(older.replaceFirst("{", "{\"capturedElapsedMs\":850,")))
+            assertEquals(current.status.sequence, store.status().sequence)
+            assertEquals(900L, store.status().receivedAtMs)
+        }
+        assertTrue(store.snapshot().json.toString().contains("current"))
+    }
+
+    @Test fun oversizedFrameOrEntityArrayCannotReplaceValidData() {
+        assertTrue(store.ingest(frame(entity("current"))))
+        val sequence = store.status().sequence
+        assertFalse(store.ingest(" ".repeat(EntitySnapshotStore.MAX_FRAME_CHARS + 1)))
+        val tooMany = Array(EntitySnapshotStore.MAX_ENTITIES) { entity("extra-$it") }
+        assertFalse(store.ingest(frame(*tooMany))) // Includes the camera as well.
+        assertEquals(sequence, store.status().sequence)
+    }
     @Test fun transportDelayCountsAgainstFreshnessInsteadOfRenewingIt() {
         now = 600
         val captured = frame(entity("enemy")).replaceFirst("{", "{\"capturedElapsedMs\":100,")

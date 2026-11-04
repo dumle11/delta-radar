@@ -9,13 +9,11 @@ import android.content.Intent
 import android.net.LocalServerSocket
 import android.net.LocalSocket
 import android.os.Binder
-import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
 import android.system.Os
 import android.system.OsConstants
-import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
@@ -51,8 +49,7 @@ class EntityFeedService : Service() {
 
         fun start(ctx: Context) {
             val intent = Intent(ctx, EntityFeedService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ctx.startForegroundService(intent)
-            else ctx.startService(intent)
+            ctx.startForegroundService(intent)
         }
         fun stop(ctx: Context) = ctx.stopService(Intent(ctx, EntityFeedService::class.java))
     }
@@ -60,11 +57,9 @@ class EntityFeedService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            getSystemService(NotificationManager::class.java).createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Delta Radar", NotificationManager.IMPORTANCE_LOW)
-            )
-        }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, "Delta Radar", NotificationManager.IMPORTANCE_LOW)
+        )
         startForeground(1, Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Delta Radar")
             .setContentText("Overlay entity feed active")
@@ -130,13 +125,14 @@ class EntityFeedService : Service() {
                         if (running.get()) { activeClient = client; true } else false
                     }
                     if (!accepted) { closeClient(client); break }
-                    val peer = client.peerCredentials
-                    sourcePeerPid = peer.pid
-                    sourcePeerUid = peer.uid
-                    Log.i(TAG, "Entity socket accepted: peerPid=${peer.pid} peerUid=${peer.uid}")
-                    client.soTimeout = 2000
                     try {
-                        BufferedReader(InputStreamReader(client.inputStream), 256 * 1024).use { reader ->
+                        val peer = client.peerCredentials
+                        sourcePeerPid = peer.pid
+                        sourcePeerUid = peer.uid
+                        Log.i(TAG, "Entity socket accepted: peerPid=${peer.pid} peerUid=${peer.uid}")
+                        client.soTimeout = 2000
+                        BoundedLineReader(InputStreamReader(client.inputStream, Charsets.UTF_8),
+                            EntitySnapshotStore.MAX_FRAME_CHARS).use { reader ->
                             while (running.get()) {
                                 val line = reader.readLine() ?: break
                                 if (running.get() && line.startsWith("{")) ingest(line)
@@ -187,13 +183,7 @@ class EntityFeedService : Service() {
     fun canRender(status: EntitySnapshotStore.Status): Boolean = running.get() && snapshots.canRender(status)
     fun clearEntities() = snapshots.clear()
 
-    private val logLines = mutableListOf<String>()
-    fun getLogLines(): List<String> = synchronized(logLines) { logLines.toList() }
-    fun log(message: String) {
-        synchronized(logLines) {
-            logLines.add(message)
-            if (logLines.size > 100) logLines.removeAt(0)
-        }
+    private fun log(message: String) {
         OverlayService.instance?.addLog("[Feed] $message")
     }
 }

@@ -26,7 +26,7 @@ is not enabled in the installed radar.
 ## Components
 
 - `scanner/memscan.c` — native actor, transform, health, death, and team reader.
-- `scanner/launch.sh` — starts the scanner early enough to retain read access.
+- `scanner/tools/build_scanner.py` — builds the pinned scanner; deployment is explicit.
 - `android/` — floating menu and on-device overlay renderer.
 
 ## Build
@@ -36,9 +36,8 @@ is not enabled in the installed radar.
 ./android/gradlew -p android assembleDebug
 ```
 
-Configure your local SDK location in `android/local.properties`. Local SDK configuration is ignored. Old build/cache output is tracked in this
-upstream checkout; keep local SDK
-paths and regenerated artifacts out of source changes.
+Configure your local SDK location in `android/local.properties`. SDK paths,
+Gradle caches and generated build outputs stay local and are ignored by Git.
 
 The scanner and Android app must use the same abstract socket name:
 `delta_radar_feed`.
@@ -58,6 +57,13 @@ Local checks (Java 17 and a correctly configured local Android SDK required):
 
 ```sh
 ./android/gradlew -p android testDebugUnitTest assembleDebug assembleDebugAndroidTest lintDebug
+```
+
+Linux native owned-memory and host capture checks (no device access):
+
+```sh
+python3 scanner/tests/run.py
+python3 -m unittest discover -s scanner/tests -p 'test_*.py'
 ```
 
 The original service tests use only test fixtures and local sockets. Additional

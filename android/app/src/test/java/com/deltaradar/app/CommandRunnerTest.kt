@@ -1,15 +1,44 @@
 package com.deltaradar.app
 
-import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.io.InputStream
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import org.junit.Assert.*
 import org.junit.Test
 import kotlin.concurrent.thread
 
 class CommandRunnerTest {
+    @Test fun inheritedContinuouslyProducingOutputIsClosedAfterTheBoundedDrain() {
+        val closed = CountDownLatch(1)
+        val stream = object : InputStream() {
+            @Volatile var stopped = false
+            override fun available() = if (stopped) 0 else 4096
+            override fun read() = if (stopped) -1 else 'x'.code
+            override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
+                if (stopped) return -1
+                java.util.Arrays.fill(bytes, offset, offset + length, 'x'.code.toByte())
+                return length
+            }
+            override fun close() { stopped = true; closed.countDown() }
+        }
+        val process = object : Process() {
+            override fun getInputStream() = stream
+            override fun getOutputStream() = ByteArrayOutputStream()
+            override fun getErrorStream() = ByteArrayInputStream(byteArrayOf())
+            override fun waitFor() = 0
+            override fun waitFor(timeout: Long, unit: TimeUnit) = true
+            override fun exitValue() = 0
+            override fun destroy() = Unit
+        }
+        try {
+            assertTrue(CommandRunner { process }.run(listOf("owned-fixture"), 1000).success)
+            assertTrue(closed.await(500, TimeUnit.MILLISECONDS))
+        } finally { stream.close() }
+    }
     @Test fun outputAndExitCodeAreReturnedWithoutRetry() {
         val calls = AtomicInteger()
         val runner = CommandRunner { calls.incrementAndGet(); ProcessBuilder(it).redirectErrorStream(true).start() }
