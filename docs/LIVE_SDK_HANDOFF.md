@@ -1,7 +1,36 @@
+## Stopped for the night — 2026-11-04 (resume here)
+
+The user reported being killed in match two and asked to finish/save everything
+for sleep. **No further match or test requests tonight.** Radar is stopped;
+zero project scanner processes were verified. The radar app was then stopped
+and zero radar app processes verified. The unrelated memscan binary remains
+unchanged. The game was not restarted or force-stopped. No crash was reported.
+
+Work is on `codex/auto-pickup`. Production APK/native, deployment pins and
+`OnePlus-all-working-lines` remain unchanged. There is no operational
+auto-pickup/replacement APK or automated input yet.
+
+Resume with the combined `pickup-ui` reader's first live ordinary-container
+check (`capture_pickup_context.py --mode pickup-ui`). It is separately deployed
+and hash-pinned in ignored `scanner/build/pickup-probe-build.json`. Closed-path
+live verification passed; the open branch is pending. Exploratory item-cell
+linkage and the positive ground-drop/re-pickup cycle already passed, so do not
+repeat price panels or manual drop tests without a new reason. Then finish
+viewport/touch conversion, clipping, window generation, action lifecycle and
+button integration. Player-body routing/stacks remain unsupported.
+
+Checks: native ASan/UBSan fixtures (now including UI links) and API31
+warnings-as-errors build pass; 13 host capture tests pass. The latest Android
+checks remain 73 JVM tests passing and lint zero errors/168 warnings; Android
+code was unchanged in this reader step. Raw proof/outcome remains ignored in
+`evidence/local/session/auto-pickup-20261103/match2-*`.
+
+---
+
 ## Second auto-pickup live match — 2026-11-04 (latest)
 
-Current branch `codex/auto-pickup`; second match is in progress, user released
-to play after manual tests. No outcome or crash has been reported. Production
+Current branch `codex/auto-pickup`; second match ended in user-reported death. Testing
+was stopped for sleep; no crash was reported. Production
 APK/native remain unchanged; no automatic transfers/drops/input exist.
 
 New positive evidence: all three container ItemBase keys map to actual
@@ -29,7 +58,7 @@ same pinned live guards. Native ASan/UBSan fixtures and API31 compile pass;
 13 Python tests pass. Closed/no-selector live capture and old pickup-context
 regression pass. The combined reader's open-container path is still pending
 live verification; separate exploratory cell proof does not establish it.
-The optional next-open-container request is pending while the user plays.
+The next-open-container request was deferred when the user ended play.
 
 Raw proof stays in ignored `auto-pickup-20261103/match2-*`. See
 [AUTO_PICKUP.md](AUTO_PICKUP.md#second-live-match--2026-11-04-checkpoint).

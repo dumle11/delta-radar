@@ -266,8 +266,8 @@ cell. No further item-value or pre-search-container test is needed for this.
 
 The user entered another match with radar enabled and free backpack space.
 Spawn/open-container/backpack-only captures all passed transport, live-frame
-and native table-completeness checks. This match is still in progress at this
-checkpoint; no outcome has been reported. All item actions remained manual.
+and native table-completeness checks. The user subsequently reported being killed and ended testing for the night.
+All item actions remained manual; no crash was reported.
 
 The open Military Med Kit contained Medical Stapler `15080050238` (6,900),
 toothpaste `15010010004` (2,420), and first-aid kit `14030000002`. No new price
@@ -373,8 +373,28 @@ new dispatch was added. **The combined native reader's open-container branch
 has not yet been live-verified.** The earlier successful cell observations
 used separate exploratory reads and do not replace that check.
 
-An optional request is pending for the user to confirm the next ordinary
-container opened during normal play. Do not demand another price panel or
-repeat the ground-drop test; both needed observations are already saved.
-The match is still in progress with no outcome reported, and radar remains
-running for play. No automatic input/button or updated production APK exists.
+The optional next-container request was deferred when the user reported
+being killed and asked to stop for sleep. Do not request another test tonight.
+Do not repeat price panels or the ground-drop test; the needed observations
+are saved. Radar was stopped, zero project scanners were verified, and the
+radar app was stopped with zero app processes. The unrelated memscan binary
+remains unchanged. No automatic input/button or updated production APK exists.
+
+## End-of-night handoff — 2026-11-04
+
+The user reported death and explicitly ended play/testing to sleep. Current
+branch is `codex/auto-pickup`; all source and findings are saved remotely.
+Production APK/native and the frozen working-lines branch remain unchanged.
+Radar/scanner/app are stopped; no project scanners or radar app processes
+remain. The game was not restarted or force-stopped. Private outcome proof
+is `match2-outcome.json` in the existing ignored evidence directory.
+
+Next session, first verify USB and exact content-addressed diagnostic identity.
+Resume with one ordinary open container to verify **the combined pickup-ui
+reader**, using `capture_pickup_context.py --mode pickup-ui`. Separate
+exploratory linkage/geometry already passed, but the combined reader has only
+a complete no-selector/closed-path live check so far. After its open check,
+finish viewport-to-touch conversion, clipping/occlusion and current-window
+generation, then the action lifecycle and app button. No need to repeat
+manual price panels, pickup identity or the positive ground-drop cycle.
+Player-body UI routing and stacks remain outside the current candidate.
