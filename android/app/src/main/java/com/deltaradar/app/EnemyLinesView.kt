@@ -30,6 +30,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         val healthKnown: Boolean = false,
         val boneScreenX: FloatArray? = null,
         val boneScreenY: FloatArray? = null,
+        val boneParents: IntArray? = null,
         val team: Int = 2
     )
     data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>, val warning: String? = null)
@@ -191,7 +192,9 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
             }
 
             var boxHeightForLabel = 48f * density
-            if (enemy.onScreen && (drawBody || drawHealth)) {
+            val hasSkeleton = entityMode == Settings.DRAW_MODE_SKELETON &&
+                enemy.boneParents != null && enemy.boneScreenX != null && enemy.boneScreenY != null
+            if ((enemy.onScreen || hasSkeleton) && (drawBody || drawHealth)) {
                 val headX = lerp(previous?.headX ?: enemy.headX, enemy.headX) * width
                 val headY = lerp(previous?.headY ?: enemy.headY, enemy.headY) * height
                 val feetX = lerp(previous?.feetX ?: enemy.feetX, enemy.feetX) * width
@@ -217,46 +220,32 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                     Settings.DRAW_MODE_SKELETON -> {
                         val bx = enemy.boneScreenX
                         val by = enemy.boneScreenY
-                        if (bx != null && by != null && bx.size >= 16) {
+                        val parents = enemy.boneParents
+                        if (bx != null && by != null && parents != null &&
+                            bx.size == by.size && bx.size == parents.size) {
                             boxPaint.strokeWidth = density * thicknessScale
-                            val shadowPaint = Paint(boxPaint).apply {
-                                color = 0xAA000000.toInt(); strokeWidth = 2.5f * density * thicknessScale
+                            val prior = previous?.takeIf {
+                                it.boneParents?.contentEquals(parents) == true &&
+                                    it.boneScreenX?.size == bx.size && it.boneScreenY?.size == by.size
                             }
-                            /* Bone indices: 0=head 1=neck 2=spine_upper 3=pelvis
-                             * 4=l_shoulder 5=l_elbow 6=l_hand 7=r_shoulder 8=r_elbow 9=r_hand
-                             * 10=l_hip 11=l_knee 12=l_foot 13=r_hip 14=r_knee 15=r_foot */
-                            val connections = intArrayOf(
-                                0,1, 1,2, 2,3,
-                                1,4, 4,5, 5,6,
-                                1,7, 7,8, 8,9,
-                                3,10, 10,11, 11,12,
-                                3,13, 13,14, 14,15
-                            )
-                            for (c in connections.indices step 2) {
-                                val a = connections[c]; val b = connections[c+1]
-                                val ax = bx[a] * width; val ay = by[a] * height
-                                val bxp = bx[b] * width; val byp = by[b] * height
-                                canvas.drawLine(ax, ay, bxp, byp, shadowPaint)
-                                canvas.drawLine(ax, ay, bxp, byp, boxPaint)
+                            fun boneX(i: Int): Float {
+                                val old = prior?.boneScreenX?.get(i)
+                                return (if (old != null && old.isFinite()) lerp(old, bx[i]) else bx[i]) * width
                             }
-                            val headR = boxH * 0.07f
-                            canvas.drawCircle(bx[0] * width, by[0] * height, headR, boxPaint)
-                        } else {
-                            val hw = boxH * 0.18f
-                            val headR = boxH * 0.09f
-                            val neckY = top + boxH * 0.13f
-                            val shoulderY = top + boxH * 0.22f
-                            val hipY = top + boxH * 0.55f
-                            boxPaint.strokeWidth = density * thicknessScale
-                            canvas.drawCircle(centerX, top + headR, headR, boxPaint)
-                            canvas.drawLine(centerX, neckY, centerX, hipY, boxPaint)
-                            canvas.drawLine(centerX - hw, shoulderY, centerX + hw, shoulderY, boxPaint)
-                            canvas.drawLine(centerX - hw, shoulderY, centerX - hw * 1.1f, hipY, boxPaint)
-                            canvas.drawLine(centerX + hw, shoulderY, centerX + hw * 1.1f, hipY, boxPaint)
-                            canvas.drawLine(centerX, hipY, centerX - hw, bottom, boxPaint)
-                            canvas.drawLine(centerX, hipY, centerX + hw, bottom, boxPaint)
+                            fun boneY(i: Int): Float {
+                                val old = prior?.boneScreenY?.get(i)
+                                return (if (old != null && old.isFinite()) lerp(old, by[i]) else by[i]) * height
+                            }
+                            for (child in 1 until parents.size) {
+                                val parent = parents[child]
+                                if (parent !in 0 until child || !bx[child].isFinite() || !by[child].isFinite() ||
+                                    !bx[parent].isFinite() || !by[parent].isFinite()) continue
+                                canvas.drawLine(boneX(parent), boneY(parent), boneX(child), boneY(child), boxShadowPaint)
+                                canvas.drawLine(boneX(parent), boneY(parent), boneX(child), boneY(child), boxPaint)
+                            }
                         }
                     }
+
                     Settings.DRAW_MODE_BOXES -> {
                         val boxW = boxH * when (enemy.kind) {
                             "vehicle" -> 0.9f
@@ -270,7 +259,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                         canvas.drawRect(boxRect, boxPaint)
                     }
                 }
-                if (drawHealth && enemy.healthKnown && enemy.maxHealth > 0f) {
+                if (drawHealth && enemy.onScreen && enemy.healthKnown && enemy.maxHealth > 0f) {
                     val hpFrac = (enemy.health / enemy.maxHealth).coerceIn(0f, 1f)
                     val barW = 1.5f * density
                     val barGap = 2f * density

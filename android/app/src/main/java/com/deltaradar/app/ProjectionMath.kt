@@ -20,7 +20,8 @@ object ProjectionMath {
         aspect: Double,
         lineOriginX: Double = 0.5,
         lineOriginY: Double = 0.02,
-        edgeMargin: Double = 0.018
+        edgeMargin: Double = 0.018,
+        clipToEdge: Boolean = true
     ): Point {
         val yaw = Math.toRadians(yawDegrees)
         val pitch = Math.toRadians(pitchDegrees)
@@ -57,7 +58,7 @@ object ProjectionMath {
 
         val onScreen = inFront && rawX in edgeMargin..(1.0 - edgeMargin) &&
             rawY in edgeMargin..(1.0 - edgeMargin)
-        if (!onScreen && inFront) {
+        if (!onScreen && inFront && clipToEdge) {
             val clipped = clipRayToUnitRect(lineOriginX, lineOriginY, rawX, rawY, edgeMargin)
             rawX = clipped.first
             rawY = clipped.second

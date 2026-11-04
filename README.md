@@ -76,8 +76,10 @@ transforms, or decoded bounds that pass the new root/mesh consistency checks.
 The decoder supports the captured Proxima 1.202 software path on the tested
 Android 10 bionic build; unknown profiles and changing records remain hidden.
 Camera plaintext and freshness checks still apply. Bots and loot retain their
-existing behavior. Human-player skeletons use the schematic fallback because
-individual bone positions are not verified. See the
+existing behavior. Skeleton mode uses verified animated world-space bones and the mesh’s actual
+parent hierarchy, with perspective projection of each joint. It has no schematic
+body fallback: unavailable or inconsistent poses are omitted. See the
+[skeleton rendering notes](docs/SKELETON_RENDERING_2026-11-04.md). See the
 [decoder follow-up](docs/POSITION_DECODER_FOLLOWUP_2026-11-03.md) for the recovered
 path, live validation and remaining version/stability limits.
 

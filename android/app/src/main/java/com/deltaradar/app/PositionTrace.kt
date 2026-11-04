@@ -39,7 +39,8 @@ internal object PositionTraceSnapshot {
         "world unavailable", "level unavailable", "actor array unavailable", "world sampled")
     private val actorFields = listOf(
         "x", "y", "z", "yaw", "pitch", "fov", "team", "health", "maxHealth",
-        "healthKnown", "dead", "positionPlaintext", "positionDecoded", "renderedOnScreen", "halfHeight"
+        "healthKnown", "dead", "positionPlaintext", "positionDecoded", "renderedOnScreen", "halfHeight",
+        "bonesVerified", "boneCount"
     )
     private val positionFields = listOf(
         "boundsX", "boundsY", "boundsZ", "boundsIndex", "boundsEncrypted", "boundsFlags",

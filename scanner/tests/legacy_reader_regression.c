@@ -43,8 +43,11 @@ static void test_large_snapshot(void) {
         entity->position_observation.bounds_index = 65535;
         entity->position_observation.world_index = -1;
         entity->has_bones = 1;
-        for (int b = 0; b < NUM_SKELETON_BONES; b++)
+        entity->bone_count = MAX_SKELETON_BONES;
+        for (int b = 0; b < MAX_SKELETON_BONES; b++) {
+            entity->bone_parent[b] = (int16_t)(b - 1);
             for (int c = 0; c < 3; c++) entity->bone_pos[b][c] = 100000.0f;
+        }
     }
     int sockets[2];
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0);
@@ -223,7 +226,7 @@ static void test_loot_discovery(void) {
     }
 
     resolved_camera_manager_off = -1; resolved_camera_cache_off = -1;
-    camera_candidate_count = 0; resolved_mesh_off = -1;
+    camera_candidate_count = 0;
     assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 4);
     put_float(camera, OFF_CAMERA_CACHE_PRIVATE, 2);
     assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 4);
@@ -375,7 +378,6 @@ int main(void) {
     put_float(camera, OFF_CAMERA_CACHE_PRIVATE + OFF_CAMERA_CACHE_POV + OFF_POV_FOV, 105.0f);
     put_float(camera, OFF_CAMERA_CACHE_PRIVATE + OFF_CAMERA_CACHE_POV + 0x20, 50.0f);
     put_float(camera, 0x4c00, 37.0f);
-    resolved_mesh_off = -1;
     read_buf = malloc(READ_BUF_SIZE);
     assert(read_buf);
 

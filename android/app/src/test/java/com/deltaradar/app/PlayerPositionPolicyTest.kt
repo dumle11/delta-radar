@@ -35,7 +35,9 @@ class PlayerPositionPolicyTest {
     @Test fun preservesBotsAndLoot() {
         assertFalse(hidden(kind = "ai", plaintext = false, cameraPlaintext = false))
         assertFalse(hidden(kind = "loot", plaintext = false, cameraPlaintext = false))
-        assertFalse(PlayerPositionPolicy.useRawBones("player"))
-        assertTrue(PlayerPositionPolicy.useRawBones("ai"))
+        assertFalse(PlayerPositionPolicy.useBones("player", false))
+        assertTrue(PlayerPositionPolicy.useBones("player", true))
+        assertTrue(PlayerPositionPolicy.useBones("ai", true))
+        assertFalse(PlayerPositionPolicy.useBones("ai", false))
     }
 }

@@ -174,7 +174,8 @@ class EntityFeedService : Service() {
             for (key in listOf(
                 "id", "kind", "name", "team", "x", "y", "z", "yaw", "pitch", "fov",
                 "health", "maxHealth", "healthKnown", "halfHeight", "dead", "bones",
-                "positionPlaintext", "positionDecoded", "renderedOnScreen"
+                "positionPlaintext", "positionDecoded", "renderedOnScreen",
+                "bonesVerified", "boneCount", "boneParents"
             )) if (raw.has(key) && !raw.isNull(key)) e.put(key, raw.get(key))
             if (!e.has("kind")) e.put("kind", "player")
             if (!e.has("team")) e.put("team", 0)

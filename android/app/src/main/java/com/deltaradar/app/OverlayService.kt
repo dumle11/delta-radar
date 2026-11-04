@@ -255,29 +255,24 @@ class OverlayService : Service() {
                 myYaw, myPitch, hfovDeg, screenAspect
             )
 
-            var boneScreenX: FloatArray? = null
-            var boneScreenY: FloatArray? = null
-            val bonesArr = if (PlayerPositionPolicy.useRawBones(kind)) ent.optJSONArray("bones") else null
-            if (bonesArr != null && bonesArr.length() >= 16) {
-                val bsx = FloatArray(bonesArr.length())
-                val bsy = FloatArray(bonesArr.length())
-                var allOnScreen = true
-                for (b in 0 until bonesArr.length().coerceAtMost(16)) {
-                    val bone = bonesArr.optJSONArray(b) ?: continue
-                    val boneX = bone.optDouble(0)
-                    val boneY = bone.optDouble(1)
-                    val boneZ = bone.optDouble(2)
-                    val bp = ProjectionMath.project(
-                        boneX - mx, boneY - my, boneZ - mz,
-                        myYaw, myPitch, hfovDeg, screenAspect
+            var bonePose: SkeletonProjection.Pose? = null
+            if (PlayerPositionPolicy.useBones(kind, ent.optBoolean("bonesVerified", false))) {
+                val bones = ent.optJSONArray("bones")
+                val parents = ent.optJSONArray("boneParents")
+                if (bones != null && parents != null && bones.length() in 2..SkeletonProjection.MAX_BONES &&
+                    parents.length() == bones.length()) {
+                    val joints = (0 until bones.length()).map { i ->
+                        val joint = bones.optJSONArray(i)
+                        SkeletonProjection.Joint(
+                            joint?.optDouble(0, Double.NaN) ?: Double.NaN,
+                            joint?.optDouble(1, Double.NaN) ?: Double.NaN,
+                            joint?.optDouble(2, Double.NaN) ?: Double.NaN
+                        )
+                    }
+                    bonePose = SkeletonProjection.project(
+                        joints, IntArray(parents.length()) { parents.optInt(it, -2) },
+                        SkeletonProjection.Joint(mx, my, mz), myYaw, myPitch, hfovDeg, screenAspect
                     )
-                    bsx[b] = bp.x
-                    bsy[b] = bp.y
-                    if (!bp.onScreen) allOnScreen = false
-                }
-                if (allOnScreen) {
-                    boneScreenX = bsx
-                    boneScreenY = bsy
                 }
             }
 
@@ -287,7 +282,7 @@ class OverlayService : Service() {
                 head.x, head.y, feet.x, feet.y,
                 health = health.toFloat(), maxHealth = ent.optDouble("maxHealth", 100.0).toFloat(),
                 healthKnown = healthKnown,
-                boneScreenX = boneScreenX, boneScreenY = boneScreenY,
+                boneScreenX = bonePose?.x, boneScreenY = bonePose?.y, boneParents = bonePose?.parents,
                 team = team
             ))
         }

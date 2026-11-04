@@ -57,6 +57,21 @@ static int position_decoder_discover(void) {
     for (int i = 0; i < num_regions; i++)
         if (strstr(regions[i].name, "/bionic/libc.so") && (!d->libc || regions[i].start < d->libc))
             d->libc = regions[i].start;
+    /* Large matches can fill the scanner's general VMA inventory before libc.
+     * Resolve this one named module from map metadata without that array cap. */
+    if (!d->libc) {
+        char path[64], line[1024];
+        snprintf(path, sizeof(path), "/proc/%d/maps", game_pid);
+        FILE *f = fopen(path, "r");
+        if (f) {
+            for (unsigned lines = 0; lines < 65536 && fgets(line, sizeof(line), f); lines++) {
+                unsigned long long start;
+                if (strstr(line, "/bionic/libc.so") && sscanf(line, "%llx-", &start) == 1 &&
+                    (!d->libc || start < d->libc)) d->libc = start;
+            }
+            fclose(f);
+        }
+    }
     /* Pin the bionic thread/key layout to its readable ELF build ID. Its
      * getspecific code page is execute-only and must never be probed. */
     const unsigned char libc_build_id[] = {
@@ -161,5 +176,40 @@ static int position_decode_actor(uint64_t actor, uint64_t root, float out[3]) {
     float dx = a[0] - b[0], dy = a[1] - b[1];
     if (dx * dx + dy * dy > 100 * 100 || fabsf(a[2] - b[2]) > 300) return 0;
     memcpy(out, a, sizeof(a)); return 1;
+}
+
+/* The captured transform redirect may select any of ten transform slots.
+ * Its translation selector is deliberately not used here. Rotation and scale
+ * are usable only when EVERY selectable slot contains identical bytes, so the
+ * unknown selector cannot affect either value. */
+static int position_component_orientation(uint64_t actor, uint64_t component,
+                                          float rotation[4], float scale[3]) {
+    if (!position_decoder_discover()) return 0;
+    uint64_t ctx = position_decoder.context, encoded, sorted, table;
+    uint32_t salt, base_salt, count;
+    if (!position_read(ctx + 0x2c43c, &salt, 4) || !position_read(ctx + 0x28ce0, &base_salt, 4) ||
+        !position_read(ctx + 0x20, &count, 4) || !count || count > 4096 ||
+        !position_read(ctx + 0x29548, &encoded, 8) || !position_pointer(ctx + 0x2a470, &sorted)) return 0;
+    table = position_decode64(encoded, base_salt);
+    uint64_t key = position_encode64(component + 0x210, salt), address = 0;
+    int lo = 0, hi = (int)count - 1;
+    while (lo <= hi) {
+        unsigned mid = (unsigned)(lo + (hi - lo) / 2); uint32_t id; uint64_t found;
+        if (!position_read(sorted + mid * 4, &id, 4) || id > 65535) return 0;
+        address = table + (uint64_t)id * 2400;
+        if (!position_read(address + 0x910, &found, 8)) return 0;
+        if (found == key) break;
+        address = 0;
+        if (found < key) lo = (int)mid + 1; else hi = (int)mid - 1;
+    }
+    unsigned char row[2400], after[2400];
+    if (!address || !position_read(address, row, sizeof(row)) || position_u64(row + 0x910) != key ||
+        position_decode64(position_u64(row + 0x920), salt) != actor || row[0x928]) return 0;
+    for (unsigned i = 1; i < 10; i++)
+        if (memcmp(row + 8, row + 8 + i * 48, 16) ||
+            memcmp(row + 8 + 28, row + 8 + i * 48 + 28, 12)) return 0;
+    if (!position_read(address, after, sizeof(after)) || memcmp(row, after, sizeof(row))) return 0;
+    memcpy(rotation, row + 8, 16); memcpy(scale, row + 8 + 28, 12);
+    return 1;
 }
 #endif

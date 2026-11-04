@@ -3,7 +3,8 @@ package com.deltaradar.app
 internal object PlayerPositionPolicy {
     private const val CAMERA_MAX_AGE_MS = 750L
 
-    fun useRawBones(kind: String): Boolean = kind != "player"
+    fun useBones(kind: String, bonesVerified: Boolean): Boolean =
+        bonesVerified && (kind == "player" || kind == "ai")
 
     fun hidePlayer(
         kind: String,

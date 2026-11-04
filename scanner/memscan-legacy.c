@@ -816,10 +816,9 @@ static int resolve_fname(int32_t idx, char *out, int out_size) {
 
 static int find_object_field(uint64_t owner, int start, int end, const char *class_fragment);
 
-#define NUM_SKELETON_BONES 16
-/* Bone indices: 0=head 1=neck 2=spine_upper 3=pelvis
- * 4=l_shoulder 5=l_elbow 6=l_hand 7=r_shoulder 8=r_elbow 9=r_hand
- * 10=l_hip 11=l_knee 12=l_foot 13=r_hip 14=r_knee 15=r_foot */
+#include "skeleton-math.h"
+/* Bone indices belong to each mesh's reference skeleton. The packet carries
+ * that asset's parent indices rather than a guessed humanoid mapping. */
 
 typedef struct {
     uint64_t root;
@@ -844,8 +843,9 @@ typedef struct {
     int dead;
     int team;
     int native_team;
-    float bone_pos[NUM_SKELETON_BONES][3]; /* world-space bone positions in meters */
-    int has_bones;
+    float bone_pos[MAX_SKELETON_BONES][3]; /* world-space bone positions in meters */
+    int has_bones, bone_count;
+    int16_t bone_parent[MAX_SKELETON_BONES];
 } Entity;
 
 static Entity entities[MAX_ACTORS];
@@ -862,217 +862,6 @@ static void diagnostics_game_unavailable(void) {
     diagnostic_read_failures = 0;
     diagnostic_failure_address = 0;
     diagnostic_failure_errno = 0;
-}
-
-/* ========== SKELETON / BONE READING ========== */
-static int resolved_mesh_off = -2;  /* -2 = not searched, -1 = not found */
-static int resolved_bone_array_off = -2;
-static int bone_map[NUM_SKELETON_BONES]; /* maps our bone index to game bone index */
-static int bone_map_ready = 0;
-static int bone_stride = 48; /* FTransform size: 48 bytes for float-based (mobile) */
-
-/* Find mesh component on the self pawn using reflection */
-static int find_mesh_component(uint64_t pawn) {
-    int off = find_object_field(pawn, 0x380, 0xC00, "SkeletalMesh");
-    if (off >= 0) {
-        fprintf(stderr, "[+] Found SkeletalMesh field at pawn+0x%x\n", off);
-        return off;
-    }
-    /* ACharacter::Mesh is a named property; try broader class fragment */
-    off = find_object_field(pawn, 0x380, 0xC00, "SkinnedMesh");
-    if (off >= 0) {
-        fprintf(stderr, "[+] Found SkinnedMesh field at pawn+0x%x\n", off);
-        return off;
-    }
-    return -1;
-}
-
-/* Search bone names in a SkeletalMesh's RefSkeleton to build bone_map.
- * RefSkeleton contains a TArray<FMeshBoneInfo> where each entry has
- * an FName (4-byte index) at the start. We scan the bone name FNames
- * and match against our target bone names. */
-static void discover_bone_map(uint64_t mesh_comp) {
-    bone_map_ready = 0;
-    for (int i = 0; i < NUM_SKELETON_BONES; i++) bone_map[i] = -1;
-
-    /* Find bone array: scan mesh component for TArray with 20-200 entries
-     * whose element stride looks like FTransform (check scale ~1.0) */
-    int bone_count = -1;
-    uint64_t bone_data = 0;
-    for (int off = 0x200; off < 0xE00; off += 8) {
-        uint64_t ptr = read_ptr(mesh_comp + off);
-        if (!is_any_ptr(ptr)) continue;
-        int32_t count = read_i32(mesh_comp + off + 8);
-        if (count < 20 || count > 300) continue;
-
-        /* Validate: check if elements look like FTransforms.
-         * FTransform with floats: quat(16) + trans(16) + scale(16) = 48 bytes
-         * Check scale of bone 0 (should be near 1.0) */
-        float sx = read_float(ptr + 32); /* scale X at offset 32 within FTransform */
-        float sy = read_float(ptr + 36);
-        float sz = read_float(ptr + 40);
-        if (fabsf(sx - 1.0f) < 0.5f && fabsf(sy - 1.0f) < 0.5f && fabsf(sz - 1.0f) < 0.5f) {
-            bone_data = ptr;
-            bone_count = count;
-            resolved_bone_array_off = off;
-            bone_stride = 48;
-            break;
-        }
-        /* Try 80-byte stride (doubles): quat(32) + trans(32) + scale(16) */
-        double dsx, dsy;
-        read_mem(ptr + 64, &dsx, 8);
-        read_mem(ptr + 72, &dsy, 8);
-        if (fabs(dsx - 1.0) < 0.5 && fabs(dsy - 1.0) < 0.5) {
-            bone_data = ptr;
-            bone_count = count;
-            resolved_bone_array_off = off;
-            bone_stride = 80;
-            break;
-        }
-    }
-    if (bone_count < 0) {
-        fprintf(stderr, "[!] No bone array found in mesh component\n");
-        return;
-    }
-    fprintf(stderr, "[+] Bone array: comp+0x%x count=%d stride=%d\n",
-            resolved_bone_array_off, bone_count, bone_stride);
-
-    /* Try to read bone names from the SkeletalMesh asset.
-     * USkeletalMeshComponent has a SkeletalMesh pointer (usually 0x5A0-0x600).
-     * The SkeletalMesh has a RefSkeleton with FName bone names.
-     * If we can't find names, use positional heuristics. */
-
-    /* Positional heuristic: read all bone translations, identify bones by
-     * their positions relative to the root (bone 0 = pelvis/root).
-     * This works because humanoid skeletons have predictable layouts:
-     * - Head is highest
-     * - Hands are widest laterally
-     * - Feet are lowest
-     * We use component-space transforms where Y is typically up. */
-    float bpos[300][3];
-    int valid = 0;
-    for (int b = 0; b < bone_count && b < 300; b++) {
-        uint64_t base = bone_data + (uint64_t)b * bone_stride;
-        if (bone_stride == 48) {
-            bpos[b][0] = read_float(base + 16); /* trans X */
-            bpos[b][1] = read_float(base + 20); /* trans Y */
-            bpos[b][2] = read_float(base + 24); /* trans Z */
-        } else {
-            double dx, dy, dz;
-            read_mem(base + 32, &dx, 8);
-            read_mem(base + 40, &dy, 8);
-            read_mem(base + 48, &dz, 8);
-            bpos[b][0] = (float)dx;
-            bpos[b][1] = (float)dy;
-            bpos[b][2] = (float)dz;
-        }
-        if (bpos[b][0] == bpos[b][0]) valid++;
-    }
-    fprintf(stderr, "[+] Read %d/%d valid bone positions\n", valid, bone_count);
-
-    /* Log first 20 bone positions for diagnostics */
-    for (int b = 0; b < bone_count && b < 20; b++) {
-        fprintf(stderr, "  bone[%d] pos=(%.1f, %.1f, %.1f) cm\n",
-                b, bpos[b][0], bpos[b][1], bpos[b][2]);
-    }
-
-    /* Find head: highest bone (max component-space Z or X depending on orientation) */
-    /* For now, use bone indices that are common in UE4 humanoid rigs:
-     * 0=root/pelvis, head is usually around index 5-10, limbs are higher */
-    /* We'll use a simple heuristic: find the bone with highest altitude */
-    float max_up = -99999;
-    int head_idx = -1;
-    for (int b = 1; b < bone_count; b++) {
-        /* Try X as up (UE4 component space varies) */
-        float up = bpos[b][0]; /* we'll try all axes */
-        if (fabsf(bpos[b][0]) + fabsf(bpos[b][1]) + fabsf(bpos[b][2]) < 1.0f) continue;
-        /* Use whichever axis has the largest range as "up" */
-        if (up > max_up) { max_up = up; head_idx = b; }
-    }
-    if (head_idx >= 0) {
-        fprintf(stderr, "[+] Candidate head bone: %d at (%.1f, %.1f, %.1f)\n",
-                head_idx, bpos[head_idx][0], bpos[head_idx][1], bpos[head_idx][2]);
-    }
-
-    /* For now, set a default mapping using common UE4 mannequin-style indices.
-     * This will be refined once we see actual bone positions. */
-    /* Default humanoid skeleton (UE4 mannequin-like):
-     * 0=root, 1=pelvis, 2=spine_01, 3=spine_02, 4=spine_03,
-     * 5=neck_01, 6=head,
-     * Left arm chain starts around 7-11, right arm around 30+
-     * Left leg around 55+, right leg around 60+ */
-    /* These are placeholders — the diagnostic output will tell us the real indices */
-    bone_map[0] = 6;   /* head */
-    bone_map[1] = 5;   /* neck */
-    bone_map[2] = 3;   /* spine_02 */
-    bone_map[3] = 1;   /* pelvis */
-    bone_map[4] = 8;   /* l_shoulder */
-    bone_map[5] = 9;   /* l_elbow */
-    bone_map[6] = 10;  /* l_hand */
-    bone_map[7] = 31;  /* r_shoulder */
-    bone_map[8] = 32;  /* r_elbow */
-    bone_map[9] = 33;  /* r_hand */
-    bone_map[10] = 55; /* l_hip */
-    bone_map[11] = 56; /* l_knee */
-    bone_map[12] = 57; /* l_foot */
-    bone_map[13] = 60; /* r_hip */
-    bone_map[14] = 61; /* r_knee */
-    bone_map[15] = 62; /* r_foot */
-
-    /* Clamp to valid range */
-    for (int i = 0; i < NUM_SKELETON_BONES; i++)
-        if (bone_map[i] >= bone_count) bone_map[i] = -1;
-
-    bone_map_ready = 1;
-}
-
-/* Read bone world positions for an entity */
-static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root, int mesh_off, int pos_off) {
-    e->has_bones = 0;
-    if (!bone_map_ready || mesh_off < 0 || resolved_bone_array_off < 0) return;
-
-    uint64_t mesh_comp = read_ptr(actor + mesh_off);
-    if (!is_any_ptr(mesh_comp)) return;
-
-    uint64_t bone_data = read_ptr(mesh_comp + resolved_bone_array_off);
-    int32_t bone_count = read_i32(mesh_comp + resolved_bone_array_off + 8);
-    if (!is_any_ptr(bone_data) || bone_count < 20) return;
-
-    /* Read mesh component's world transform for converting component-space to world-space.
-     * The mesh component's ComponentToWorld is at the same offset as the root component's. */
-    float mesh_world_x = read_float(root + pos_off) / 100.0f;
-    float mesh_world_y = read_float(root + pos_off + 4) / 100.0f;
-    float mesh_world_z = read_float(root + pos_off + 8) / 100.0f;
-
-    for (int i = 0; i < NUM_SKELETON_BONES; i++) {
-        int bidx = bone_map[i];
-        if (bidx < 0 || bidx >= bone_count) {
-            e->bone_pos[i][0] = e->x;
-            e->bone_pos[i][1] = e->y;
-            e->bone_pos[i][2] = e->z;
-            continue;
-        }
-        uint64_t base = bone_data + (uint64_t)bidx * bone_stride;
-        float bx, by, bz;
-        if (bone_stride == 48) {
-            bx = read_float(base + 16) / 100.0f;
-            by = read_float(base + 20) / 100.0f;
-            bz = read_float(base + 24) / 100.0f;
-        } else {
-            double dx, dy, dz;
-            read_mem(base + 32, &dx, 8);
-            read_mem(base + 40, &dy, 8);
-            read_mem(base + 48, &dz, 8);
-            bx = (float)(dx / 100.0);
-            by = (float)(dy / 100.0);
-            bz = (float)(dz / 100.0);
-        }
-        /* Component-space bone positions — add entity world position */
-        e->bone_pos[i][0] = mesh_world_x + bx;
-        e->bone_pos[i][1] = mesh_world_y + by;
-        e->bone_pos[i][2] = mesh_world_z + bz;
-    }
-    e->has_bones = 1;
 }
 
 /* RelativeRotation: FRotator at root+0x178 = {Pitch, Yaw, Roll} as floats (degrees) */
@@ -1177,6 +966,7 @@ static int enc_handler_unmanaged(const uint8_t handler[4]) {
 }
 
 #include "position-decoder.h"
+#include "skeleton-reader.h"
 
 static int read_plain_world_position(uint64_t root, float out[3], PositionObservation *observation) {
     float transform[12];
@@ -2071,38 +1861,8 @@ camera_done:
         e->half_height = capsule_half_height == capsule_half_height &&
             capsule_half_height >= 0.5f && capsule_half_height <= 2.5f ? capsule_half_height : 1.05f;
 
-        /* Discover skeleton mesh component on self pawn for bone reading */
-        if (is_self_pawn && resolved_mesh_off == -2) {
-            resolved_mesh_off = find_mesh_component(actor_ptrs[i]);
-            if (resolved_mesh_off >= 0) {
-                fprintf(stderr, "\n[+] SkeletalMeshComponent at actor+0x%x\n", resolved_mesh_off);
-                uint64_t mesh_comp = read_ptr(actor_ptrs[i] + resolved_mesh_off);
-                if (is_any_ptr(mesh_comp))
-                    discover_bone_map(mesh_comp);
-            } else {
-                resolved_mesh_off = -1;
-                fprintf(stderr, "\n[!] SkeletalMeshComponent not found on self pawn\n");
-                /* Dump all UObject fields on the pawn to help find it */
-                if (fname_pool_addr) {
-                    fprintf(stderr, "[diag] UObject fields on self pawn:\n");
-                    for (int off = 0x180; off < 0xC00; off += 8) {
-                        uint64_t obj = read_ptr(actor_ptrs[i] + (uint64_t)off);
-                        if (!is_game_heap_ptr(obj)) continue;
-                        uint64_t ocls = read_ptr(obj + OFF_UOBJECT_CLASS);
-                        if (!is_any_ptr(ocls)) continue;
-                        char cn[96] = {0};
-                        resolve_fname(read_i32(ocls + OFF_UOBJECT_NAME), cn, sizeof(cn));
-                        if (cn[0])
-                            fprintf(stderr, "  +0x%03x -> %s\n", off, cn);
-                    }
-                }
-            }
-        }
-
-        /* Read bones for this entity */
-        e->has_bones = 0;
-        if (resolved_mesh_off > 0)
-            read_entity_bones(e, actor_ptrs[i], root, resolved_mesh_off, pos_off);
+        /* Resolve this actor's actual animated pose and asset hierarchy. */
+        read_entity_bones(e, actor_ptrs[i], root);
 
         /* Identify self: match against local pawn pointer */
         if (is_self_pawn) {
@@ -2370,7 +2130,9 @@ static int post_to_radar(void) {
         local_player_controlled ? "true" : "false", self_entity_id[0] ? self_entity_id : "");
     int i;
     for (i = 0; i < num_entities; i++) {
-        if (off > (int)sizeof(body) - 8192) break;
+        int bone_budget = entities[i].has_bones && entities[i].bone_count > 0 &&
+            entities[i].bone_count <= MAX_SKELETON_BONES ? entities[i].bone_count * 48 : 0;
+        if (off > (int)sizeof(body) - 8192 - bone_budget) break;
         if (i > 0) body[off++] = ',';
         char escaped_name[256];
         char escaped_class[256];
@@ -2404,15 +2166,20 @@ static int post_to_radar(void) {
                 observation->bounds_encrypted, observation->bounds_flags,
                 observation->world_index, observation->world_encrypted, observation->world_flags);
         }
-        if (entities[i].has_bones) {
+        APPEND_SNAPSHOT(",\"bonesVerified\":%s,\"boneCount\":%d", entities[i].has_bones ? "true" : "false", entities[i].bone_count);
+        if (entities[i].has_bones && entities[i].bone_count >= 2 && entities[i].bone_count <= MAX_SKELETON_BONES) {
             APPEND_SNAPSHOT(",\"bones\":[");
-            for (int b = 0; b < NUM_SKELETON_BONES; b++) {
+            for (int b = 0; b < entities[i].bone_count; b++) {
                 if (b > 0) body[off++] = ',';
                 APPEND_SNAPSHOT(
                     "[%.2f,%.2f,%.2f]",
                     entities[i].bone_pos[b][0],
                     entities[i].bone_pos[b][1],
                     entities[i].bone_pos[b][2]);
+            }
+            APPEND_SNAPSHOT("],\"boneParents\":[");
+            for (int b = 0; b < entities[i].bone_count; b++) {
+                APPEND_SNAPSHOT("%s%d", b ? "," : "", (int)entities[i].bone_parent[b]);
             }
             APPEND_SNAPSHOT("]");
         }

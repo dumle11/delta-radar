@@ -1,4 +1,5 @@
 - Aim is super slow and chopy to move my crosshair onto the target when inside ai fov. I am not sure what is aim strength and why max is only 60%. I want to be able to set it up/test it, so it locks immediatelly and stays locked on the target until the raget is dead.
-- Fix problem with players position being encrypted when account is flagged.
 - For aim, allow to select checkboxes for which actor types should the aim work allow to select many, none, or all, like bots, friendly players, enemy players
 - For loot, add advanced system that will display overlay of the contents of loot boxes, with details like name of the item, its value, its rarity. Have options for loot, to control which type of loot should be visible. Use rarity colors for text of loot.
+- The render distance seems to be not working for players at its fixed at 300? For bots the slider with 1000m works, can we implement the same for players/teammates?
+Also, when a player extracts we still render their box on the extract - it should not render when a player extracts
