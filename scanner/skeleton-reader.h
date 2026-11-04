@@ -19,9 +19,10 @@ typedef struct {
     int16_t parents[MAX_SKELETON_BONES];
 } SkeletonHierarchy;
 /* Supported rig identified by its complete raw parent topology. These are
- * measured body joints, not finger/IK/weapon helper chains. */
-static const int16_t skeleton_body_indices[] = {1,4,6,7,10,30,31,32,34,35,38,58,59,60,61,62,63,64,65};
-static const int16_t skeleton_body_parents[] = {-1,0,1,2,3,1,5,6,1,8,9,0,11,12,13,0,15,16,17};
+ * measured body joints ending at the ankles. Omit toes/foot segments,
+ * finger/IK/weapon helper chains. */
+static const int16_t skeleton_body_indices[] = {1,4,6,7,10,30,31,32,34,35,38,58,59,60,62,63,64};
+static const int16_t skeleton_body_parents[] = {-1,0,1,2,3,1,5,6,1,8,9,0,11,12,0,14,15};
 static const int16_t skeleton_rig_parents[] = {-1,0,1,2,3,4,5,6,7,7,7,10,11,12,10,10,15,16,17,10,19,20,21,10,23,24,10,26,27,6,4,30,31,4,33,34,35,35,35,38,39,40,38,38,43,44,45,38,47,48,49,38,51,52,38,54,55,34,1,58,59,60,1,62,63,64,0,66,67,67,0,70,0,72,72};
 #define SKELETON_BODY_COUNT ((int)(sizeof(skeleton_body_indices)/sizeof(*skeleton_body_indices)))
 static SkeletonHierarchy skeleton_hierarchies[16];

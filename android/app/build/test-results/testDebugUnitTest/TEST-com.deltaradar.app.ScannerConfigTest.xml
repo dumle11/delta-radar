@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.deltaradar.app.ScannerConfigTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-04T10:31:09" hostname="Adams-MacBook-Pro-2.local" time="0.0">
+<testsuite name="com.deltaradar.app.ScannerConfigTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-11-04T10:46:56" hostname="Adams-MacBook-Pro-2.local" time="0.0">
   <properties/>
   <testcase name="readerUsesTheVerifiedAssetAndTransport" classname="com.deltaradar.app.ScannerConfigTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>

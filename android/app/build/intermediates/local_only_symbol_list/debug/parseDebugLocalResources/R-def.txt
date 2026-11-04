@@ -34,6 +34,13 @@ id diagnosticText
 id enemyLabelsDetails
 id enemyLinesDetails
 id generalScroll
+id healthBarAbove
+id healthBarBelow
+id healthBarLeft
+id healthBarPositionGroup
+id healthBarRight
+id healthBarThicknessSeek
+id healthBarThicknessValue
 id lineThicknessSeek
 id lineThicknessValue
 id logScroll

@@ -3204,6 +3204,13 @@ id graph_wrap
 id group_divider
 id groups
 id header_title
+id healthBarAbove
+id healthBarBelow
+id healthBarLeft
+id healthBarPositionGroup
+id healthBarRight
+id healthBarThicknessSeek
+id healthBarThicknessValue
 id hide_ime_id
 id hideable
 id home

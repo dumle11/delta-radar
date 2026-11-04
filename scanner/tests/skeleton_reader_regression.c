@@ -29,14 +29,14 @@ int main(void) {
     array(mesh+0x750,poses[0],80);array(mesh+0x760,poses[1],80);
     Entity e={.x=10,.y=20,.z=30,.position_plaintext=1};strcpy(e.kind,"player");strcpy(e.id,"ent_1");
     read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);
-    assert(e.has_bones&&e.bone_count==19);assert(e.bone_parent[2]==1);
+    assert(e.has_bones&&e.bone_count==17);assert(e.bone_parent[2]==1);
     near(e.bone_pos[1][0],9.30f);near(e.bone_pos[1][1],19.80f);near(e.bone_pos[1][2],30.04f);
     i32(mesh+0x794,1);read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);
     assert(e.has_bones);near(e.bone_pos[1][0],9.20f);
     int sockets[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);
     entities[0]=e;num_entities=1;persistent_sock=sockets[0];assert(post_to_radar()==0);
     char payload[8192];ssize_t got=read(sockets[1],payload,sizeof(payload)-1);assert(got>0);payload[got]=0;
-    assert(strstr(payload,"\"bonesVerified\":true,\"boneCount\":19"));
+    assert(strstr(payload,"\"bonesVerified\":true,\"boneCount\":17"));
     assert(strstr(payload,"\"boneParents\":[-1,0,1,2,3,1,5,6"));close_radar_sock();close(sockets[1]);
     i32(mesh+0x794,2);read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);assert(!e.has_bones&&!e.bone_count);
     i32(mesh+0x794,1);mesh[0x174]=0;read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);assert(!e.has_bones);

@@ -1196,6 +1196,7 @@ static int read_actor_health(uint64_t actor, float *hp, float *maximum, float *a
  * array with intact meshes and health. They are no longer active participants.
  * AI without PlayerState remain valid; a player with one must match its pawn. */
 static int actor_is_active_participant(uint64_t actor, uint64_t state) {
+    if (!is_telemetry_ptr(actor)) return 0;
     if (!is_telemetry_ptr(state)) return 1;
     uint64_t pawn = 0;
     uint8_t flags = 0, finished = 0;
@@ -1203,6 +1204,33 @@ static int actor_is_active_participant(uint64_t actor, uint64_t state) {
         read_mem(state + OFF_PLAYER_STATE_BOT_FLAGS, &flags, 1) != 1 ||
         read_mem(state + OFF_PLAYER_STATE_FINISHED, &finished, 1) != 1) return 0;
     return pawn == actor && finished == 0 && (flags & ((1 << 1) | (1 << 2) | (1 << 5))) == 0;
+}
+
+/* PlayerArray is independent of streamed-level actor ordering. Use its
+ * mutually linked active pawns both as discovery candidates and as a cache
+ * invalidation signal; an extracted pawn is never recovered from old state. */
+static int collect_roster_pawns(uint64_t world, uint64_t local_pawn,
+                                 uint64_t *pawns, int capacity) {
+    uint64_t state = read_ptr(world + OFF_UWORLD_GAME_STATE);
+    if (!is_telemetry_ptr(state)) return 0;
+    uint64_t data = read_ptr(state + 0x388);
+    int count = read_i32(state + 0x390);
+    if (!is_telemetry_ptr(data) || count < 1 || count > 256) return 0;
+    uint64_t states[256];
+    if (read_mem(data, states, (size_t)count * sizeof(*states)) !=
+        (ssize_t)((size_t)count * sizeof(*states))) return 0;
+    int used = 0;
+    for (int i = 0; i < count && used < capacity; i++) {
+        uint64_t ps = states[i];
+        if (!is_telemetry_ptr(ps)) continue;
+        uint64_t pawn = read_ptr(ps + OFF_PLAYER_STATE_PAWN_PRIVATE);
+        if (!is_telemetry_ptr(pawn) || read_ptr(pawn + OFF_APAWN_PLAYER_STATE) != ps ||
+            (pawn != local_pawn && !actor_is_active_participant(pawn, ps))) continue;
+        int duplicate = 0;
+        for (int j = 0; j < used; j++) if (pawns[j] == pawn) { duplicate = 1; break; }
+        if (!duplicate) pawns[used++] = pawn;
+    }
+    return used;
 }
 
 /* FName layouts differ in the current Proxima build, so reflection can fail
@@ -1463,8 +1491,8 @@ camera_done:
 
     /* The ULevel actor list and class hierarchy are expensive to traverse and
      * change far less often than transforms. Discover verified character pawns
-     * once per second, then read only their real RootComponent transforms on
-     * the 30 Hz camera/update path. */
+     * periodically, invalidating promptly when the active-player roster changes.
+     * Read transforms and health on every feed update. */
     static uint64_t cached_uworld = 0;
     static uint64_t cached_actor_data = 0;
     static uint64_t cached_actor_ptrs[MAX_ACTORS];
@@ -1472,8 +1500,14 @@ camera_done:
     static uint8_t cached_actor_kinds[MAX_ACTORS];
     static int cached_actor_count = 0;
     static unsigned cache_age = 0;
+    static uint64_t cached_roster[256];
+    static int cached_roster_count = 0;
+    uint64_t roster_pawns[256];
+    int roster_count = collect_roster_pawns(uworld, local_pawn, roster_pawns, 256);
+    int roster_changed = roster_count != cached_roster_count ||
+        memcmp(roster_pawns, cached_roster, (size_t)roster_count * sizeof(*roster_pawns)) != 0;
     int refresh_cache = cached_uworld != uworld || cached_actor_data != actor_data ||
-                        cached_actor_count == 0 || cache_age >= 20;
+                        cached_actor_count == 0 || cache_age >= 20 || roster_changed;
     if (refresh_cache) {
         uint64_t levels[512] = {0};
         int level_count = 1;
@@ -1510,6 +1544,24 @@ camera_done:
         struct { uint64_t cls; int kind; } loot_classes[512];
         int loot_count = 0, loot_class_count = 0;
         cached_actor_count = 0;
+        /* Prioritize actual player/teammate pawns before scanning loot-heavy
+         * levels. Distance filtering belongs to the overlay's shared slider. */
+        for (int i = 0; i < roster_count && cached_actor_count < MAX_ACTORS; i++) {
+            uint64_t actor = roster_pawns[i];
+            uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
+            if (!is_telemetry_ptr(cls)) continue;
+            int character = actor == local_pawn || is_character_class(cls, local_class);
+            if (!character) {
+                uint64_t root = read_ptr(actor + root_off);
+                float hh = is_telemetry_ptr(root) ?
+                    read_float(root + OFF_CAPSULE_COMPONENT_HALF_HEIGHT) / 100.0f : 0;
+                character = isfinite(hh) && hh >= 0.4f && hh <= 3.0f;
+            }
+            if (!character) continue;
+            cached_actor_ptrs[cached_actor_count] = actor;
+            cached_actor_classes[cached_actor_count] = cls;
+            cached_actor_kinds[cached_actor_count++] = LOOT_NONE;
+        }
         for (int li = 0; li < level_count && cached_actor_count < MAX_ACTORS; li++) {
             uint64_t level_actor_data = 0;
             int32_t level_actor_count = 0;
@@ -1525,7 +1577,9 @@ camera_done:
             }
             if (!is_any_ptr(level_actor_data) || level_actor_count <= 0 || level_actor_count > 50000)
                 continue;
-            int scan_count = level_actor_count < 2000 ? level_actor_count : 2000;
+            /* The scratch half-buffer holds all 50,000 validated slots.
+             * A first-2,000 cutoff silently omitted later streamed pawns. */
+            int scan_count = level_actor_count;
             if (read_mem(level_actor_data, all_actor_ptrs, (size_t)scan_count * 8) !=
                 (ssize_t)((size_t)scan_count * 8)) continue;
 
@@ -1621,6 +1675,8 @@ camera_done:
         }
         cached_uworld = uworld;
         cached_actor_data = actor_data;
+        memcpy(cached_roster, roster_pawns, (size_t)roster_count * sizeof(*roster_pawns));
+        cached_roster_count = roster_count;
         cache_age = 0;
     } else {
         cache_age++;

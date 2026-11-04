@@ -121,6 +121,8 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        val healthPosition = Settings.healthBarPosition(context)
+        val healthThickness = Settings.healthBarThicknessDp(context) * density
         val data = frame ?: return
         if (SystemClock.elapsedRealtime() - receivedAt >= FRESHNESS_MS || width <= 0 || height <= 0) {
             post(expire); return
@@ -209,7 +211,6 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                     "loot" -> 0.65f
                     else -> 0.45f
                 }
-                val healthLeft = enemy.bodyBounds?.get(0)?.times(width) ?: (centerX - healthBoxW * 0.5f)
                 when (if (drawBody) entityMode else Settings.DRAW_MODE_OFF) {
                     Settings.DRAW_MODE_SKELETON -> {
                         val bx = enemy.boneScreenX
@@ -245,15 +246,25 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                 }
                 if (drawHealth && enemy.onScreen && enemy.healthKnown && enemy.maxHealth > 0f) {
                     val hpFrac = (enemy.health / enemy.maxHealth).coerceIn(0f, 1f)
-                    val barW = 1.5f * density
-                    val barGap = 2f * density
-                    val barLeft = healthLeft - barW - barGap
-                    canvas.drawRect(RectF(barLeft, top, barLeft + barW, bottom), healthBgPaint)
-                    val fillTop = top + (bottom - top) * (1f - hpFrac)
-                    val r = ((1f - hpFrac) * 255).toInt().coerceIn(0, 255)
-                    val g = (hpFrac * 255).toInt().coerceIn(0, 255)
-                    healthFillPaint.color = Color.argb(220, r, g, 0)
-                    canvas.drawRect(RectF(barLeft, fillTop, barLeft + barW, bottom), healthFillPaint)
+                    val bounds = enemy.bodyBounds
+                    val bar = HealthBarLayout.calculate(
+                        bounds?.get(0)?.times(width) ?: (centerX - healthBoxW * .5f),
+                        bounds?.get(1)?.times(height) ?: top,
+                        bounds?.get(2)?.times(width) ?: (centerX + healthBoxW * .5f),
+                        bounds?.get(3)?.times(height) ?: bottom,
+                        healthPosition, healthThickness,
+                        2f * density, hpFrac)
+                    if (bar != null) {
+                        fun rect(r: HealthBarLayout.Rect) = RectF(r.left, r.top, r.right, r.bottom)
+                        val background = rect(bar.background)
+                        canvas.drawRect(background, healthBgPaint)
+                        val r = ((1f - hpFrac) * 255).toInt().coerceIn(0, 255)
+                        val g = (hpFrac * 255).toInt().coerceIn(0, 255)
+                        healthFillPaint.color = Color.argb(220, r, g, 0)
+                        canvas.drawRect(rect(bar.fill), healthFillPaint)
+                        occupied.add(background)
+                        labelTopY = minOf(labelTopY, background.top)
+                    }
                 }
             }
 

@@ -225,6 +225,67 @@ static void test_aim_metadata(void) {
     assert(!actor_rendered_on_screen((uintptr_t)actor));
 }
 
+static void test_long_distance_roster_discovery(void) {
+    _Alignas(8) unsigned char world[0x300] = {0}, level[0x200] = {0}, gs[0x400] = {0};
+    _Alignas(8) unsigned char gi[0x100] = {0}, lp[0x100] = {0}, pc[0x900] = {0};
+    _Alignas(8) unsigned char camera[0x5000] = {0};
+    _Alignas(8) unsigned char pawns[5][0x2000] = {{0}}, roots[5][0x600] = {{0}};
+    _Alignas(8) unsigned char states[3][0x700] = {{0}}, cls[0x80] = {0}, parent[0x80] = {0};
+    _Alignas(8) uint16_t name[] = {'P', 0};
+    uint64_t actors[2049] = {0}, roster[3], locals[] = {(uintptr_t)lp};
+    uint64_t world_slot = (uintptr_t)world;
+    put_ptr(world, OFF_UWORLD_PERSISTENT_LEVEL, level);
+    put_ptr(world, OFF_UWORLD_GAME_STATE, gs); put_ptr(world, 0x190, gi);
+    put_ptr(level, 0x98, actors); put_i32(level, 0xa0, 2049);
+    put_ptr(gs, 0x388, roster); put_i32(gs, 0x390, 3);
+    put_ptr(gi, 0x38, locals); put_ptr(lp, 0x30, pc);
+    put_ptr(pc, OFF_PLAYER_CONTROLLER_ACKNOWLEDGED_PAWN, pawns[0]);
+    put_ptr(pc, OFF_PC_CAMERA_MANAGER, camera); put_ptr(camera, 0x370, pc);
+    put_float(camera, 0x388, 90); put_float(camera, OFF_CAMERA_CACHE_PRIVATE, 1);
+    put_float(camera, OFF_CAMERA_CACHE_PRIVATE + OFF_CAMERA_CACHE_POV, 10000);
+    put_float(camera, OFF_CAMERA_CACHE_PRIVATE + OFF_CAMERA_CACHE_POV + OFF_POV_FOV, 105);
+    put_i32(cls, 0x24, 0xd7); put_ptr(cls, 0x40, parent); put_i32(parent, 0x24, 0xd5);
+    const float xs[] = {10000, 105000, 109000, 135000, 107500};
+    for (int i = 0; i < 5; i++) {
+        put_ptr(pawns[i], OFF_UOBJECT_CLASS, cls);
+        put_ptr(pawns[i], OFF_AACTOR_ROOT_COMPONENT, roots[i]);
+        put_float(roots[i], 0x148, xs[i]); put_u16(roots[i], 0x154, UINT16_MAX);
+        put_float(roots[i], 0x21c, 1); put_float(roots[i], 0x220, xs[i]);
+        put_u16(roots[i], 0x238, UINT16_MAX);
+        put_float(roots[i], OFF_CAPSULE_COMPONENT_HALF_HEIGHT, 100);
+        if (i < 3) {
+            roster[i] = (uintptr_t)states[i];
+            put_ptr(pawns[i], OFF_APAWN_PLAYER_STATE, states[i]);
+            put_ptr(states[i], OFF_PLAYER_STATE_PAWN_PRIVATE, pawns[i]);
+            put_ptr(states[i], OFF_PLAYER_STATE_NAME, name);
+            put_i32(states[i], OFF_PLAYER_STATE_NAME + 8, 2);
+            put_i32(states[i], OFF_PLAYER_STATE_NAME + 12, 2);
+            put_i32(states[i], OFF_GP_PLAYER_STATE_TEAM_ID, i == 1 ? 7 : 4);
+        }
+    }
+    actors[0] = (uintptr_t)pawns[0];
+    actors[2048] = (uintptr_t)pawns[3]; /* AI after the old 2,000-slot cutoff */
+    resolved_camera_manager_off = -1; resolved_camera_cache_off = -1;
+    camera_candidate_count = 0;
+    assert(read_entities_sdk((uintptr_t)&world_slot, 1, 0x180, 0x148, 0) == 4);
+    put_float(camera, OFF_CAMERA_CACHE_PRIVATE, 2);
+    assert(read_entities_sdk((uintptr_t)&world_slot, 1, 0x180, 0x148, 0) == 4);
+    assert(find_entity(pawns[1]) && find_entity(pawns[1])->team == 2);
+    assert(find_entity(pawns[2]) && find_entity(pawns[2])->team == 1);
+    assert(find_entity(pawns[1])->position_plaintext && find_entity(pawns[2])->position_plaintext);
+    assert(find_entity(pawns[1])->x - find_entity(pawns[0])->x == 950);
+    assert(find_entity(pawns[2])->x - find_entity(pawns[0])->x == 990);
+    assert(find_entity(pawns[3]) && find_entity(pawns[3])->x - find_entity(pawns[0])->x == 1250);
+    /* Change only the roster pawn. The level array and cached age are unchanged. */
+    put_ptr(states[1], OFF_PLAYER_STATE_PAWN_PRIVATE, pawns[4]);
+    put_ptr(pawns[4], OFF_APAWN_PLAYER_STATE, states[1]);
+    assert(read_entities_sdk((uintptr_t)&world_slot, 1, 0x180, 0x148, 0) == 4);
+    assert(!find_entity(pawns[1]) && find_entity(pawns[4]));
+    states[1][OFF_PLAYER_STATE_FINISHED] = 1;
+    assert(read_entities_sdk((uintptr_t)&world_slot, 1, 0x180, 0x148, 0) == 3);
+    assert(!find_entity(pawns[4])); /* roster discovery preserves extraction filtering */
+}
+
 static void test_loot_discovery(void) {
     _Alignas(8) unsigned char world[0x300] = {0}, level[0x200] = {0}, streamed[0x200] = {0};
     _Alignas(8) unsigned char gi[0x100] = {0}, lp[0x100] = {0}, pc[0x900] = {0};
@@ -601,6 +662,7 @@ int main(void) {
     for (int i = 0; i < 48; i++)
         assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 4);
     assert(!self_verified);
+    test_long_distance_roster_discovery();
     test_loot_discovery();
     test_large_snapshot();
     free(read_buf);

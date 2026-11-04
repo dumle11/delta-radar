@@ -731,6 +731,28 @@ class OverlayService : Service() {
             }
         })
 
+        val healthPositions = listOf(R.id.healthBarLeft, R.id.healthBarRight, R.id.healthBarAbove, R.id.healthBarBelow)
+        val healthGroup = view.findViewById<android.widget.RadioGroup>(R.id.healthBarPositionGroup)
+        healthGroup.check(healthPositions[Settings.healthBarPosition(this)])
+        healthGroup.setOnCheckedChangeListener { _, checked ->
+            val position = healthPositions.indexOf(checked)
+            if (position >= 0) Settings.setHealthBarPosition(this, position)
+        }
+        val healthThicknessSeek = view.findViewById<SeekBar>(R.id.healthBarThicknessSeek)
+        val healthThicknessValue = view.findViewById<TextView>(R.id.healthBarThicknessValue)
+        healthThicknessSeek.max = 14
+        healthThicknessSeek.progress = ((Settings.healthBarThicknessDp(this) - .5f) * 4).toInt()
+        healthThicknessValue.text = "${Settings.healthBarThicknessDp(this)}dp"
+        healthThicknessSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onStartTrackingTouch(s: SeekBar) {}
+            override fun onProgressChanged(s: SeekBar, v: Int, fromUser: Boolean) {
+                val thickness = .5f + v * .25f
+                healthThicknessValue.text = "${thickness}dp"
+                if (fromUser) Settings.setHealthBarThicknessDp(this@OverlayService, thickness)
+            }
+            override fun onStopTrackingTouch(s: SeekBar) {}
+        })
+
         // Player draw mode + color
         setupDrawModeButtons(view,
             listOf(R.id.playerModeOff, R.id.playerModeLines, R.id.playerModeBoxes, R.id.playerModeSkeleton),

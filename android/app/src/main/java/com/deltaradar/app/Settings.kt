@@ -118,6 +118,11 @@ object Settings {
     fun lineThicknessPercent(ctx: Context) = prefs(ctx).getInt(LINE_THICKNESS_KEY, 75).coerceIn(25, 300)
     fun setLineThicknessPercent(ctx: Context, v: Int) { prefs(ctx).edit().putInt(LINE_THICKNESS_KEY, v.coerceIn(25, 300)).apply() }
 
+    fun healthBarPosition(ctx: Context) = prefs(ctx).getInt("health_bar_position", HealthBarLayout.LEFT).coerceIn(0, 3)
+    fun setHealthBarPosition(ctx: Context, v: Int) { prefs(ctx).edit().putInt("health_bar_position", v.coerceIn(0, 3)).apply() }
+    fun healthBarThicknessDp(ctx: Context) = prefs(ctx).getFloat("health_bar_thickness_dp", .75f).coerceIn(.5f, 4f)
+    fun setHealthBarThicknessDp(ctx: Context, v: Float) { prefs(ctx).edit().putFloat("health_bar_thickness_dp", v.coerceIn(.5f, 4f)).apply() }
+
     private fun featureKey(type: EntityType) = when (type) {
         EntityType.PLAYER -> PLAYER_FEATURES_KEY
         EntityType.BOT -> BOT_FEATURES_KEY

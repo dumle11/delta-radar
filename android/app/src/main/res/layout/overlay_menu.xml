@@ -320,6 +320,41 @@
                     <View android:layout_width="match_parent" android:layout_height="1dp"
                         android:background="#1E2940" android:layout_marginBottom="8dp" />
 
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Health bar position" android:textColor="#c8d6e0" android:textSize="13sp"
+                        android:paddingLeft="4dp" android:layout_marginBottom="4dp" />
+                    <RadioGroup android:id="@+id/healthBarPositionGroup"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:layout_marginBottom="6dp">
+                        <RadioButton android:id="@+id/healthBarLeft"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:text="Left" android:textColor="#c8d6e0" android:textSize="11sp"
+                            android:padding="0dp" android:minWidth="0dp" android:buttonTint="#4fd08a" />
+                        <RadioButton android:id="@+id/healthBarRight"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:text="Right" android:textColor="#c8d6e0" android:textSize="11sp"
+                            android:padding="0dp" android:minWidth="0dp" android:buttonTint="#4fd08a" />
+                        <RadioButton android:id="@+id/healthBarAbove"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:text="Above" android:textColor="#c8d6e0" android:textSize="11sp"
+                            android:padding="0dp" android:minWidth="0dp" android:buttonTint="#4fd08a" />
+                        <RadioButton android:id="@+id/healthBarBelow"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:text="Below" android:textColor="#c8d6e0" android:textSize="11sp"
+                            android:padding="0dp" android:minWidth="0dp" android:buttonTint="#4fd08a" />
+                    </RadioGroup>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:paddingLeft="4dp" android:paddingRight="4dp">
+                        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                            android:text="Health bar thickness" android:textColor="#c8d6e0" android:textSize="13sp" />
+                        <TextView android:id="@+id/healthBarThicknessValue"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="0.75dp" android:textColor="#4fd08a" android:textSize="12sp" />
+                    </LinearLayout>
+                    <SeekBar android:id="@+id/healthBarThicknessSeek"
+                        android:layout_width="match_parent" android:layout_height="36dp"
+                        android:max="14" android:progress="1" android:layout_marginBottom="8dp" />
+
                     <!-- PLAYERS section header -->
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="PLAYERS" android:textColor="#e5534b"
