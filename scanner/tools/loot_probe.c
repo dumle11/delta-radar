@@ -663,6 +663,10 @@ static int lua_table(uint64_t table, const char *wanted, int exact) {
                 if (!isfinite(number) || number < 0 || number > 9007199254740991.0) continue;
                 snprintf(name, sizeof(name), "#%.0f", number);
             } else continue;
+        } else if (!wanted && (key_tag == 69 || key_tag == 71 || key_tag == 2)) {
+            /* Sets of view instances use tables/userdata as keys. Keep their
+             * identity opaque; string-key-only listing would look empty. */
+            snprintf(name, sizeof(name), "@%d:%lx", key_tag, key);
         } else if (!lua_read_string(key, key_tag, name, sizeof(name))) continue;
         if (wanted && !(exact ? !strcmp(name, wanted) : contains_case_insensitive(name, wanted))) continue;
         lua_print_value(name, tag, value, exact);

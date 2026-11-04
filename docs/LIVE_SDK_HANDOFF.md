@@ -1,3 +1,33 @@
+## Second auto-pickup live match — 2026-11-04 (latest)
+
+Current branch `codex/auto-pickup`; second match is in progress, user released
+to play after manual tests. No outcome or crash has been reported. Production
+APK/native remain unchanged; no automatic transfers/drops/input exist.
+
+New positive evidence: all three container ItemBase keys map to actual
+IVWarehouseTemplate cell values; each value's `item` pointer and GID/catalog
+match the inventory map. Registry-verified native widget geometry matches the
+visible cells. Source collection lost only the manually picked Stapler.
+Use the persistent RootUI → MobileBagPanel current-subview hierarchy, described
+in AUTO_PICKUP.md. `_deactiveUIList` was a cached-panel route, not active UI.
+The diagnostic now displays opaque table keys; otherwise the view map looked
+empty. `bIsShow=false` even for visible cells: do not treat it as visibility.
+
+Ground drop is now positively verified for the cheap Stapler: with selector
+absent, dragging it out of the backpack removed it from Player and created a
+current-world pickup with the same InventoryGID, catalog/count and
+IsInContainer=0. Re-pickup returned the same GID to backpack. The old world
+actor remained briefly with catalog cleared to zero, so neither actor presence
+nor disappearance alone is a valid confirmation. Earlier Reader-drop evidence
+remains ambiguous.
+
+Raw proof stays in ignored `auto-pickup-20261103/match2-*`. See
+[AUTO_PICKUP.md](AUTO_PICKUP.md#second-live-match--2026-11-04-checkpoint).
+Remaining: bounded native UI acquisition, viewport/touch conversion and
+clipping, action lifecycle and app integration. No new manual steps needed now.
+
+---
+
 ## Auto-pickup and backpack replacement — 2026-11-03 (latest)
 
 Current branch: `codex/auto-pickup`. The first live inventory test is finished.

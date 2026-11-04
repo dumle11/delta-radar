@@ -261,3 +261,77 @@ compiles but has not yet been exercised against a real active view wrapper.
 The next live hypothesis is to inspect the active in-match view's item data
 and native widget wrapper together, then compare geometry with the visible
 cell. No further item-value or pre-search-container test is needed for this.
+
+## Second live match — 2026-11-04 checkpoint
+
+The user entered another match with radar enabled and free backpack space.
+Spawn/open-container/backpack-only captures all passed transport, live-frame
+and native table-completeness checks. This match is still in progress at this
+checkpoint; no outcome has been reported. All item actions remained manual.
+
+The open Military Med Kit contained Medical Stapler `15080050238` (6,900),
+toothpaste `15010010004` (2,420), and first-aid kit `14030000002`. No new price
+panel comparison was needed. The Stapler was selected with one tap, then
+picked up with the user's normal double tap. Its same GID moved from Nearby
+slot 302 to Player backpack 108001; the source UI collection fell from three
+entries to two and retained the other two items.
+
+The relevant live hierarchy is:
+
+- `Facade.UIManager._viewportPersistentRootUI` → `RootUI._childWidgets`
+  → `MobileBagPanel._currentSubView.__ins_data__` → `LootingMainView`.
+- Ordinary container: `_wtLootingLitter._wtContainerPanel` →
+  `_wtContainerSlotView` (`InvSlotView`) → `_allItemViews`.
+- Own backpack/rig: `_wtLootingEquipPanelV1._wtBagContainerView` /
+  `_wtCHContainerView`. Right-side player-body panes are separate under
+  `_wtLootDeadbodyPanel`; their cached slots are not the ordinary source.
+- `_allItemViews` maps **ItemBase table keys to IVWarehouseTemplate values**.
+  The value's `item` field exactly matched its key, and that ItemBase GID and
+  catalog ID matched the inventory map for all three visible cells.
+- `__cppinst` is a 24-byte Lua userdata whose payload offset 16 held the
+  registry-verified `WBP_WarehouseItemTemplate_C` object directly. The native
+  geometry helper worked for all three item cells. This exercises the earlier
+  previously unverified userdata path against real live wrappers.
+
+Correction to earlier exploration: `_deactiveUIList` is a cached-panel path,
+not an established active-view list. It contained an old ItemDetailPanel while
+none was visible, then became empty when the real details panel was selected.
+Do not build action identity from it. String-key-only table listing also
+concealed `_allItemViews` because its keys are tables. The diagnostic now
+labels opaque table/userdata/lightuserdata keys without treating them as
+commands. Raw keys/pointers remain private.
+
+Cell `bIsShow` was false for all three visible items; `_is_enable_` was true,
+`_has_destroy_` and `_bDraging` false, and `_viewSearchState` zero. Do not map
+these raw flags to visibility/search semantics without further proof. Native
+render-to-touch conversion and clipping still need explicit verification.
+
+A separate ground-drop test now resolves the earlier Reader ambiguity. With
+the container closed, a fresh backpack-only capture had no selector. Before
+dropping, a complete nearby current-world registry capture had no Stapler
+world pickup. The user dragged only the Stapler onto the normal drop icon.
+It vanished from Player/cache items, and one new `BP_InventoryPickup_C`
+appeared within six metres with **the same InventoryGID**, catalog ID,
+count 1 and `IsInContainer=0`. This is positive ground-placement evidence.
+
+The user picked that Stapler back up. Its same GID returned to backpack
+108001. The old world actor still retained its InventoryGID/count briefly,
+but its PickupItemInfo catalog cleared to zero/unknown. Do not require actor
+disappearance after pickup, or accept a GID-only actor match as current loot.
+A fresh valid matching catalog/count plus absence from carried inventory was
+needed to establish the ground drop. The earlier Reader result remains
+unverified and is not retroactively reclassified.
+
+Main private evidence: `match2-container-open`, `match2-stapler-selected`,
+`match2-source-view-set`, `match2-cell-geometries`,
+`match2-cell-binding-comparison`, `match2-stapler-ui-transfer`,
+`match2-backpack-only`, `match2-ground-before-drop-2`,
+`match2-ground-after-drop`, `match2-ground-drop-comparison`,
+`match2-stapler-repicked`, and `match2-repickup-comparison`. The first ground
+capture failed before reading world data because camera IDs have an `ent_`
+prefix; the private helper was corrected and a new baseline label used.
+
+The user was released to continue playing. No further manual steps have been
+requested. A bounded live UI acquisition adapter, reliable viewport/clipping
+conversion, action lifecycle and app button remain to implement. There is
+still no operational auto-pickup APK, automatic touch input or game write.
