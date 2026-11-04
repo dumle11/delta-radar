@@ -124,6 +124,68 @@ static void test_sdk_world_admission(void) {
     assert(!select_sdk_world((uintptr_t)&slot, &candidate));
 }
 
+static void set_health(unsigned char *set, float hp, float maximum, float alive) {
+    put_float(set, OFF_HEALTH_SET_CURRENT - 4, hp);
+    put_float(set, OFF_HEALTH_SET_CURRENT, hp);
+    put_float(set, OFF_HEALTH_SET_MAX - 4, maximum);
+    put_float(set, OFF_HEALTH_SET_MAX, maximum);
+    put_float(set, OFF_HEALTH_SET_IS_ALIVE - 4, alive);
+    put_float(set, OFF_HEALTH_SET_IS_ALIVE, alive);
+}
+
+static void test_owned_health(void) {
+    _Alignas(8) unsigned char actor[0x1800] = {0}, sibling[0x1800] = {0};
+    _Alignas(8) unsigned char cls[0x80] = {0}, sibling_cls[0x80] = {0};
+    _Alignas(8) unsigned char component[0x500] = {0}, replacement[0x500] = {0};
+    _Alignas(8) unsigned char set[0x140] = {0}, other_set[0x140] = {0};
+    health_layout_count = 0;
+    put_ptr(actor, OFF_UOBJECT_CLASS, cls);
+    put_ptr(sibling, OFF_UOBJECT_CLASS, sibling_cls);
+    put_ptr(actor, 0x10b8, component);
+    put_ptr(component, 0x10, actor);
+    put_ptr(component, 0x280, set);
+    put_float(component, 0x258, 100); /* design default, not runtime max */
+    put_ptr(set, 0x10, actor);
+    set_health(set, 95, 95, 1);
+    float hp = -1, maximum = -1, alive = -1;
+    assert(read_actor_health((uintptr_t)actor, &hp, &maximum, &alive));
+    assert(hp == 95 && maximum == 95 && alive == 1);
+    set_health(set, 227.5f, 350, 1);
+    assert(read_actor_health((uintptr_t)actor, &hp, &maximum, &alive));
+    assert(hp == 227.5f && maximum == 350); /* damage, not cached initial HP */
+    set_health(set, 0, 350, 0);
+    assert(read_actor_health((uintptr_t)actor, &hp, &maximum, &alive));
+    assert(hp == 0 && maximum == 350 && alive == 0);
+    set_health(set, NAN, 350, 1);
+    assert(!read_actor_health((uintptr_t)actor, &hp, &maximum, &alive));
+    set_health(set, 200, 350, 1);
+    put_ptr(set, 0x10, sibling); /* plausible tuple belonging to another pawn */
+    assert(!read_actor_health((uintptr_t)actor, &hp, &maximum, &alive));
+    put_ptr(set, 0x10, actor);
+    assert(read_actor_health((uintptr_t)actor, &hp, &maximum, &alive));
+    put_ptr(component, 0x10, sibling);
+    assert(!read_actor_health((uintptr_t)actor, &hp, &maximum, &alive));
+    put_ptr(component, 0x10, actor);
+    /* Component replacement must use new values at the cached layout. */
+    put_ptr(actor, 0x10b8, replacement);
+    put_ptr(replacement, 0x10, actor);
+    put_ptr(replacement, 0x280, other_set);
+    put_float(replacement, 0x258, 100);
+    put_ptr(other_set, 0x10, actor);
+    set_health(other_set, 74, 95, 1);
+    assert(read_actor_health((uintptr_t)actor, &hp, &maximum, &alive));
+    assert(hp == 74 && maximum == 95);
+    /* An initially uninitialized class must recover on its next valid actor
+     * without waiting thousands of frames for another class-wide scan. */
+    assert(!read_actor_health((uintptr_t)sibling, &hp, &maximum, &alive));
+    put_ptr(sibling, 0x10b8, component);
+    put_ptr(component, 0x10, sibling); put_ptr(set, 0x10, sibling);
+    set_health(set, 350, 350, 1);
+    assert(read_actor_health((uintptr_t)sibling, &hp, &maximum, &alive));
+    assert(hp == 350 && maximum == 350);
+    health_layout_count = 0;
+}
+
 static void test_aim_metadata(void) {
     _Alignas(8) unsigned char actor[0x400] = {0}, mesh[0x900] = {0}, root[0x300] = {0};
     float position[3]; int plaintext = 0;
@@ -274,6 +336,7 @@ int main(void) {
     use_vm_readv = 1;
     test_character_identity();
     test_aim_metadata();
+    test_owned_health();
     test_sdk_world_admission();
     ue4_base = 0x7e00000000ULL;
     ue4_end = ue4_base + 0x100000;
@@ -496,10 +559,37 @@ int main(void) {
     put_float(enemy_root, 0x148 + 8, 0.0f);
     enemy_root[0x176] = 0;
 
+    /* Extraction must drop a full-health pawn even while its old transform,
+     * mesh, and actor-array slot are retained. */
+    _Alignas(8) unsigned char remote_component[0x500] = {0}, remote_health[0x140] = {0};
+    put_ptr(enemy, 0x10b8, remote_component);
+    put_ptr(remote_component, 0x10, enemy);
+    put_ptr(remote_component, 0x280, remote_health);
+    put_float(remote_component, 0x258, 100);
+    put_ptr(remote_health, 0x10, enemy);
+    set_health(remote_health, 100, 100, 1);
+    for (int j = 0; j < health_layout_count; j++) health_layouts[j].last_attempt = 0;
+    assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 4);
+    assert(find_entity(enemy)->health_known && find_entity(enemy)->health == 100);
+
     put_ptr(enemy_state, OFF_PLAYER_STATE_PAWN_PRIVATE, bot);
     assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 3);
     assert(find_entity(enemy) == NULL);
+    put_ptr(enemy_state, OFF_PLAYER_STATE_PAWN_PRIVATE, NULL);
+    assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 3);
+    assert(find_entity(enemy) == NULL); /* extracted pawn still in actor array */
     put_ptr(enemy_state, OFF_PLAYER_STATE_PAWN_PRIVATE, enemy);
+    enemy_state[OFF_PLAYER_STATE_FINISHED] = 1;
+    assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 3);
+    assert(find_entity(enemy) == NULL); /* finished before pawn teardown */
+    enemy_state[OFF_PLAYER_STATE_FINISHED] = 0;
+    enemy_state[OFF_PLAYER_STATE_BOT_FLAGS] |= 1 << 5;
+    assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 3);
+    assert(find_entity(enemy) == NULL); /* inactive PlayerState */
+    enemy_state[OFF_PLAYER_STATE_BOT_FLAGS] &= ~(1 << 5);
+    assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 4);
+    assert(find_entity(enemy)); /* a newly active pawn is not permanently blacklisted */
+    assert(actor_is_active_participant((uintptr_t)bot, 0)); /* state-less AI */
     enemy[OFF_CHARACTER_LAST_IS_DEAD] = 1;
     assert(read_entities_sdk((uintptr_t)&world_ptr, 1, 0x180, 0x148, 0) == 4);
     assert(find_entity(enemy) && find_entity(enemy)->dead);

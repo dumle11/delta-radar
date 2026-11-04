@@ -239,13 +239,14 @@ class EntityFeedService : Service() {
             if (!dead) accepted++
         }
 
-        // Explicit death is immediate. A temporarily missing streamed-level
-        // pawn gets a short grace window so app focus/screenshot transitions do
-        // not make human boxes vanish while Unreal rebuilds its level arrays.
+        // Combat actors are a complete current-frame roster. An extracted or
+        // unpossessed pawn must disappear immediately, including from the web
+        // feed. Keep the existing streaming grace only for loot.
         entities.keys.toList().forEach { id ->
             if (id !in seen) {
                 val misses = (missingFrames[id] ?: 0) + 1
-                if (misses >= 12) {
+                val isLoot = entities[id]?.optString("kind") == "loot"
+                if (!isLoot || misses >= 12) {
                     entities.remove(id)
                     missingFrames.remove(id)
                 } else missingFrames[id] = misses

@@ -226,6 +226,7 @@ static int is_telemetry_ptr(uint64_t p) {
 #define OFF_HEALTH_SET_IS_ALIVE 0x134
 #define OFF_CHARACTER_LAST_IS_DEAD 0xE35
 #define OFF_PLAYER_STATE_DEAD 0x4AC
+#define OFF_PLAYER_STATE_FINISHED 0x4C0
 #define OFF_CHARACTER_CAPSULE_HALF_HEIGHT 0xCB0
 #define OFF_CAPSULE_COMPONENT_HALF_HEIGHT 0x580
 
@@ -1080,19 +1081,19 @@ static int find_object_field(uint64_t owner, int start, int end, const char *cla
     return -1;
 }
 
-/* FGPGameplayAttributeData stores BaseValue immediately before CurrentValue.
- * Proxima 1.202's live Health/MaxHealth/IsAlive CurrentValue slots are
- * 0x3C/0x54/0x134. Validate the complete tuple so an unrelated UObject is not
- * accepted merely because it happens to contain one plausible float. */
+/* Read one attribute snapshot. HealthMAX on the component is a design default
+ * (100 even on live 95/350 HP bots), not the runtime MaxHealth attribute. */
 static int read_health_set(uint64_t health_set, float *health, float *max_health,
                            float *is_alive) {
-    if (!is_game_heap_ptr(health_set)) return 0;
-    float hp_base = read_float(health_set + OFF_HEALTH_SET_CURRENT - 4);
-    float hp = read_float(health_set + OFF_HEALTH_SET_CURRENT);
-    float max_base = read_float(health_set + OFF_HEALTH_SET_MAX - 4);
-    float max_hp = read_float(health_set + OFF_HEALTH_SET_MAX);
-    float alive_base = read_float(health_set + OFF_HEALTH_SET_IS_ALIVE - 4);
-    float alive = read_float(health_set + OFF_HEALTH_SET_IS_ALIVE);
+    if (!is_telemetry_ptr(health_set)) return 0;
+    float snapshot[(OFF_HEALTH_SET_IS_ALIVE + 4) / 4];
+    if (read_mem(health_set, snapshot, sizeof(snapshot)) != sizeof(snapshot)) return 0;
+    float hp_base = snapshot[(OFF_HEALTH_SET_CURRENT - 4) / 4];
+    float hp = snapshot[OFF_HEALTH_SET_CURRENT / 4];
+    float max_base = snapshot[(OFF_HEALTH_SET_MAX - 4) / 4];
+    float max_hp = snapshot[OFF_HEALTH_SET_MAX / 4];
+    float alive_base = snapshot[(OFF_HEALTH_SET_IS_ALIVE - 4) / 4];
+    float alive = snapshot[OFF_HEALTH_SET_IS_ALIVE / 4];
     if (!isfinite(hp_base) || !isfinite(hp) || !isfinite(max_base) ||
         !isfinite(max_hp) || !isfinite(alive_base) || !isfinite(alive)) return 0;
     if (max_hp < 10.0f || max_hp > 100000.0f ||
@@ -1108,71 +1109,44 @@ static int read_health_set(uint64_t health_set, float *health, float *max_health
     return 1;
 }
 
-/* Minor regional builds shift the large AGPCharacterBase layout. Resolve the
- * two pointer fields once from the local pawn, then reuse them for every actor
- * and frame. Reflection names are preferred, with a strict value-shape check
- * as the fallback when this build's FName layout cannot decode component names. */
-static int discover_health_chain(uint64_t actor, int *component_off, int *set_off) {
-    int best_score = -1;
-    int best_component_off = -1, best_set_off = -1;
-    float best_hp = 0.0f, best_max_hp = 0.0f, best_alive = 0.0f;
-    int reflected_component = find_object_field(
-        actor, 0x700, 0x1800, "HealthDataComponent");
-    int component_start = reflected_component >= 0 ? reflected_component : 0x700;
-    int component_end = reflected_component >= 0 ? reflected_component + 8 : 0x1800;
-    for (int co = component_start; co < component_end; co += 8) {
-        uint64_t component = read_ptr(actor + (uint64_t)co);
-        if (!is_game_heap_ptr(component)) continue;
+/* This build's UObject Outer is +0x10. Both HealthDataComponent and
+ * AttributeSetHealth are actor-owned. Validate those backlinks on every read,
+ * including cached offsets, so a reused address cannot borrow another pawn's HP. */
+static int read_actor_health_at(uint64_t actor, int component_off, int set_off,
+                                float *hp, float *maximum, float *alive) {
+    if (component_off < 0 || set_off < 0) return 0;
+    uint64_t component = read_ptr(actor + (uint64_t)component_off);
+    if (!is_telemetry_ptr(component) || read_ptr(component + 0x10) != actor) return 0;
+    uint64_t set = read_ptr(component + (uint64_t)set_off);
+    if (!is_telemetry_ptr(set) || read_ptr(set + 0x10) != actor) return 0;
+    return read_health_set(set, hp, maximum, alive);
+}
 
-        int reflected_set = find_object_field(
-            component, 0x100, 0x500, "AttributeSetHealth");
+static int discover_health_chain(uint64_t actor, int *component_off, int *set_off) {
+    int reflected_component = find_object_field(actor, 0x700, 0x1800, "HealthDataComponent");
+    int start = reflected_component >= 0 ? reflected_component : 0x700;
+    int end = reflected_component >= 0 ? reflected_component + 8 : 0x1800;
+    for (int co = start; co < end; co += 8) {
+        uint64_t component = read_ptr(actor + (uint64_t)co);
+        if (!is_telemetry_ptr(component) || read_ptr(component + 0x10) != actor) continue;
+        int reflected_set = find_object_field(component, 0x100, 0x500, "AttributeSetHealth");
         int set_start = reflected_set >= 0 ? reflected_set : 0x100;
         int set_end = reflected_set >= 0 ? reflected_set + 8 : 0x500;
         for (int so = set_start; so < set_end; so += 8) {
-            uint64_t set = read_ptr(component + (uint64_t)so);
-            float hp = 0.0f, max_hp = 0.0f, alive = 0.0f;
-            if (!read_health_set(set, &hp, &max_hp, &alive)) continue;
-            /* In UGPHealthDataComponent, HealthMAX is 0x28 bytes before the
-             * HealthSet pointer. This relationship survives the regional
-             * build's base-class size shift and rejects unrelated attribute-
-             * shaped objects that happen to contain plausible numbers. */
-            if (so < 0x28) continue;
+            /* HealthDataComponent's design default is a shape check only.
+             * AbilitySystem also references this set but lacks this field. */
             float component_max = read_float(component + (uint64_t)(so - 0x28));
-            if (!isfinite(component_max) || component_max < 10.0f ||
-                fabsf(component_max - max_hp) > fmaxf(2.0f, max_hp * 0.05f)) continue;
-            int score = 0;
-            if (alive >= 0.5f) score += 100;
-            if (hp > 0.01f) score += 100;
-            if (score > best_score) {
-                best_score = score;
-                best_component_off = co;
-                best_set_off = so;
-                best_hp = hp;
-                best_max_hp = max_hp;
-                best_alive = alive;
-            }
+            if (!isfinite(component_max) || component_max < 10 || component_max > 100000) continue;
+            float hp, maximum, alive;
+            if (!read_actor_health_at(actor, co, so, &hp, &maximum, &alive)) continue;
+            *component_off = co;
+            *set_off = so;
+            fprintf(stderr, "\n[+] Owned health chain actor+0x%x -> component+0x%x (%.1f/%.1f)\n",
+                    co, so, hp, maximum);
+            return 1;
         }
     }
-    if (best_component_off < 0) return 0;
-    *component_off = best_component_off;
-    *set_off = best_set_off;
-    fprintf(stderr,
-            "\n[+] Health chain actor+0x%x -> component+0x%x "
-            "(hp=%.1f/%.1f alive=%.0f score=%d)\n",
-            best_component_off, best_set_off, best_hp, best_max_hp,
-            best_alive, best_score);
-    if (best_score == 0) {
-        uint64_t component = read_ptr(actor + (uint64_t)best_component_off);
-        uint64_t set = read_ptr(component + (uint64_t)best_set_off);
-        fprintf(stderr, "[diag] health-set candidate floats:");
-        for (int off = 0x20; off <= 0x140; off += 4) {
-            float value = read_float(set + (uint64_t)off);
-            if (isfinite(value) && fabsf(value) >= 0.5f && fabsf(value) <= 100000.0f)
-                fprintf(stderr, " +%03x=%.2f", off, value);
-        }
-        fprintf(stderr, "\n");
-    }
-    return 1;
+    return 0;
 }
 
 #define MAX_HEALTH_LAYOUTS 64
@@ -1180,53 +1154,55 @@ typedef struct {
     uint64_t actor_class;
     int component_off;
     int set_off;
-    int death_trusted;
-    unsigned long last_attempt;
+    long long last_attempt;
 } HealthLayout;
 
 static HealthLayout health_layouts[MAX_HEALTH_LAYOUTS];
 static int health_layout_count = 0;
-static unsigned long health_layout_clock = 0;
 
-static HealthLayout *health_layout_for_actor(uint64_t actor) {
-    uint64_t actor_class = read_ptr(actor + OFF_UOBJECT_CLASS);
-    if (!is_game_heap_ptr(actor_class) && !is_any_ptr(actor_class)) return NULL;
-    health_layout_clock++;
-
+static int read_actor_health(uint64_t actor, float *hp, float *maximum, float *alive) {
+    uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
+    if (!is_telemetry_ptr(cls)) return 0;
     HealthLayout *layout = NULL;
     for (int i = 0; i < health_layout_count; i++) {
-        if (health_layouts[i].actor_class == actor_class) {
-            layout = &health_layouts[i];
-            break;
-        }
+        if (health_layouts[i].actor_class == cls) { layout = &health_layouts[i]; break; }
     }
-    if (!layout) {
-        if (health_layout_count >= MAX_HEALTH_LAYOUTS) return NULL;
+    if (!layout && health_layout_count < MAX_HEALTH_LAYOUTS) {
         layout = &health_layouts[health_layout_count++];
-        memset(layout, 0, sizeof(*layout));
-        layout->actor_class = actor_class;
-        layout->component_off = -1;
-        layout->set_off = -1;
+        *layout = (HealthLayout){ .actor_class = cls, .component_off = -1, .set_off = -1 };
     }
-
-    /* Retry a failed class occasionally: its first observed actor may still be
-     * constructing components. Successful layouts never scan again. */
-    if (layout->component_off < 0 &&
-        (layout->last_attempt == 0 || health_layout_clock - layout->last_attempt >= 3000)) {
-        layout->last_attempt = health_layout_clock;
-        int component_off = -1, set_off = -1;
-        if (discover_health_chain(actor, &component_off, &set_off)) {
-            layout->component_off = component_off;
-            layout->set_off = set_off;
-            uint64_t component = read_ptr(actor + (uint64_t)component_off);
-            uint64_t set = is_game_heap_ptr(component) ?
-                read_ptr(component + (uint64_t)set_off) : 0;
-            float hp = 0.0f, max_hp = 0.0f, alive = 0.0f;
-            layout->death_trusted = read_health_set(set, &hp, &max_hp, &alive) &&
-                hp > 0.01f && alive >= 0.5f;
+    if (layout && read_actor_health_at(actor, layout->component_off, layout->set_off,
+                                      hp, maximum, alive)) return 1;
+    /* Sibling bot classes normally share the layout. Try validated cached
+     * chains before scanning, including while a class discovery is throttled. */
+    for (int i = 0; i < health_layout_count; i++) {
+        HealthLayout *other = &health_layouts[i];
+        if (other == layout || other->component_off < 0) continue;
+        if (read_actor_health_at(actor, other->component_off, other->set_off, hp, maximum, alive)) {
+            if (layout) { layout->component_off = other->component_off; layout->set_off = other->set_off; }
+            return 1;
         }
     }
-    return layout;
+    long long now = sample_time_ms();
+    if (layout && layout->last_attempt && now - layout->last_attempt < 250) return 0;
+    if (layout) layout->last_attempt = now;
+    int co = -1, so = -1;
+    if (!discover_health_chain(actor, &co, &so)) return 0;
+    if (layout) { layout->component_off = co; layout->set_off = so; }
+    return read_actor_health_at(actor, co, so, hp, maximum, alive);
+}
+
+/* Extracted/finished and unpossessed pawns can remain in the level's actor
+ * array with intact meshes and health. They are no longer active participants.
+ * AI without PlayerState remain valid; a player with one must match its pawn. */
+static int actor_is_active_participant(uint64_t actor, uint64_t state) {
+    if (!is_telemetry_ptr(state)) return 1;
+    uint64_t pawn = 0;
+    uint8_t flags = 0, finished = 0;
+    if (read_mem(state + OFF_PLAYER_STATE_PAWN_PRIVATE, &pawn, sizeof(pawn)) != sizeof(pawn) ||
+        read_mem(state + OFF_PLAYER_STATE_BOT_FLAGS, &flags, 1) != 1 ||
+        read_mem(state + OFF_PLAYER_STATE_FINISHED, &finished, 1) != 1) return 0;
+    return pawn == actor && finished == 0 && (flags & ((1 << 1) | (1 << 2) | (1 << 5))) == 0;
 }
 
 /* FName layouts differ in the current Proxima build, so reflection can fail
@@ -1327,7 +1303,6 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         last_camera_timestamp = -1.0f;
         stale_camera_frames = 0;
         health_layout_count = 0;
-        health_layout_clock = 0;
     }
 
     diagnostic_status = "level unavailable";
@@ -1715,10 +1690,7 @@ camera_done:
                         (unsigned long)actor_ptrs[i]);
             continue;
         }
-        if (has_playerstate && !is_self_pawn) {
-            uint64_t active_pawn = read_ptr(player_state + OFF_PLAYER_STATE_PAWN_PRIVATE);
-            if (is_telemetry_ptr(active_pawn) && active_pawn != actor_ptrs[i]) continue;
-        }
+        if (!is_self_pawn && !actor_is_active_participant(actor_ptrs[i], player_state)) continue;
         diag_player_state++;
 
         uint64_t root = read_ptr(actor_ptrs[i] + root_off);
@@ -1835,34 +1807,16 @@ camera_done:
         e->health = 0.0f;
         e->max_health = 0.0f;
         e->health_known = 0;
-        HealthLayout *health_layout = health_layout_for_actor(actor_ptrs[i]);
-        int health_comp_off = health_layout && health_layout->component_off >= 0 ?
-            health_layout->component_off : OFF_CHARACTER_HEALTH_COMPONENT;
-        uint64_t health_comp = read_ptr(actor_ptrs[i] + (uint64_t)health_comp_off);
-        int health_set_off = health_layout && health_layout->set_off >= 0 ?
-            health_layout->set_off : OFF_HEALTH_COMPONENT_SET;
-        uint64_t health_set = is_game_heap_ptr(health_comp) ?
-            read_ptr(health_comp + (uint64_t)health_set_off) : 0;
         float is_alive = 1.0f;
-        {
-            float hp = 0.0f, max_hp = 0.0f, alive = 1.0f;
-            if (read_health_set(health_set, &hp, &max_hp, &alive)) {
-                e->health = hp;
-                e->max_health = max_hp;
-                e->health_known = 1;
-                is_alive = alive;
-            }
-        }
+        e->health_known = read_actor_health(actor_ptrs[i], &e->health, &e->max_health, &is_alive);
 
         uint8_t character_dead = 0;
         uint8_t player_dead = 0;
         read_mem(actor_ptrs[i] + OFF_CHARACTER_LAST_IS_DEAD, &character_dead, 1);
         if (has_playerstate) read_mem(player_state + OFF_PLAYER_STATE_DEAD, &player_dead, 1);
-        /* Replicated actor/PlayerState death bits are authoritative. A health
-         * chain is accepted for drawing only; a bad regional-layout candidate
-         * must never hide a visibly alive pawn. */
+        /* Replicated death bits and the validated actor-owned health set. */
         e->dead = (character_dead & 1) != 0 || (player_dead & 1) != 0 ||
-            (health_layout && health_layout->death_trusted && e->health_known &&
+            (e->health_known &&
              is_alive < 0.5f && e->health <= 0.01f);
 
         /* RootComponent is the character capsule. Prefer the engine capsule's
