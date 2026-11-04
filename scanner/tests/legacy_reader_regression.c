@@ -186,6 +186,48 @@ static void test_owned_health(void) {
     health_layout_count = 0;
 }
 
+static void test_actor_identity(void) {
+    _Alignas(8) unsigned char actor[0x5000] = {0}, other[0x80] = {0}, state[0xb00] = {0};
+    _Alignas(8) unsigned char component[0x140] = {0}, component_class[0x80] = {0};
+    _Alignas(8) unsigned char character_class[0x80] = {0}, ai_class[0x80] = {0};
+    _Alignas(8) uint16_t npc[] = {'S','O','L','_','D','T','_','B','o','s','s','0','1','_','G','u','a','r','d',0};
+    put_i32(character_class, 0x24, 0xF31);
+    put_i32(ai_class, 0x24, 0xFAC); put_ptr(ai_class, 0x40, character_class);
+    put_ptr(actor, OFF_UOBJECT_CLASS, character_class);
+    put_ptr(component, OFF_UOBJECT_CLASS, component_class);
+    put_i32(component_class, 0x24, 0x1A57);
+    put_ptr(actor, 0x38D0, component); put_ptr(component, 0x10, actor); put_ptr(component, 0x118, actor);
+    put_ptr(state, OFF_PLAYER_STATE_PAWN_PRIVATE, actor);
+    uint64_t hero = 88000000025ULL; memcpy(state + 0x9F0, &hero, 8);
+    int64_t expert = 40010; memcpy(component + 0x100, &expert, 8);
+    Entity e = {0}; strcpy(e.kind, "player");
+    read_actor_identity(&e, (uintptr_t)actor, (uintptr_t)state);
+    assert(e.identity_verified && e.operator_id == 40010 && e.hero_id == hero);
+    /* PlayerState ExpertId is zero, while the actor-owned active component is populated. */
+    assert(read_ptr((uintptr_t)state + 0x9F8) == 0);
+    expert = 10010; memcpy(component + 0x100, &expert, 8);
+    read_actor_identity(&e, (uintptr_t)actor, (uintptr_t)state);
+    assert(e.identity_verified && e.operator_id == 10010); /* no stale identity cache */
+    put_ptr(component, 0x10, other);
+    read_actor_identity(&e, (uintptr_t)actor, (uintptr_t)state);
+    assert(!e.identity_verified && !e.operator_id); /* never borrow another actor's operator */
+    put_ptr(component, 0x10, actor); put_ptr(component, 0x118, other);
+    read_actor_identity(&e, (uintptr_t)actor, (uintptr_t)state);
+    assert(!e.identity_verified);
+    put_ptr(component, 0x118, actor); put_i32(component_class, 0x24, 1);
+    read_actor_identity(&e, (uintptr_t)actor, (uintptr_t)state);
+    assert(!e.identity_verified); /* plausible integer in an unrelated component */
+    put_i32(component_class, 0x24, 0x1A57);
+    strcpy(e.kind, "ai"); put_ptr(actor, OFF_UOBJECT_CLASS, ai_class);
+    put_ptr(actor, 0x3D30, npc); put_i32(actor, 0x3D38, 20); put_i32(actor, 0x3D3C, 20);
+    read_actor_identity(&e, (uintptr_t)actor, 0);
+    assert(e.identity_verified && !strcmp(e.npc_template, "SOL_DT_Boss01_Guard"));
+    assert(!e.operator_id); /* NPC template takes precedence over cosmetic/default operator fields */
+    npc[7] = '"'; put_ptr(actor, 0x38D0, NULL);
+    read_actor_identity(&e, (uintptr_t)actor, 0);
+    assert(!e.identity_verified && !e.npc_template[0]);
+}
+
 static void test_aim_metadata(void) {
     _Alignas(8) unsigned char actor[0x400] = {0}, mesh[0x900] = {0}, root[0x300] = {0};
     float position[3]; int plaintext = 0;
@@ -398,6 +440,7 @@ int main(void) {
     test_character_identity();
     test_aim_metadata();
     test_owned_health();
+    test_actor_identity();
     test_sdk_world_admission();
     ue4_base = 0x7e00000000ULL;
     ue4_end = ue4_base + 0x100000;

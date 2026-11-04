@@ -20,10 +20,10 @@ object Settings {
     private const val LOOT_COLOR_KEY = "loot_color"
     private const val LOOT_DRAW_MODE_KEY = "loot_draw_mode"
     private const val LINE_THICKNESS_KEY = "line_thickness_percent"
-    private const val PLAYER_FEATURES_KEY = "player_features_v4"
-    private const val BOT_FEATURES_KEY = "bot_features_v4"
-    private const val TEAMMATE_FEATURES_KEY = "teammate_features_v4"
-    private const val LOOT_FEATURES_KEY = "loot_features_v4"
+    private const val PLAYER_FEATURES_KEY = "player_features_v5"
+    private const val BOT_FEATURES_KEY = "bot_features_v5"
+    private const val TEAMMATE_FEATURES_KEY = "teammate_features_v5"
+    private const val LOOT_FEATURES_KEY = "loot_features_v5"
 
     const val DEFAULT_PLAYER_COLOR: Int = 0xFFE5534B.toInt()
     const val DEFAULT_BOT_COLOR: Int = 0xFF46D9FF.toInt()
@@ -41,8 +41,9 @@ object Settings {
     const val FEATURE_DISTANCE = 1 shl 3
     const val FEATURE_HEALTH = 1 shl 4
     const val FEATURE_BODY = 1 shl 5
+    const val FEATURE_ACTOR_TYPE = 1 shl 6
     const val ALL_FEATURES = FEATURE_ENABLED or FEATURE_LINES or FEATURE_NAMES or
-        FEATURE_DISTANCE or FEATURE_HEALTH or FEATURE_BODY
+        FEATURE_DISTANCE or FEATURE_HEALTH or FEATURE_BODY or FEATURE_ACTOR_TYPE
 
     enum class EntityType { PLAYER, BOT, TEAMMATE, LOOT }
 
@@ -148,11 +149,15 @@ object Settings {
         val p = prefs(ctx)
         val key = featureKey(type)
         if (p.contains(key)) return p.getInt(key, 0)
-        for (version in 3 downTo 2) {
+        for (version in 4 downTo 2) {
             val legacyKey = legacyFeatureKey(type, version)
             if (p.contains(legacyKey)) {
-                var migrated = p.getInt(legacyKey, 0) and FEATURE_BODY.inv()
-                if (drawMode(ctx, type) > DRAW_MODE_LINES) migrated = migrated or FEATURE_BODY
+                var migrated = p.getInt(legacyKey, 0)
+                if (version < 4) {
+                    migrated = migrated and FEATURE_BODY.inv()
+                    if (drawMode(ctx, type) > DRAW_MODE_LINES) migrated = migrated or FEATURE_BODY
+                }
+                if (type != EntityType.LOOT) migrated = migrated or FEATURE_ACTOR_TYPE
                 p.edit().putInt(key, migrated).apply()
                 return migrated
             }
@@ -168,7 +173,7 @@ object Settings {
         if (enabled) mask = mask or FEATURE_ENABLED
         if (drawEnemyLines(ctx)) mask = mask or FEATURE_LINES
         if (showEnemyLabels(ctx)) mask = mask or FEATURE_NAMES or FEATURE_DISTANCE
-        if (type != EntityType.LOOT) mask = mask or FEATURE_HEALTH
+        if (type != EntityType.LOOT) mask = mask or FEATURE_HEALTH or FEATURE_ACTOR_TYPE
         if (drawMode(ctx, type) > DRAW_MODE_LINES) mask = mask or FEATURE_BODY
         p.edit().putInt(key, mask).apply()
         return mask

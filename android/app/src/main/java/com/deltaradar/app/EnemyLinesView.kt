@@ -32,7 +32,8 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         val boneScreenY: FloatArray? = null,
         val boneParents: IntArray? = null,
         val bodyBounds: FloatArray? = null,
-        val team: Int = 2
+        val team: Int = 2,
+        val actorType: String = ""
     )
     data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>, val warning: String? = null)
 
@@ -171,10 +172,11 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
             val drawTracer = features and Settings.FEATURE_LINES != 0
             val drawName = features and Settings.FEATURE_NAMES != 0
             val drawDistance = features and Settings.FEATURE_DISTANCE != 0
+            val drawType = !isLoot && features and Settings.FEATURE_ACTOR_TYPE != 0
             val drawHealth = features and Settings.FEATURE_HEALTH != 0
             val drawBody = features and Settings.FEATURE_BODY != 0 &&
                 entityMode > Settings.DRAW_MODE_LINES
-            if (!drawBody && !drawTracer && !drawName && !drawDistance && !drawHealth) continue
+            if (!drawBody && !drawTracer && !drawName && !drawDistance && !drawType && !drawHealth) continue
             var labelCenterX = ex
             var labelTopY = ey
 
@@ -268,7 +270,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                 }
             }
 
-            if (drawName || drawDistance) {
+            if (drawName || drawDistance || drawType) {
                 val labelScale = if (enemy.onScreen)
                     (boxHeightForLabel / (72f * density)).coerceIn(0.45f, 1f)
                 else 0.6f
@@ -280,10 +282,11 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
                 val distance = if (enemy.distanceMeters < 100)
                     String.format(Locale.US, "%.0fm", enemy.distanceMeters)
                 else "${enemy.distanceMeters.roundToInt()}m"
-                val name = enemy.name.ifBlank { "Unknown" }
-                val nameWidth = if (drawName) textPaint.measureText(name) + 2 * scaledPadding else 0f
+                val name = ActorIdentity.labelText(enemy.name.ifBlank { "Unknown" }, enemy.actorType, drawName, drawType)
+                val hasNameLabel = name.isNotBlank()
+                val nameWidth = if (hasNameLabel) textPaint.measureText(name) + 2 * scaledPadding else 0f
                 val distanceWidth = if (drawDistance) textPaint.measureText(distance) + 2 * scaledPadding else 0f
-                val gap = if (drawName && drawDistance) 2 * density * labelScale else 0f
+                val gap = if (hasNameLabel && drawDistance) 2 * density * labelScale else 0f
                 val rowWidth = nameWidth + gap + distanceWidth
 
                 var lx = labelCenterX - rowWidth / 2
@@ -300,7 +303,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
 
                 val occupiedRect = RectF(lx, ly, lx + rowWidth, ly + labelHeight)
                 occupied.add(occupiedRect)
-                if (drawName) {
+                if (hasNameLabel) {
                     rounded.set(RectF(lx, ly, lx + nameWidth, ly + labelHeight))
                     canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelBgPaint)
                     canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelOutline)

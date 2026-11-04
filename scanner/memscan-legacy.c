@@ -840,6 +840,10 @@ typedef struct {
     float x, y, z, yaw, pitch, fov;
     char name[64];
     char kind[16];
+    int64_t operator_id;
+    uint64_t hero_id;
+    char npc_template[96];
+    int identity_verified;
     char class_name[64];
     uint64_t class_address;
     float health, max_health, half_height;
@@ -1231,6 +1235,51 @@ static int collect_roster_pawns(uint64_t world, uint64_t local_pawn,
         if (!duplicate) pawns[used++] = pawn;
     }
     return used;
+}
+
+/* Native registration indices from the matching SDK, checked through the
+ * complete class chain. Do not infer identity from health, faction, or skins. */
+static int identity_is_a(uint64_t object, int native_index) {
+    uint64_t cls = read_ptr(object + OFF_UOBJECT_CLASS);
+    for (int i = 0; i < 24 && is_telemetry_ptr(cls); i++) {
+        if (read_i32(cls + 0x24) == native_index) return 1;
+        uint64_t parent = read_ptr(cls + 0x40);
+        if (parent == cls) break;
+        cls = parent;
+    }
+    return 0;
+}
+
+static void read_actor_identity(Entity *e, uint64_t actor, uint64_t state) {
+    e->operator_id = 0; e->hero_id = 0; e->npc_template[0] = 0;
+    e->identity_verified = 0;
+    if (!identity_is_a(actor, 0xF31)) return; /* ADFMCharacter */
+    if (!strcmp(e->kind, "ai") && identity_is_a(actor, 0xFAC)) {
+        char name[96] = {0};
+        if (read_fstring(actor + 0x3D30, name, sizeof(name))) {
+            int valid = name[0] != 0;
+            for (int i = 0; name[i]; i++) {
+                unsigned char ch = (unsigned char)name[i];
+                if (!((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') ||
+                      (ch >= '0' && ch <= '9') || ch == '_' || ch == '-')) valid = 0;
+            }
+            if (valid) {
+                snprintf(e->npc_template, sizeof(e->npc_template), "%s", name);
+                e->identity_verified = 1;
+            }
+        }
+    }
+    if (e->identity_verified) return;
+    if (is_telemetry_ptr(state) && read_ptr(state + OFF_PLAYER_STATE_PAWN_PRIVATE) == actor)
+        read_mem(state + 0x9F0, &e->hero_id, sizeof(e->hero_id));
+    uint64_t component = read_ptr(actor + 0x38D0);
+    if (!is_telemetry_ptr(component) || !identity_is_a(component, 0x1A57) ||
+        read_ptr(component + 0x10) != actor || read_ptr(component + 0x118) != actor) return;
+    int64_t id = 0;
+    if (read_mem(component + 0x100, &id, sizeof(id)) != sizeof(id) ||
+        id < 10000 || id > 9999999) return;
+    e->operator_id = id;
+    e->identity_verified = 1;
 }
 
 /* FName layouts differ in the current Proxima build, so reflection can fail
@@ -1838,6 +1887,7 @@ camera_done:
         }
 
         strncpy(e->kind, has_playerstate && !(bot_flags & 0x8) ? "player" : "ai", sizeof(e->kind) - 1);
+        read_actor_identity(e, actor_ptrs[i], player_state);
         e->native_team = -1;
         if (has_playerstate &&
             read_mem(player_state + OFF_GP_PLAYER_STATE_TEAM_ID, &e->native_team,
@@ -2179,6 +2229,10 @@ static int post_to_radar(void) {
             entities[i].rendered_on_screen ? "true" : "false",
             entities[i].half_height, entities[i].dead ? "true" : "false",
             entities[i].team, now_ms);
+        APPEND_SNAPSHOT(
+            ",\"operatorId\":%lld,\"heroId\":%llu,\"npcTemplate\":\"%s\",\"identityVerified\":%s",
+            (long long)entities[i].operator_id, (unsigned long long)entities[i].hero_id,
+            entities[i].npc_template, entities[i].identity_verified ? "true" : "false");
         if (entities[i].position_observation.present) {
             const PositionObservation *observation = &entities[i].position_observation;
             APPEND_SNAPSHOT(

@@ -212,12 +212,15 @@ class EntityFeedService : Service() {
 
             val e = JSONObject()
             for (key in listOf(
+                "operatorId", "heroId", "npcTemplate", "identityVerified",
                 "id", "kind", "name", "team", "x", "y", "z", "yaw", "pitch", "fov",
                 "health", "maxHealth", "healthKnown", "halfHeight", "dead", "bones",
                 "positionPlaintext", "positionDecoded", "renderedOnScreen",
                 "bonesVerified", "boneCount", "boneParents", "sampledAt"
             )) if (raw.has(key) && !raw.isNull(key)) e.put(key, raw.get(key))
             if (!e.has("kind")) e.put("kind", "player")
+            e.put("actorType", ActorIdentity.label(e.optString("kind"), e.optBoolean("identityVerified"),
+                e.optLong("operatorId"), e.optString("npcTemplate")))
             if (!e.has("team")) e.put("team", 0)
             if (!e.has("maxHealth")) e.put("maxHealth", 100.0)
             if (!e.has("halfHeight")) e.put("halfHeight", 1.05)

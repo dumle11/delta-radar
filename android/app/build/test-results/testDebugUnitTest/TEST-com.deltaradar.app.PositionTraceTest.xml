@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.deltaradar.app.PositionTraceTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-04T10:46:56" hostname="Adams-MacBook-Pro-2.local" time="0.046">
+<testsuite name="com.deltaradar.app.PositionTraceTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-04T11:00:08" hostname="Adams-MacBook-Pro-2.local" time="0.044">
   <properties/>
-  <testcase name="writeFailureStopsAndReportsCapture" classname="com.deltaradar.app.PositionTraceTest" time="0.019"/>
+  <testcase name="writeFailureStopsAndReportsCapture" classname="com.deltaradar.app.PositionTraceTest" time="0.015"/>
   <testcase name="snapshotUsesWhitelistAndRetainsPositionMetadata" classname="com.deltaradar.app.PositionTraceTest" time="0.002"/>
-  <testcase name="missingEntitiesAndTruncationAreExplicit" classname="com.deltaradar.app.PositionTraceTest" time="0.007"/>
+  <testcase name="missingEntitiesAndTruncationAreExplicit" classname="com.deltaradar.app.PositionTraceTest" time="0.008"/>
   <testcase name="recordingIsOptInThrottledAndExpires" classname="com.deltaradar.app.PositionTraceTest" time="0.016"/>
   <testcase name="rotationAndRecordSizeAreBounded" classname="com.deltaradar.app.PositionTraceTest" time="0.002"/>
   <system-out><![CDATA[]]></system-out>

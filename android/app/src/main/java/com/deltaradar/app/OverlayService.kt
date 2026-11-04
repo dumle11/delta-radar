@@ -306,7 +306,7 @@ class OverlayService : Service() {
                 health = health.toFloat(), maxHealth = ent.optDouble("maxHealth", 100.0).toFloat(),
                 healthKnown = healthKnown,
                 boneScreenX = bonePose?.x, boneScreenY = bonePose?.y, boneParents = bonePose?.parents, bodyBounds = projectedBounds,
-                team = team
+                team = team, actorType = ent.optString("actorType", "")
             ))
         }
 
@@ -910,7 +910,10 @@ class OverlayService : Service() {
         addRow("Tracer lines", Settings.FEATURE_LINES)
         addRow("Names", Settings.FEATURE_NAMES)
         addRow("Distance", Settings.FEATURE_DISTANCE)
-        if (type != Settings.EntityType.LOOT) addRow("Health", Settings.FEATURE_HEALTH)
+        if (type != Settings.EntityType.LOOT) {
+            addRow(if (type == Settings.EntityType.BOT) "Bot role / type" else "Operator / character", Settings.FEATURE_ACTOR_TYPE)
+            addRow("Health", Settings.FEATURE_HEALTH)
+        }
         addRow("Boxes / skeleton", Settings.FEATURE_BODY)
         refresh()
     }
