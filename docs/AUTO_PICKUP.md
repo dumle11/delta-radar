@@ -1,5 +1,30 @@
 # Auto-pickup implementation checkpoint — 2026-11-03
 
+**ARCHIVED / DISMISSED by the user on 2026-11-04.** Take best loot, automatic
+backpack replacement and enhanced aim assist are cancelled. Pickup-only app
+planners, native reader commands/headers and their dedicated tests/capture helper
+have been removed from active source. No further integration or live checks are
+planned. The notes below are historical; their paths/next steps may no longer
+exist and are not instructions to resume. Suspension cause remains unknown.
+
+## Latest update — 2026-11-04 account suspension
+
+The combined `pickup-ui` open ordinary-container path passed against the
+previously deployed, hash-verified `4a27d2c5...` diagnostic. Both Flight Case
+source cells matched the separate inventory capture by GID, catalog ID, count
+and shape. Copies/guards were complete/stable and live-frame-bound. No
+backpack/rig were equipped; their empty zero-sized grids do not validate a
+populated storage adapter. Root/cell render geometry is still not verified
+touch coordinates. No automatic transfer or input was sent.
+
+The user then reported an account suspension. Its reason/duration and cause
+are unknown. Radar was stopped through its normal Stop command; zero project
+scanner/probe processes and no radar services were verified. Live work is
+halted. Do not request another match or continue game-memory diagnostics
+without addressing this with the user. Successful read-only checks do not
+establish account safety. See the latest [handoff](SESSION_HANDOFF.md) and
+private `evidence/local/session/take-best-loot-20261104/account-suspension.json`.
+
 ## Scope and current status
 
 The user paused pre-opening container-content research and chose a manual

@@ -793,10 +793,6 @@ static int ui_objects(const char *filter) {
     return limit == object_count;
 }
 
-#include "pickup_context.h"
-#include "pickup_ui_link.h"
-#include "pickup_ui.h"
-
 int main(int argc, char **argv) {
     alarm(8);
     if (argc < 2 || argc > 67 || !init_probe()) return 2;
@@ -810,15 +806,6 @@ int main(int argc, char **argv) {
         }
     } else if (!strcmp(argv[1], "tables")) {
         tables();
-    } else if (!strcmp(argv[1], "pickup-context") && argc == 2) {
-        printf("{\"record\":\"pickupContextBegin\",\"schemaVersion\":1,\"gamePid\":%d,\"capturedElapsedMs\":%lu}\n",
-               game_pid, diag_now_ms());
-        lv_refresh(&loot_values, diag_now_ms());
-        if (!pickup_context()) return 3;
-        printf("{\"record\":\"pickupContextEnd\",\"gamePid\":%d,\"capturedElapsedMs\":%lu}\n",
-               game_pid, diag_now_ms());
-    } else if (!strcmp(argv[1], "pickup-ui") && argc == 2) {
-        if (!pickup_ui()) return 3;
     } else if (!strcmp(argv[1], "inventory-cache") && argc == 2) {
         if (!inventory_cache()) return 3;
     } else if (!strcmp(argv[1], "lua-price-metadata")) {

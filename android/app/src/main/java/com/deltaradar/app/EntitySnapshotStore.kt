@@ -16,7 +16,11 @@ class EntitySnapshotStore(private val clock: () -> Long) {
         val receivedAtMs: Long, val sequence: Long, val fresh: Boolean,
         val hasCamera: Boolean, val entityCount: Int, val worldGeneration: Long = 0
     )
-    data class Snapshot(val json: JSONObject, val status: Status)
+    data class Snapshot(val json: JSONObject, val status: Status) {
+        internal var camera: LiveCamera? = null
+        internal var cameraRequired = false
+        internal var cameraSequence = 0L
+    }
 
     private var frame = JSONObject().put("entities", JSONArray())
     private var receivedAtMs = -1L
@@ -40,6 +44,12 @@ class EntitySnapshotStore(private val clock: () -> Long) {
             val list = input.getJSONArray("entities")
             require(list.length() <= MAX_ENTITIES)
             val self = input.optString("self", "")
+            val sameWorld = input.optInt("gamePid") == frame.optInt("gamePid") &&
+                input.optString("world") == frame.optString("world")
+            val previous = HashMap<String, JSONObject>()
+            if (sameWorld) frame.getJSONArray("entities").let { old ->
+                for (i in 0 until old.length()) old.getJSONObject(i).let { previous[it.getString("id")] = it }
+            }
             val ids = HashSet<String>()
             val accepted = JSONArray()
             var cameraFound = false
@@ -51,15 +61,32 @@ class EntitySnapshotStore(private val clock: () -> Long) {
                 for (key in listOf("yaw", "pitch", "fov", "health", "maxHealth", "halfHeight")) {
                     if (entity.has(key) && !entity.isNull(key)) require(entity.getDouble(key).isFinite())
                 }
+                if (entity.has("sampledElapsedMs")) {
+                    val sampled = entity.getLong("sampledElapsedMs")
+                    require(sampled >= 0 && sampled <= arrivedAt)
+                    val old = previous[id]
+                    if (old != null && old.optString("name") == entity.optString("name")) {
+                        val velocity = WorldMotion.velocity(entity.getDouble("x"), entity.getDouble("y"), entity.getDouble("z"), sampled,
+                            old.getDouble("x"), old.getDouble("y"), old.getDouble("z"), old.optLong("sampledElapsedMs"))
+                        entity.put("velocityX", velocity.x).put("velocityY", velocity.y).put("velocityZ", velocity.z)
+                    }
+                }
                 if (entity.has("bones")) {
                     val bones = entity.getJSONArray("bones")
-                    require(bones.length() == 16)
+                    val verified = entity.optBoolean("bonesVerified", false)
+                    require(if (verified) bones.length() in 2..SkeletonProjection.MAX_BONES else bones.length() == 16)
+                    if (verified) {
+                        require(entity.getInt("boneCount") == bones.length())
+                        val parents = entity.getJSONArray("boneParents")
+                        require(parents.length() == bones.length() && parents.getInt(0) == -1)
+                        for (b in 1 until parents.length()) require(parents.getInt(b) in 0 until b)
+                    }
                     for (b in 0 until bones.length()) {
                         val bone = bones.getJSONArray(b)
                         require(bone.length() == 3)
                         for (axis in 0..2) require(bone.getDouble(axis).isFinite())
                     }
-                }
+                } else require(!entity.optBoolean("bonesVerified", false))
                 if (id == self) {
                     for (key in listOf("yaw", "pitch", "fov")) require(entity.getDouble(key).isFinite())
                     require(entity.getDouble("fov") in 5.0..180.0)
@@ -72,9 +99,14 @@ class EntitySnapshotStore(private val clock: () -> Long) {
             // An empty frame explicitly ends the old world. A nonempty frame
             // without its camera cannot establish a valid rendering session.
             require((list.length() == 0 && self.isEmpty()) || (self.isNotEmpty() && cameraFound))
-            JSONObject().put("entities", accepted).also { if (self.isNotEmpty()) it.put("self", self) }
+            JSONObject().put("entities", accepted).also { next ->
+                if (self.isNotEmpty()) next.put("self", self)
+                for (key in listOf("gamePid", "world", "cameraSampledElapsedMs", "cameraTimestamp", "cameraPositionPlaintext", "cameraRoll"))
+                    if (input.has(key)) next.put(key, input.get(key))
+            }
         } catch (_: Exception) { return false }
-        if (next.optString("self", "") != frame.optString("self", "") || !next.has("self")) worldGeneration++
+        if (next.optString("self", "") != frame.optString("self", "") || !next.has("self") ||
+            next.optInt("gamePid") != frame.optInt("gamePid") || next.optString("world") != frame.optString("world")) worldGeneration++
         frame = next
         receivedAtMs = capturedAt
         sequence++
@@ -94,6 +126,10 @@ class EntitySnapshotStore(private val clock: () -> Long) {
             else JSONObject().put("entities", JSONArray())
         return Snapshot(copy, status)
     }
+
+    /** Owned immutable frame for the projection reader; callers must never mutate it. */
+    @Synchronized internal fun projectionSnapshot() = Snapshot(
+        if (status().fresh) frame else JSONObject().put("entities", JSONArray()), status())
 
     @Synchronized fun isCurrent(candidate: Status): Boolean {
         val current = status()

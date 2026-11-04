@@ -21,8 +21,6 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import kotlin.concurrent.thread
-import java.util.concurrent.Executors
-import java.util.concurrent.RejectedExecutionException
 import kotlin.math.sqrt
 
 class OverlayService : Service() {
@@ -46,10 +44,7 @@ class OverlayService : Service() {
     private val logLines = mutableListOf<String>()
     private val maxLogLines = 100
     private var logTextView: TextView? = null
-    private var overlayRefreshRunnable: Runnable? = null
-    private val projectionExecutor = Executors.newSingleThreadExecutor { r ->
-        Thread(r, "delta-projection").apply { isDaemon = true }
-    }
+    private var overlayFrameCallback: Choreographer.FrameCallback? = null
     private val projectionWork = ConflatedWork()
     private val publicationGate = FramePublicationGate()
     @Volatile private var lastProjectionLogAt = 0L
@@ -99,17 +94,15 @@ class OverlayService : Service() {
 
     private fun dispatchProjection() {
         handler.post {
-            Choreographer.getInstance().postFrameCallback {
-                try {
-                    projectionExecutor.execute {
-                        try { refreshEnemyLines(::finishProjection) }
-                        catch (e: Exception) {
-                            android.util.Log.w("DeltaRadar", "Overlay projection: ${e.message}")
-                            finishProjection()
-                        }
-                    }
-                } catch (_: RejectedExecutionException) { finishProjection() }
-            }
+            Choreographer.getInstance().postFrameCallback { runProjection() }
+        }
+    }
+
+    private fun runProjection() {
+        try { refreshEnemyLines(::finishProjection) }
+        catch (e: Exception) {
+            android.util.Log.w("DeltaRadar", "Overlay projection: ${e.message}")
+            finishProjection()
         }
     }
 
@@ -118,7 +111,8 @@ class OverlayService : Service() {
     }
 
     private fun publishProjection(finished: () -> Unit, publish: () -> Unit) {
-        handler.post { try { publish() } finally { finished() } }
+        val apply = Runnable { try { publish() } finally { finished() } }
+        if (Looper.myLooper() == Looper.getMainLooper()) apply.run() else handler.post(apply)
     }
 
     private fun refreshEnemyLines(finished: () -> Unit) {
@@ -128,11 +122,16 @@ class OverlayService : Service() {
             publishProjection(finished) { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
             return
         }
-        val status = service.feedStatus
-        if (status.hasCamera && publicationGate.alreadyPublished(service, generation, status.sequence)) {
-            finished(); return
+        val snapshot = service.getProjectionSnapshot()
+        val selectedCamera = snapshot.camera
+        val projectionTime = android.os.SystemClock.elapsedRealtime()
+        if (snapshot.cameraRequired && selectedCamera?.usable(snapshot.json.optInt("gamePid"),
+                snapshot.json.optString("world"), projectionTime) != true) {
+            publishProjection(finished) { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
+            return
         }
-        val snapshot = service.getSnapshot()
+        if (snapshot.status.hasCamera && publicationGate.alreadyPublished(service, generation,
+                snapshot.status.sequence, snapshot.cameraSequence)) { finished(); return }
         val selfId = snapshot.json.optString("self", "")
         if (!snapshot.status.hasCamera || selfId.isEmpty()) {
             publishProjection(finished) { if (lifecycle.accepts(generation)) enemyLinesView?.clear() }
@@ -157,6 +156,11 @@ class OverlayService : Service() {
             return
         }
 
+        var cameraRoll = 0.0
+        selectedCamera?.let { camera ->
+            mx=camera.x; my=camera.y; mz=camera.z; myYaw=camera.yaw; myPitch=camera.pitch
+            cameraRoll=camera.roll; cameraFov=camera.fov
+        }
         val hfovDeg = cameraFov
         val metrics = android.util.DisplayMetrics()
         @Suppress("DEPRECATION")
@@ -193,9 +197,15 @@ class OverlayService : Service() {
                 if (LootValuePolicy.knownValue(known, source, value))
                     name += " · ${LootValuePolicy.label(value)} each"
             }
-            val ex = ent.optDouble("x")
-            val ey = ent.optDouble("y")
-            val baseZ = ent.optDouble("z")
+            val combat = kind == "player" || kind == "ai"
+            if (combat && ent.has("sampledElapsedMs") && projectionTime - ent.getLong("sampledElapsedMs") !in 0..150) continue
+            if (combat && ent.has("positionPlaintext") && !ent.optBoolean("positionPlaintext")) continue
+            val motion = WorldMotion.offset(WorldMotion.Velocity(ent.optDouble("velocityX",0.0),
+                ent.optDouble("velocityY",0.0),ent.optDouble("velocityZ",0.0)),
+                ent.optLong("sampledElapsedMs"),selectedCamera?.sampledAt ?: projectionTime)
+            val ex = ent.optDouble("x") + motion.x
+            val ey = ent.optDouble("y") + motion.y
+            val baseZ = ent.optDouble("z") + motion.z
             val team = ent.optInt("team", 0)
             val dx = ex - mx; val dy = ey - my; val dz = baseZ - mz
             val distanceMeters = sqrt(dx * dx + dy * dy + dz * dz)
@@ -229,7 +239,8 @@ class OverlayService : Service() {
                 else -> ent.optDouble("halfHeight", 1.05).coerceIn(0.5, 2.5)
             }
             val point = ProjectionMath.project(
-                ex - mx, ey - my, baseZ - mz, myYaw, myPitch, hfovDeg, screenAspect
+                ex - mx, ey - my, baseZ - mz, myYaw, myPitch, hfovDeg, screenAspect,
+                clipToEdge = !isCombatEntity, rollDegrees = cameraRoll
             )
             // Only draw entities in the camera-facing hemisphere. Targets
             // behind the player must not produce bottom-edge tracers or labels.
@@ -237,37 +248,32 @@ class OverlayService : Service() {
             // RootComponent is the capsule centre; project its actual endpoints.
             val head = ProjectionMath.project(
                 ex - mx, ey - my, baseZ - mz + halfHeight,
-                myYaw, myPitch, hfovDeg, screenAspect
+                myYaw, myPitch, hfovDeg, screenAspect, clipToEdge = false, rollDegrees = cameraRoll
             )
             val feet = ProjectionMath.project(
                 ex - mx, ey - my, baseZ - mz - halfHeight,
-                myYaw, myPitch, hfovDeg, screenAspect
+                myYaw, myPitch, hfovDeg, screenAspect, clipToEdge = false, rollDegrees = cameraRoll
             )
 
-            var boneScreenX: FloatArray? = null
-            var boneScreenY: FloatArray? = null
-            val bonesArr = ent.optJSONArray("bones")
-            if (bonesArr != null && bonesArr.length() >= 16) {
-                val bsx = FloatArray(bonesArr.length())
-                val bsy = FloatArray(bonesArr.length())
-                var allOnScreen = true
-                for (b in 0 until bonesArr.length().coerceAtMost(16)) {
-                    val bone = bonesArr.optJSONArray(b) ?: continue
-                    val boneX = bone.optDouble(0)
-                    val boneY = bone.optDouble(1)
-                    val boneZ = bone.optDouble(2)
-                    val bp = ProjectionMath.project(
-                        boneX - mx, boneY - my, boneZ - mz,
-                        myYaw, myPitch, hfovDeg, screenAspect
-                    )
-                    bsx[b] = bp.x
-                    bsy[b] = bp.y
-                    if (!bp.onScreen) allOnScreen = false
+            var bonePose: SkeletonProjection.Pose? = null
+            if (combat && ent.optBoolean("bonesVerified", false)) {
+                val bones = ent.getJSONArray("bones")
+                val parents = ent.getJSONArray("boneParents")
+                val joints = (0 until bones.length()).map { b ->
+                    val joint = bones.getJSONArray(b)
+                    SkeletonProjection.Joint(joint.getDouble(0)+motion.x, joint.getDouble(1)+motion.y,
+                        joint.getDouble(2)+motion.z)
                 }
-                if (allOnScreen) {
-                    boneScreenX = bsx
-                    boneScreenY = bsy
-                }
+                bonePose = SkeletonProjection.project(joints, IntArray(parents.length()) { parents.getInt(it) },
+                    SkeletonProjection.Joint(mx,my,mz),myYaw,myPitch,hfovDeg,screenAspect,roll=cameraRoll)
+            }
+            val bounds = bonePose?.let { pose ->
+                val valid = pose.x.indices.filter { pose.x[it].isFinite() && pose.y[it].isFinite() }
+                if (valid.size < 2) null else floatArrayOf(
+                    valid.minOf { pose.x[it] }-2f/metrics.widthPixels,
+                    valid.minOf { pose.y[it] }-2f/metrics.heightPixels,
+                    valid.maxOf { pose.x[it] }+2f/metrics.widthPixels,
+                    valid.maxOf { pose.y[it] }+2f/metrics.heightPixels)
             }
 
             enemyFrames.add(EnemyLinesView.Enemy(
@@ -276,7 +282,8 @@ class OverlayService : Service() {
                 head.x, head.y, feet.x, feet.y,
                 health = health.toFloat(), maxHealth = ent.optDouble("maxHealth", 100.0).toFloat(),
                 healthKnown = healthKnown,
-                boneScreenX = boneScreenX, boneScreenY = boneScreenY,
+                boneScreenX = bonePose?.x, boneScreenY = bonePose?.y,
+                boneParents = bonePose?.parents, bodyBounds = bounds,
                 team = team
             ))
         }
@@ -304,7 +311,7 @@ class OverlayService : Service() {
             ensureEnemyLinesWindow()
             val view = enemyLinesView ?: return@publishProjection
             if (isMenuOpen) { view.clear(); return@publishProjection }
-            if (!publicationGate.accept(service, generation, snapshot.status.sequence)) return@publishProjection
+            if (!publicationGate.accept(service, generation, snapshot.status.sequence, snapshot.cameraSequence)) return@publishProjection
             view.setStyle(playerFeatures, botFeatures, teammateFeatures, lootFeatures,
                 com.deltaradar.app.Settings.playerColor(this),
                 com.deltaradar.app.Settings.botColor(this),
@@ -315,7 +322,9 @@ class OverlayService : Service() {
                 com.deltaradar.app.Settings.teammateDrawMode(this),
                 com.deltaradar.app.Settings.lootDrawMode(this),
                 com.deltaradar.app.Settings.lineThicknessPercent(this) / 100f)
-            view.submit(frame, snapshot.status.receivedAtMs)
+            val deadline = minOf(snapshot.status.receivedAtMs + EntitySnapshotStore.FRESHNESS_MS,
+                selectedCamera?.let { it.sampledAt + 101 } ?: Long.MAX_VALUE)
+            view.submit(frame, snapshot.status.receivedAtMs, deadline)
             lastPublishedSequence = snapshot.status.sequence
             CaptureDiagnostics.record(this, "latest-overlay-frame.json") {
                 org.json.JSONObject().put("sequence", snapshot.status.sequence)
@@ -334,21 +343,22 @@ class OverlayService : Service() {
 
     private fun startOverlayRefresh() {
         stopOverlayRefresh()
-        publicationGate.reset() // Publish style changes even if the feed has paused.
-        val r = object : Runnable {
-            override fun run() {
-                if (lifecycle.capture() == null) return
-                requestEnemyLinesRefresh()
-                handler.postDelayed(this, 100) // Fallback; fresh feed frames request a display-frame update.
+        publicationGate.reset()
+        val choreographer = Choreographer.getInstance()
+        val callback = object : Choreographer.FrameCallback {
+            override fun doFrame(frameTimeNanos: Long) {
+                if (overlayFrameCallback !== this) return
+                if (!isMenuOpen && lifecycle.capture() != null && projectionWork.request()) runProjection()
+                if (overlayFrameCallback === this) choreographer.postFrameCallback(this)
             }
         }
-        overlayRefreshRunnable = r
-        handler.post(r)
+        overlayFrameCallback = callback
+        choreographer.postFrameCallback(callback)
     }
 
     private fun stopOverlayRefresh() {
-        overlayRefreshRunnable?.let { handler.removeCallbacks(it) }
-        overlayRefreshRunnable = null
+        overlayFrameCallback?.let { Choreographer.getInstance().removeFrameCallback(it) }
+        overlayFrameCallback = null
     }
 
     private fun showBubble() {
@@ -752,7 +762,6 @@ class OverlayService : Service() {
         lifecycle.destroy()
         stopOverlayRefresh()
         projectionWork.close()
-        projectionExecutor.shutdownNow()
         enemyLinesView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         enemyLinesView = null
         removeBubble()

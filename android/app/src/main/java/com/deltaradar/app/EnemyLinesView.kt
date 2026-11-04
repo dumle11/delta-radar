@@ -13,10 +13,6 @@ import kotlin.math.roundToInt
 class EnemyLinesView(context: Context) : View(context) {
     companion object {
         const val FRESHNESS_MS = EntitySnapshotStore.FRESHNESS_MS
-        private val BONE_CONNECTIONS = intArrayOf(
-            0,1, 1,2, 2,3, 1,4, 4,5, 5,6, 1,7, 7,8, 8,9,
-            3,10, 10,11, 11,12, 3,13, 13,14, 14,15
-        )
     }
 
     data class Enemy(
@@ -36,6 +32,8 @@ class EnemyLinesView(context: Context) : View(context) {
         val healthKnown: Boolean = false,
         val boneScreenX: FloatArray? = null,
         val boneScreenY: FloatArray? = null,
+        val boneParents: IntArray? = null,
+        val bodyBounds: FloatArray? = null,
         val team: Int = 2
     )
     data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>)
@@ -43,7 +41,8 @@ class EnemyLinesView(context: Context) : View(context) {
     @Volatile var drawnFrames = 0L
         private set
     private var frame: Frame? = null
-    private var receivedAt = 0L
+    private var expiresAt = 0L
+    private var sourceReceivedAt = 0L
     private var playerFeatures = 0
     private var botFeatures = 0
     private var teammateFeatures = 0
@@ -109,13 +108,13 @@ class EnemyLinesView(context: Context) : View(context) {
         else if (frame != null) invalidate()
     }
 
-    fun submit(value: Frame, receivedAtMs: Long) {
+    fun submit(value: Frame, receivedAtMs: Long, expiresAtMs: Long = receivedAtMs + FRESHNESS_MS) {
         if (value.me == null || value.enemies.isEmpty()) { clear(); return }
-        frame = value; receivedAt = receivedAtMs
+        frame = value; expiresAt = expiresAtMs; sourceReceivedAt = receivedAtMs
         removeCallbacks(expire)
         visibility = VISIBLE
         postInvalidateOnAnimation()
-        postDelayed(expire, (FRESHNESS_MS - (SystemClock.elapsedRealtime() - receivedAt)).coerceAtLeast(1))
+        postDelayed(expire, (expiresAt - SystemClock.elapsedRealtime()).coerceAtLeast(1))
     }
 
     fun clear() {
@@ -127,14 +126,14 @@ class EnemyLinesView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val data = frame ?: return
-        if (SystemClock.elapsedRealtime() - receivedAt >= FRESHNESS_MS || width <= 0 || height <= 0) {
+        if (SystemClock.elapsedRealtime() >= expiresAt || width <= 0 || height <= 0) {
             post(expire); return
         }
         val me = data.me ?: return
         drawnFrames++
         CaptureDiagnostics.record(context, "latest-overlay-draw.json") {
             org.json.JSONObject().put("drawnFrames", drawnFrames).put("width", width).put("height", height)
-                .put("sourceAgeMs", SystemClock.elapsedRealtime() - receivedAt)
+                .put("sourceAgeMs", SystemClock.elapsedRealtime() - sourceReceivedAt)
                 .put("entities", data.enemies.size).put("playerFeatures", playerFeatures)
                 .put("botFeatures", botFeatures).put("lootFeatures", lootFeatures)
         }
@@ -210,16 +209,17 @@ class EnemyLinesView(context: Context) : View(context) {
                 labelCenterX = edgeX
                 labelTopY = edgeY - radius
             }
-            if (enemy.onScreen && (drawBody || drawHealth)) {
+            if ((enemy.onScreen || enemy.bodyBounds != null) && (drawBody || drawHealth)) {
                 val headX = enemy.headX * width
                 val headY = enemy.headY * height
                 val feetX = enemy.feetX * width
                 val feetY = enemy.feetY * height
-                val boxH = kotlin.math.abs(feetY - headY).coerceIn(7 * density, 180 * density)
+                val body = enemy.bodyBounds
+                val top = body?.get(1)?.times(height) ?: minOf(headY, feetY)
+                val bottom = body?.get(3)?.times(height) ?: maxOf(headY, feetY)
+                val boxH = (bottom - top).coerceAtLeast(1f)
                 boxHeightForLabel = boxH
-                val centerX = (headX + feetX) * 0.5f
-                val top = minOf(headY, feetY)
-                val bottom = top + boxH
+                val centerX = body?.let { (it[0] + it[2]) * width * .5f } ?: ((headX + feetX) * .5f)
                 labelCenterX = centerX
                 labelTopY = top
 
@@ -231,40 +231,20 @@ class EnemyLinesView(context: Context) : View(context) {
                     "loot" -> 0.65f
                     else -> 0.45f
                 }
-                val healthLeft = centerX - healthBoxW * 0.5f
+                val healthLeft = body?.get(0)?.times(width) ?: (centerX - healthBoxW * 0.5f)
                 when (if (drawBody) entityMode else Settings.DRAW_MODE_OFF) {
                     Settings.DRAW_MODE_SKELETON -> {
                         val bx = enemy.boneScreenX
                         val by = enemy.boneScreenY
-                        if (bx != null && by != null && bx.size >= 16 && by.size >= 16) {
-                            boxPaint.strokeWidth = density * thicknessScale
-                            /* Bone indices: 0=head 1=neck 2=spine_upper 3=pelvis
-                             * 4=l_shoulder 5=l_elbow 6=l_hand 7=r_shoulder 8=r_elbow 9=r_hand
-                             * 10=l_hip 11=l_knee 12=l_foot 13=r_hip 14=r_knee 15=r_foot */
-                            val connections = BONE_CONNECTIONS
-                            for (c in connections.indices step 2) {
-                                val a = connections[c]; val b = connections[c+1]
-                                val ax = bx[a] * width; val ay = by[a] * height
-                                val bxp = bx[b] * width; val byp = by[b] * height
-                                canvas.drawLine(ax, ay, bxp, byp, boxShadowPaint)
-                                canvas.drawLine(ax, ay, bxp, byp, boxPaint)
+                        val parents = enemy.boneParents
+                        if (bx != null && by != null && parents != null && bx.size == by.size && bx.size == parents.size) {
+                            for (child in 1 until parents.size) {
+                                val parent = parents[child]
+                                if (parent !in 0 until child || !bx[child].isFinite() || !by[child].isFinite() ||
+                                    !bx[parent].isFinite() || !by[parent].isFinite()) continue
+                                canvas.drawLine(bx[parent]*width,by[parent]*height,bx[child]*width,by[child]*height,boxShadowPaint)
+                                canvas.drawLine(bx[parent]*width,by[parent]*height,bx[child]*width,by[child]*height,boxPaint)
                             }
-                            val headR = boxH * 0.07f
-                            canvas.drawCircle(bx[0] * width, by[0] * height, headR, boxPaint)
-                        } else {
-                            val hw = boxH * 0.18f
-                            val headR = boxH * 0.09f
-                            val neckY = top + boxH * 0.13f
-                            val shoulderY = top + boxH * 0.22f
-                            val hipY = top + boxH * 0.55f
-                            boxPaint.strokeWidth = density * thicknessScale
-                            canvas.drawCircle(centerX, top + headR, headR, boxPaint)
-                            canvas.drawLine(centerX, neckY, centerX, hipY, boxPaint)
-                            canvas.drawLine(centerX - hw, shoulderY, centerX + hw, shoulderY, boxPaint)
-                            canvas.drawLine(centerX - hw, shoulderY, centerX - hw * 1.1f, hipY, boxPaint)
-                            canvas.drawLine(centerX + hw, shoulderY, centerX + hw * 1.1f, hipY, boxPaint)
-                            canvas.drawLine(centerX, hipY, centerX - hw, bottom, boxPaint)
-                            canvas.drawLine(centerX, hipY, centerX + hw, bottom, boxPaint)
                         }
                     }
                     Settings.DRAW_MODE_BOXES -> {
@@ -275,8 +255,13 @@ class EnemyLinesView(context: Context) : View(context) {
                         }
                         val left = centerX - boxW * 0.5f
                         val right = centerX + boxW * 0.5f
-                        canvas.drawRect(left, top, right, bottom, boxShadowPaint)
-                        canvas.drawRect(left, top, right, bottom, boxPaint)
+                        val bounds = enemy.bodyBounds
+                        val l = bounds?.get(0)?.times(width) ?: left
+                        val t = bounds?.get(1)?.times(height) ?: top
+                        val r = bounds?.get(2)?.times(width) ?: right
+                        val b = bounds?.get(3)?.times(height) ?: bottom
+                        canvas.drawRect(l, t, r, b, boxShadowPaint)
+                        canvas.drawRect(l, t, r, b, boxPaint)
                     }
                 }
                 if (drawHealth && enemy.healthKnown && enemy.maxHealth > 0f) {

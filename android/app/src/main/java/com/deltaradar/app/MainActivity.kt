@@ -22,8 +22,6 @@ class MainActivity : AppCompatActivity() {
     private var entityFeed: EntityFeedService? = null
     private var bound = false
     private var statusRunnable: Runnable? = null
-    private val starting get() = ScannerRuntime.state.phase == ScannerRuntime.Phase.STARTING
-    private var startupSession: ScannerSession? = null
     private var binding = false
     private var pendingOverlayPermission = false
     private val statusQueryInFlight = AtomicBoolean(false)
@@ -76,10 +74,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        if (ScannerRuntime.cancelPending(startupSession)) {
-            EntityFeedService.stop(this)
-            OverlayService.stop(this)
-        }
+        // Startup belongs to the foreground service, including while this
+        // screen rotates or is destroyed on the way back to the game.
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
@@ -104,6 +100,8 @@ class MainActivity : AppCompatActivity() {
             text = when {
                 connected -> "Overlay feed: connected (fresh frame)"
                 ScannerRuntime.state.phase == ScannerRuntime.Phase.FAILED -> "Scanner: ${ScannerRuntime.state.message}"
+                ScannerRuntime.state.phase == ScannerRuntime.Phase.WAITING_FOR_GAME -> ScannerRuntime.state.message
+                ScannerRuntime.state.phase == ScannerRuntime.Phase.STARTING -> ScannerRuntime.state.message
                 !feedOk -> "Overlay feed: stopped"
                 feedStatus?.fresh == true -> "Overlay feed: idle (no active camera)"
                 (feedStatus?.receivedAtMs ?: -1) >= 0 -> "Overlay feed: stale"
@@ -113,7 +111,13 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<TextView>(R.id.txtEntities).text = "Entities: ${feedStatus?.entityCount ?: 0}"
         findViewById<TextView>(R.id.btnStart).apply {
-            text = if (starting) "Cancel Start" else if (feedOk || ScannerRuntime.state.phase == ScannerRuntime.Phase.RUNNING) "Stop Overlay" else "Start Overlay"
+            text = when (ScannerRuntime.state.phase) {
+                ScannerRuntime.Phase.STARTING, ScannerRuntime.Phase.WAITING_FOR_GAME -> "Cancel Start"
+                ScannerRuntime.Phase.RUNNING -> "Stop Overlay"
+                ScannerRuntime.Phase.STOPPING -> "Stopping scanner"
+                ScannerRuntime.Phase.FAILED -> "Retry scanner"
+                ScannerRuntime.Phase.IDLE -> "Start Overlay"
+            }
             isEnabled = ScannerRuntime.state.phase != ScannerRuntime.Phase.STOPPING
         }
         if (rootStatusRequested || !statusQueryInFlight.compareAndSet(false, true)) return
@@ -139,17 +143,19 @@ class MainActivity : AppCompatActivity() {
     private fun updateUi() { refreshStatus() }
 
     private fun toggleRadar() {
-        if (starting || EntityFeedService.instance?.isFeedRunning == true || ScannerRuntime.state.phase == ScannerRuntime.Phase.RUNNING) {
-            stopRadar(); return
+        when (ScannerRuntime.state.phase) {
+            ScannerRuntime.Phase.STARTING, ScannerRuntime.Phase.WAITING_FOR_GAME, ScannerRuntime.Phase.RUNNING -> {
+                stopRadar(); return
+            }
+            ScannerRuntime.Phase.STOPPING -> return
+            else -> Unit
         }
         if (!Settings.canDrawOverlays(this)) {
             pendingOverlayPermission = true
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
             return
         }
-        EntityFeedService.start(this)
-        OverlayService.show(this)
-        startupSession = ScannerRuntime.start(this)
+        EntityFeedService.startScanner(this)
         // Start never launches/restarts the game. The user controls gameplay.
         tryBindService()
         refreshStatus()

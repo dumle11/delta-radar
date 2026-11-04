@@ -4,6 +4,85 @@ Historical baseline: the current SDK repair changes offsets, decoding and binary
 identity. See [the current handoff](LIVE_SDK_HANDOFF.md) and
 scanner/deployment.properties for the installed version.
 
+## Root-grant toast fix installed — 2026-11-04
+
+The three-second health monitor was opening a new `su -c` session even while
+its verified scanner was sending fresh packets, causing Magisk's repeated
+“Delta Radar was granted superuser rights” toast. The installed update uses
+fresh socket traffic from the exact launch-verified PID as liveness proof.
+Camera packets carry native boot-clock timestamps, so buffered packets cannot
+rejuvenate proof. Camera-invalid/lobby packets prove only process liveness,
+never camera/render validity. The native camera channel starts before world
+discovery and sends idle heartbeats four times per second without game reads.
+
+When traffic stops, the existing root executable/session check still decides
+whether the scanner has actually exited. Uncertain checks still fail without a
+relaunch; cancellation leases and the three-recoveries-per-minute budget remain.
+Startup, cleanup, explicit retry, and genuinely missing transport can still
+request root and show a grant toast. No global Magisk notification setting or
+root permission was changed.
+
+Validation: 66 JVM tests, Android app/instrumentation builds, lint with zero
+errors/145 warnings, ARM64/API31 warnings-as-errors build, and the owned camera
+fixture under ASan/UBSan passed. The fixture covers pre-world heartbeat, camera
+rotation/freeze expiry, source invalidation and independent lease cancellation.
+Matching APK/native artifacts and manifests are in ignored
+`evidence/local/session/root-toast-20261104/`. APK `75c20508...` and native
+`b7e49645...` are installed on OnePlus 7T `7492618f`, with on-device hashes and
+native embedded build/source identity verified. The normal deployment pin now
+matches this pair. Visual settings are preserved; the scanner request is false,
+radar services and project scanners were stopped after installation. No game or
+scanner was launched for verification by the agent. The user subsequently
+confirmed the APK is working and selected `OnePlus-all-working-lines` as the
+working branch; recurring-toast behavior was not reported separately.
+
+During a read-only Magisk CLI schema query, the command returned “failed to fill
+whole buffer”; afterward its daemon refused connections and the radar's health
+monitor reported the root failure. No database mutation was issued. A Magisk
+CLI bug is possible, but causality is not established. Do not repeat the schema
+query. User opened Magisk, reported an additional-setup/reboot prompt, then
+reported setup failed and started updating the Magisk app. User confirmed they
+are not playing. User subsequently explicitly authorized a normal phone reboot;
+the agent issued it and verified that Magisk's daemon and UID-0 access returned.
+User unlocked the phone, then the tested pair above was installed. Agent did
+not run Magisk setup/update, change root policies, or resume game reads.
+Installation and recovery proof are saved alongside the validation artifacts.
+
+## Startup reliability update — 2026-11-04
+
+This update supersedes the historical Activity-owned startup/cancellation
+behavior below. The foreground feed service now owns explicit scanner startup,
+including pending root verification and waiting for the game/UE4 mapping. Screen
+recreation does not cancel it. A durable Start request restores the scanner when
+Android recreates the sticky service with a null intent. Explicit Stop clears
+that request; listener-only test starts remain non-sticky and cannot request a
+scanner. Opening MainActivity alone still does not start a scan.
+
+Readiness waits briefly for the launched child to exec the pinned binary rather
+than assuming nohup's returned PID has already exec'd. Background health checks
+verify the exact executable and session argument every three seconds. A confirmed
+exit or reused PID revokes the old lease before a new verified session, limited
+to three recoveries in a rolling minute. Unknown/failed/uncertain checks revoke
+the lease and surface a failure; they do not dispatch another launch. A failed
+start can be retried directly even while the listener is running. The main
+screen and notification show waiting/failure state and the notification includes
+Retry/Stop actions. Per-session `.status` files retain the latest startup result.
+
+APK `c65c666c7481d8508d364b38fd6acdb3528b92f952fab5b763a6745c45261223`
+was installed and hash-verified on OnePlus 7T `7492618f`. Native deployment was
+unchanged. Validation: 84 JVM tests, 16 controlled device tests, and one opt-in
+real-scanner test covering two Start/Stop cycles and screen recreation passed.
+An actual radar-process kill restored one app-owned scanner; terminating only
+the verified scanner also recovered one scanner. Game PID remained `8406` and
+visual settings were preserved. Lint: zero errors, 145 existing warnings.
+
+Evidence and exact source/artifact identities:
+`evidence/local/session/scanner-startup-20261104/validation.json`. The final
+scanner was running and waiting for a match. These startup checks do not claim
+another full-match stability or SIGBUS fix. The real-scanner instrumentation test
+is opt-in via `-e liveScanner true`; the controlled tests never launch native
+scanners or send game input.
+
 ## Identity and reproduction
 
 Base repository revision: `a448200d0e645dab34c920ae3a4f7e8f14ef7d0e` plus

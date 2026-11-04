@@ -10,6 +10,7 @@ class ScannerSession(directory: File) {
     val lease = File(directory, "$id.active")
     val pidFile = File(directory, "$id.pid")
     val logFile = File(directory, "$id.log")
+    val statusFile = File(directory, "$id.status")
     val cancellation = CommandRunner.Cancellation()
     @Volatile var launched = false
         private set
@@ -18,5 +19,8 @@ class ScannerSession(directory: File) {
     private val cleanupClaimed = AtomicBoolean(false)
     fun claimCleanup(): Boolean = cleanupClaimed.compareAndSet(false, true)
     fun markLaunched() { launched = true }
+    fun recordStatus(message: String) {
+        try { statusFile.writeText("${System.currentTimeMillis()} $message\n") } catch (_: Exception) {}
+    }
     fun cancel() { lease.delete(); cancellation.cancel() }
 }

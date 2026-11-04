@@ -8,9 +8,11 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[2]
 TESTS = (
     'decoder_schedule_test.cpp', 'discovery_diagnostics_test.c',
-    'feed_timestamp_test.c', 'legacy_reader_regression.c', 'loot_value_test.c',
-    'pickup_context_test.c', 'position_sources_test.c', 'roster_cache_test.c',
-    'transform_ring_test.cpp',
+    'feed_timestamp_test.c', 'health_lifecycle_test.c', 'legacy_reader_regression.c', 'loot_value_test.c',
+    'position_sources_test.c', 'roster_cache_test.c',
+    'transform_ring_test.cpp', 'position_codec_regression.c',
+    'position_decoder_test.c', 'camera_stream_test.c',
+    'skeleton_math_regression.c', 'skeleton_reader_regression.c',
 )
 
 

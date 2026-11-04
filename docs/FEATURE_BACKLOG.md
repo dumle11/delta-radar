@@ -1,12 +1,18 @@
-# Future feature requests
+# Feature decisions
 
-## Enhanced aim assist
+## Dismissed — 2026-11-04
 
-Requested 2026-11-03. Deferred; note only, no implementation started.
+- **Auto-loot / Take best loot**, including automatic backpack replacement:
+  cancelled by the user. Remove pickup-only research/planning code from active
+  source. Do not resume the diagnostic, button, input or replacement work.
+- **Enhanced aim assist:** cancelled by the user. No implementation had started.
 
-The user reports that the game's existing aim assist is enabled but behaves
-inconsistently: sometimes it works, sometimes it does not. They would like an
-enhanced assist that keeps aim on enemies' heads.
+The user reported a suspension notice containing only “account suspended” and
+their UID, with no reason, duration or error code. They suspect the auto-loot
+work; the cause remains unconfirmed. No automatic looting or game input ran in
+the diagnostic check. Radar lines/boxes and ordinary loot markers remain the
+requested scope. Radar and scanner were stopped; live testing remains halted.
 
-Revisit after the current auto-pickup work. Feasibility, controls and behavior
-have not been investigated or agreed beyond that requested outcome.
+Historical pickup findings and suspension evidence are retained, not an active
+backlog. Do not infer that removing these unused features establishes account
+safety for the remaining memory reader/overlay.

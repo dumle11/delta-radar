@@ -20,7 +20,9 @@ object ProjectionMath {
         aspect: Double,
         lineOriginX: Double = 0.5,
         lineOriginY: Double = 0.02,
-        edgeMargin: Double = 0.018
+        edgeMargin: Double = 0.018,
+        clipToEdge: Boolean = true,
+        rollDegrees: Double = 0.0
     ): Point {
         val yaw = Math.toRadians(yawDegrees)
         val pitch = Math.toRadians(pitchDegrees)
@@ -30,12 +32,15 @@ object ProjectionMath {
         val sp = sin(pitch)
 
         val horizontalForward = dx * cy + dy * sy
-        val right = -dx * sy + dy * cy
+        val unrolledRight = -dx * sy + dy * cy
         val forward = horizontalForward * cp + dz * sp
-        val up = -horizontalForward * sp + dz * cp
+        val unrolledUp = -horizontalForward * sp + dz * cp
+        val roll = Math.toRadians(rollDegrees)
+        val right = unrolledRight * cos(roll) - unrolledUp * sin(roll)
+        val up = unrolledRight * sin(roll) + unrolledUp * cos(roll)
         val inFront = forward > 0.05
 
-        val tanHalfHorizontal = tan(Math.toRadians(horizontalFovDegrees.coerceIn(30.0, 150.0) / 2.0))
+        val tanHalfHorizontal = tan(Math.toRadians(horizontalFovDegrees.coerceIn(5.0, 150.0) / 2.0))
         val tanHalfVertical = tanHalfHorizontal / aspect.coerceAtLeast(0.25)
         val depth = max(abs(forward), 0.05)
 
@@ -57,7 +62,7 @@ object ProjectionMath {
 
         val onScreen = inFront && rawX in edgeMargin..(1.0 - edgeMargin) &&
             rawY in edgeMargin..(1.0 - edgeMargin)
-        if (!onScreen && inFront) {
+        if (!onScreen && inFront && clipToEdge) {
             val clipped = clipRayToUnitRect(lineOriginX, lineOriginY, rawX, rawY, edgeMargin)
             rawX = clipped.first
             rawY = clipped.second

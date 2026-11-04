@@ -45,7 +45,7 @@ static bool read_only(uintptr_t address,void *buffer,size_t size) {
  protected_budget-=size;protected_reads++;
  return n==(ssize_t)size;
 }
-static long long now_ms() { timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return (long long)t.tv_sec*1000+t.tv_nsec/1000000; }
+static long long now_ms() { timespec t;clock_gettime(CLOCK_BOOTTIME,&t);return (long long)t.tv_sec*1000+t.tv_nsec/1000000; }
 // Android 12 bionic: TLS slot 1 points at pthread_internal_t, whose tid and
 // cached pid are at +0x10/+0x14. Inspect only the selected thread's final 64 KiB.
 static uint64_t find_thread_tls(uint64_t lo,uint64_t hi,int pid,int tid) {
@@ -212,7 +212,7 @@ static void decoder_worker() {
   }
  }
 }
-static int queued_position(int pid,uint64_t base,uint64_t root,float out[3],PositionSource source) {
+static int queued_position(int pid,uint64_t base,uint64_t root,float out[3],PositionSource source,long long *sampled_at=nullptr) {
  if(!root||(root&7))return 0;
  uint64_t key=decode_key(root,source);
  std::call_once(worker_once,[]{std::thread(decoder_worker).detach();});
@@ -223,7 +223,7 @@ static int queued_position(int pid,uint64_t base,uint64_t root,float out[3],Posi
  bool refresh=!valid||now-found->second.value.at>=80;
  if(refresh&&schedule.request(root,source,now))request_ready.notify_one();
  if(!valid)return 0;
- memcpy(out,found->second.value.p,12);return 1;
+ memcpy(out,found->second.value.p,12);if(sampled_at)*sampled_at=found->second.value.at;return 1;
 }
 
 extern "C" int delta_decode_position(int pid,uint64_t base,uint64_t root,float out[3]) {
@@ -231,4 +231,8 @@ extern "C" int delta_decode_position(int pid,uint64_t base,uint64_t root,float o
 }
 extern "C" int delta_decode_character_bounds(int pid,uint64_t base,uint64_t root,float out[3]) {
  return queued_position(pid,base,root,out,PositionSource::CharacterBounds);
+}
+
+extern "C" int delta_decode_character_bounds_sampled(int pid,uint64_t base,uint64_t root,float out[3],long long *sampled_at) {
+ return queued_position(pid,base,root,out,PositionSource::CharacterBounds,sampled_at);
 }

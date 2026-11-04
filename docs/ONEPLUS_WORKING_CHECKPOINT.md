@@ -4,7 +4,11 @@ Saved at the user's request after the first live check of the offline audit buil
 Remote branch: `OnePlus-all-working-lines`. Annotated tag:
 `working-v1-2026-11-03`. The tested application/native source is commit
 `8863a1adf4586a1fcd716c635c4e3f966b795f6c`; the checkpoint adds documentation only.
-Keep this branch/tag as the baseline and continue experiments on `working-v1`.
+The tag remains the frozen historical baseline. On 2026-11-04 the user selected
+`OnePlus-all-working-lines` as the active working branch and accepted the newer
+installed APK; continue development there. This document describes the older
+checkpoint, not the latest branch tip. See README and SCANNER_DEPLOYMENT.md for
+the current installed pair.
 
 ## Exact build
 

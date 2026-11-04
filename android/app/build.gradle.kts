@@ -6,7 +6,11 @@ plugins {
 }
 
 val scannerDeployment = Properties().apply {
-    rootProject.file("../scanner/deployment.properties").inputStream().use { load(it) }
+    // Candidate builds can target their reviewed manifest without activating a
+    // new scanner in the ordinary local build or changing the deployment pin.
+    val path = providers.gradleProperty("scannerDeploymentFile")
+        .getOrElse("../scanner/deployment.properties")
+    rootProject.file(path).inputStream().use { load(it) }
 }
 
 android {

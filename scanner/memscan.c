@@ -23,6 +23,8 @@
 #include <sys/uio.h>
 #include <sys/syscall.h>
 #include <time.h>
+#include <stdatomic.h>
+#include <pthread.h>
 
 #ifndef DELTA_SOURCE_REVISION
 #define DELTA_SOURCE_REVISION "unrecorded"
@@ -31,7 +33,7 @@
 #define DELTA_SOURCE_SHA256 "unrecorded"
 #endif
 
-static volatile sig_atomic_t running = 1;
+static atomic_int running = 1;
 static const char *session_file = NULL;
 static pid_t session_owner_pid = 0;
 
@@ -40,7 +42,7 @@ static pid_t session_owner_pid = 0;
 static int session_active(void) {
     if (!running) return 0;
     if (!session_file) return 1;
-    static long long checked_at = -1;
+    static _Thread_local long long checked_at = -1;
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     long long now = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
@@ -431,20 +433,31 @@ static int is_game_heap_ptr(uint64_t p) {
     return is_any_ptr(p) && (p & 7) == 0 && !is_in_ue4(p);
 }
 
+/* Same object predicate for the imported checked readers. */
+static int is_telemetry_ptr(uint64_t p) { return is_game_heap_ptr(p); }
+static long long sample_time_ms(void) {
+    struct timespec t; clock_gettime(CLOCK_BOOTTIME, &t);
+    return (long long)t.tv_sec * 1000 + t.tv_nsec / 1000000;
+}
+
 #ifdef DELTA_WITH_DECODER
 extern int delta_decode_position(int pid, uint64_t base, uint64_t root, float out[3]);
-extern int delta_decode_character_bounds(int pid, uint64_t base, uint64_t root, float out[3]);
+extern int delta_decode_character_bounds_sampled(int pid, uint64_t base, uint64_t root, float out[3], long long *sampled_at);
 #endif
+static int enc_handler_unmanaged(const unsigned char *h) {
+    return h[0] == 255 && h[1] == 255 && h[2] == 0;
+}
+#include "position-decoder.h"
+
 /* Remote master's enemy path reads +0x148. The matching SDK's bounds accessor
  * confirms this is FEncBoxSphereBounds::Origin, not the loot transform. */
-static int read_character_position(uint64_t root, float out[3]) {
+static int read_character_position_sampled(uint64_t root, float out[3], long long *sampled_at) {
+    if (sampled_at) *sampled_at = sample_time_ms();
     unsigned char origin[16];
     if (read_mem(root + 0x148, origin, sizeof(origin)) != sizeof(origin)) return 0;
-    uint16_t index;
-    memcpy(&index, origin + 12, sizeof(index));
-    if (index != UINT16_MAX) {
+    if (!enc_handler_unmanaged(origin + 12)) {
 #ifdef DELTA_WITH_DECODER
-        return delta_decode_character_bounds(game_pid, ue4_base, root, out);
+        return delta_decode_character_bounds_sampled(game_pid, ue4_base, root, out, sampled_at);
 #else
         return 0;
 #endif
@@ -489,6 +502,7 @@ static int read_component_position(uint64_t root, int pos_off, float out[3]) {
 #define OFF_HEALTH_SET_IS_ALIVE 0x134
 #define OFF_CHARACTER_LAST_IS_DEAD 0xE35
 #define OFF_PLAYER_STATE_DEAD 0x4AC
+#define OFF_PLAYER_STATE_FINISHED 0x4C0
 #define OFF_CHARACTER_CAPSULE_HALF_HEIGHT 0xE68
 #define OFF_CAPSULE_COMPONENT_HALF_HEIGHT 0x5C0
 
@@ -1306,7 +1320,7 @@ static int resolve_class_name(uint64_t cls, char *out, int size) {
 
 static int find_object_field(uint64_t owner, int start, int end, const char *class_fragment);
 
-#define NUM_SKELETON_BONES 16
+#define MAX_SKELETON_BONES 512
 #include "loot_value.h"
 static LootValueReader loot_values;
 static int loot_values_fd = -1, loot_values_fd_pid = -1;
@@ -1323,10 +1337,6 @@ static int read_loot_value_memory(void *unused, uint64_t address, void *out, siz
     }
     return loot_values_fd >= 0 && pread(loot_values_fd, out, size, (off_t)address) == (ssize_t)size;
 }
-/* Bone indices: 0=head 1=neck 2=spine_upper 3=pelvis
- * 4=l_shoulder 5=l_elbow 6=l_hand 7=r_shoulder 8=r_elbow 9=r_hand
- * 10=l_hip 11=l_knee 12=l_foot 13=r_hip 14=r_knee 15=r_foot */
-
 typedef struct {
     char id[32];
     float x, y, z, yaw, pitch, fov;
@@ -1338,8 +1348,10 @@ typedef struct {
     int team;
     int native_team;
     uint64_t player_state;
-    float bone_pos[NUM_SKELETON_BONES][3]; /* world-space bone positions in meters */
-    int has_bones;
+    float bone_pos[MAX_SKELETON_BONES][3]; /* world-space bone positions in meters */
+    int has_bones, bone_count, position_plaintext, position_decoded;
+    int16_t bone_parent[MAX_SKELETON_BONES];
+    long long sampled_at_ms;
     LootValue loot;
 } Entity;
 
@@ -1422,218 +1434,9 @@ static int resolve_team_field(const char *self_id) {
     return -1;
 }
 
-/* ========== SKELETON / BONE READING ========== */
-static int resolved_mesh_off = -2;  /* -2 = not searched, -1 = not found */
-static int resolved_bone_array_off = -2;
-static int bone_map[NUM_SKELETON_BONES]; /* maps our bone index to game bone index */
-static int bone_map_ready = 0;
-static int bone_stride = 48; /* FTransform size: 48 bytes for float-based (mobile) */
+#include "skeleton-math.h"
+#include "skeleton-reader.h"
 
-/* Find mesh component on the self pawn using reflection */
-static int find_mesh_component(uint64_t pawn) {
-    int off = find_object_field(pawn, 0x380, 0xC00, "SkeletalMesh");
-    if (off >= 0) {
-        fprintf(stderr, "[+] Found SkeletalMesh field at pawn+0x%x\n", off);
-        return off;
-    }
-    /* ACharacter::Mesh is a named property; try broader class fragment */
-    off = find_object_field(pawn, 0x380, 0xC00, "SkinnedMesh");
-    if (off >= 0) {
-        fprintf(stderr, "[+] Found SkinnedMesh field at pawn+0x%x\n", off);
-        return off;
-    }
-    return -1;
-}
-
-/* Search bone names in a SkeletalMesh's RefSkeleton to build bone_map.
- * RefSkeleton contains a TArray<FMeshBoneInfo> where each entry has
- * an FName (4-byte index) at the start. We scan the bone name FNames
- * and match against our target bone names. */
-static void discover_bone_map(uint64_t mesh_comp) {
-    bone_map_ready = 0;
-    for (int i = 0; i < NUM_SKELETON_BONES; i++) bone_map[i] = -1;
-
-    /* Find bone array: scan mesh component for TArray with 20-200 entries
-     * whose element stride looks like FTransform (check scale ~1.0) */
-    int bone_count = -1;
-    uint64_t bone_data = 0;
-    for (int off = 0x200; off < 0xE00; off += 8) {
-        uint64_t ptr = read_ptr(mesh_comp + off);
-        if (!is_any_ptr(ptr)) continue;
-        int32_t count = read_i32(mesh_comp + off + 8);
-        if (count < 20 || count > 300) continue;
-
-        /* Validate: check if elements look like FTransforms.
-         * FTransform with floats: quat(16) + trans(16) + scale(16) = 48 bytes
-         * Check scale of bone 0 (should be near 1.0) */
-        float sx = read_float(ptr + 32); /* scale X at offset 32 within FTransform */
-        float sy = read_float(ptr + 36);
-        float sz = read_float(ptr + 40);
-        if (fabsf(sx - 1.0f) < 0.5f && fabsf(sy - 1.0f) < 0.5f && fabsf(sz - 1.0f) < 0.5f) {
-            bone_data = ptr;
-            bone_count = count;
-            resolved_bone_array_off = off;
-            bone_stride = 48;
-            break;
-        }
-        /* Try 80-byte stride (doubles): quat(32) + trans(32) + scale(16) */
-        double dsx, dsy;
-        read_mem(ptr + 64, &dsx, 8);
-        read_mem(ptr + 72, &dsy, 8);
-        if (fabs(dsx - 1.0) < 0.5 && fabs(dsy - 1.0) < 0.5) {
-            bone_data = ptr;
-            bone_count = count;
-            resolved_bone_array_off = off;
-            bone_stride = 80;
-            break;
-        }
-    }
-    if (bone_count < 0) {
-        fprintf(stderr, "[!] No bone array found in mesh component\n");
-        return;
-    }
-    fprintf(stderr, "[+] Bone array: comp+0x%x count=%d stride=%d\n",
-            resolved_bone_array_off, bone_count, bone_stride);
-
-    /* Try to read bone names from the SkeletalMesh asset.
-     * USkeletalMeshComponent has a SkeletalMesh pointer (usually 0x5A0-0x600).
-     * The SkeletalMesh has a RefSkeleton with FName bone names.
-     * If we can't find names, use positional heuristics. */
-
-    /* Positional heuristic: read all bone translations, identify bones by
-     * their positions relative to the root (bone 0 = pelvis/root).
-     * This works because humanoid skeletons have predictable layouts:
-     * - Head is highest
-     * - Hands are widest laterally
-     * - Feet are lowest
-     * We use component-space transforms where Y is typically up. */
-    float bpos[300][3];
-    int valid = 0;
-    for (int b = 0; b < bone_count && b < 300; b++) {
-        uint64_t base = bone_data + (uint64_t)b * bone_stride;
-        if (bone_stride == 48) {
-            bpos[b][0] = read_float(base + 16); /* trans X */
-            bpos[b][1] = read_float(base + 20); /* trans Y */
-            bpos[b][2] = read_float(base + 24); /* trans Z */
-        } else {
-            double dx, dy, dz;
-            read_mem(base + 32, &dx, 8);
-            read_mem(base + 40, &dy, 8);
-            read_mem(base + 48, &dz, 8);
-            bpos[b][0] = (float)dx;
-            bpos[b][1] = (float)dy;
-            bpos[b][2] = (float)dz;
-        }
-        if (bpos[b][0] == bpos[b][0]) valid++;
-    }
-    fprintf(stderr, "[+] Read %d/%d valid bone positions\n", valid, bone_count);
-
-    /* Log first 20 bone positions for diagnostics */
-    for (int b = 0; b < bone_count && b < 20; b++) {
-        fprintf(stderr, "  bone[%d] pos=(%.1f, %.1f, %.1f) cm\n",
-                b, bpos[b][0], bpos[b][1], bpos[b][2]);
-    }
-
-    /* Find head: highest bone (max component-space Z or X depending on orientation) */
-    /* For now, use bone indices that are common in UE4 humanoid rigs:
-     * 0=root/pelvis, head is usually around index 5-10, limbs are higher */
-    /* We'll use a simple heuristic: find the bone with highest altitude */
-    float max_up = -99999;
-    int head_idx = -1;
-    for (int b = 1; b < bone_count; b++) {
-        /* Try X as up (UE4 component space varies) */
-        float up = bpos[b][0]; /* we'll try all axes */
-        if (fabsf(bpos[b][0]) + fabsf(bpos[b][1]) + fabsf(bpos[b][2]) < 1.0f) continue;
-        /* Use whichever axis has the largest range as "up" */
-        if (up > max_up) { max_up = up; head_idx = b; }
-    }
-    if (head_idx >= 0) {
-        fprintf(stderr, "[+] Candidate head bone: %d at (%.1f, %.1f, %.1f)\n",
-                head_idx, bpos[head_idx][0], bpos[head_idx][1], bpos[head_idx][2]);
-    }
-
-    /* For now, set a default mapping using common UE4 mannequin-style indices.
-     * This will be refined once we see actual bone positions. */
-    /* Default humanoid skeleton (UE4 mannequin-like):
-     * 0=root, 1=pelvis, 2=spine_01, 3=spine_02, 4=spine_03,
-     * 5=neck_01, 6=head,
-     * Left arm chain starts around 7-11, right arm around 30+
-     * Left leg around 55+, right leg around 60+ */
-    /* These are placeholders — the diagnostic output will tell us the real indices */
-    bone_map[0] = 6;   /* head */
-    bone_map[1] = 5;   /* neck */
-    bone_map[2] = 3;   /* spine_02 */
-    bone_map[3] = 1;   /* pelvis */
-    bone_map[4] = 8;   /* l_shoulder */
-    bone_map[5] = 9;   /* l_elbow */
-    bone_map[6] = 10;  /* l_hand */
-    bone_map[7] = 31;  /* r_shoulder */
-    bone_map[8] = 32;  /* r_elbow */
-    bone_map[9] = 33;  /* r_hand */
-    bone_map[10] = 55; /* l_hip */
-    bone_map[11] = 56; /* l_knee */
-    bone_map[12] = 57; /* l_foot */
-    bone_map[13] = 60; /* r_hip */
-    bone_map[14] = 61; /* r_knee */
-    bone_map[15] = 62; /* r_foot */
-
-    /* Clamp to valid range */
-    for (int i = 0; i < NUM_SKELETON_BONES; i++)
-        if (bone_map[i] >= bone_count) bone_map[i] = -1;
-
-    bone_map_ready = 1;
-}
-
-/* Read bone world positions for an entity */
-static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root, int mesh_off, int pos_off) {
-    e->has_bones = 0;
-    if (!bone_map_ready || mesh_off < 0 || resolved_bone_array_off < 0) return;
-
-    uint64_t mesh_comp = read_ptr(actor + mesh_off);
-    if (!is_any_ptr(mesh_comp)) return;
-
-    uint64_t bone_data = read_ptr(mesh_comp + resolved_bone_array_off);
-    int32_t bone_count = read_i32(mesh_comp + resolved_bone_array_off + 8);
-    if (!is_any_ptr(bone_data) || bone_count < 20) return;
-
-    /* Read mesh component's world transform for converting component-space to world-space.
-     * The mesh component's ComponentToWorld is at the same offset as the root component's. */
-    float mesh_world_x = read_float(root + pos_off) / 100.0f;
-    float mesh_world_y = read_float(root + pos_off + 4) / 100.0f;
-    float mesh_world_z = read_float(root + pos_off + 8) / 100.0f;
-
-    for (int i = 0; i < NUM_SKELETON_BONES; i++) {
-        int bidx = bone_map[i];
-        if (bidx < 0 || bidx >= bone_count) {
-            e->bone_pos[i][0] = e->x;
-            e->bone_pos[i][1] = e->y;
-            e->bone_pos[i][2] = e->z;
-            continue;
-        }
-        uint64_t base = bone_data + (uint64_t)bidx * bone_stride;
-        float bx, by, bz;
-        if (bone_stride == 48) {
-            bx = read_float(base + 16) / 100.0f;
-            by = read_float(base + 20) / 100.0f;
-            bz = read_float(base + 24) / 100.0f;
-        } else {
-            double dx, dy, dz;
-            read_mem(base + 32, &dx, 8);
-            read_mem(base + 40, &dy, 8);
-            read_mem(base + 48, &dz, 8);
-            bx = (float)(dx / 100.0);
-            by = (float)(dy / 100.0);
-            bz = (float)(dz / 100.0);
-        }
-        /* Component-space bone positions — add entity world position */
-        e->bone_pos[i][0] = mesh_world_x + bx;
-        e->bone_pos[i][1] = mesh_world_y + by;
-        e->bone_pos[i][2] = mesh_world_z + bz;
-    }
-    e->has_bones = 1;
-}
-
-/* RelativeRotation: FRotator at root+0x178 = {Pitch, Yaw, Roll} as floats (degrees) */
 #define OFF_USCENE_RELATIVE_PITCH 0x178
 #define OFF_USCENE_RELATIVE_YAW   0x17c
 
@@ -1655,7 +1458,10 @@ static int self_verified = 0;
 static uint64_t verified_uworld = 0;
 static int match_was_verified = 0;
 static float last_camera_timestamp = -1.0f;
-static unsigned stale_camera_frames = 0;
+static long long camera_sampled_at_ms;
+static float camera_roll;
+static int camera_position_valid;
+#include "camera-stream.h"
 static int resolved_camera_manager_off = -1;
 static int resolved_camera_cache_off = -1;
 static int camera_candidate_offsets[128];
@@ -1959,19 +1765,19 @@ static int find_object_field(uint64_t owner, int start, int end, const char *cla
     return -1;
 }
 
-/* FGPGameplayAttributeData stores BaseValue immediately before CurrentValue.
- * Proxima 1.202's live Health/MaxHealth/IsAlive CurrentValue slots are
- * 0x3C/0x54/0x134. Validate the complete tuple so an unrelated UObject is not
- * accepted merely because it happens to contain one plausible float. */
+/* Read one attribute snapshot. HealthMAX on the component is a design default
+ * (100 even on live 95/350 HP bots), not the runtime MaxHealth attribute. */
 static int read_health_set(uint64_t health_set, float *health, float *max_health,
                            float *is_alive) {
-    if (!is_game_heap_ptr(health_set)) return 0;
-    float hp_base = read_float(health_set + OFF_HEALTH_SET_CURRENT - 4);
-    float hp = read_float(health_set + OFF_HEALTH_SET_CURRENT);
-    float max_base = read_float(health_set + OFF_HEALTH_SET_MAX - 4);
-    float max_hp = read_float(health_set + OFF_HEALTH_SET_MAX);
-    float alive_base = read_float(health_set + OFF_HEALTH_SET_IS_ALIVE - 4);
-    float alive = read_float(health_set + OFF_HEALTH_SET_IS_ALIVE);
+    if (!is_telemetry_ptr(health_set)) return 0;
+    float snapshot[(OFF_HEALTH_SET_IS_ALIVE + 4) / 4];
+    if (read_mem(health_set, snapshot, sizeof(snapshot)) != sizeof(snapshot)) return 0;
+    float hp_base = snapshot[(OFF_HEALTH_SET_CURRENT - 4) / 4];
+    float hp = snapshot[OFF_HEALTH_SET_CURRENT / 4];
+    float max_base = snapshot[(OFF_HEALTH_SET_MAX - 4) / 4];
+    float max_hp = snapshot[OFF_HEALTH_SET_MAX / 4];
+    float alive_base = snapshot[(OFF_HEALTH_SET_IS_ALIVE - 4) / 4];
+    float alive = snapshot[OFF_HEALTH_SET_IS_ALIVE / 4];
     if (!isfinite(hp_base) || !isfinite(hp) || !isfinite(max_base) ||
         !isfinite(max_hp) || !isfinite(alive_base) || !isfinite(alive)) return 0;
     if (max_hp < 10.0f || max_hp > 100000.0f ||
@@ -1987,71 +1793,44 @@ static int read_health_set(uint64_t health_set, float *health, float *max_health
     return 1;
 }
 
-/* Minor regional builds shift the large AGPCharacterBase layout. Resolve the
- * two pointer fields once from the local pawn, then reuse them for every actor
- * and frame. Reflection names are preferred, with a strict value-shape check
- * as the fallback when this build's FName layout cannot decode component names. */
-static int discover_health_chain(uint64_t actor, int *component_off, int *set_off) {
-    int best_score = -1;
-    int best_component_off = -1, best_set_off = -1;
-    float best_hp = 0.0f, best_max_hp = 0.0f, best_alive = 0.0f;
-    int reflected_component = find_object_field(
-        actor, 0x700, 0x1800, "HealthDataComponent");
-    int component_start = reflected_component >= 0 ? reflected_component : 0x700;
-    int component_end = reflected_component >= 0 ? reflected_component + 8 : 0x1800;
-    for (int co = component_start; co < component_end; co += 8) {
-        uint64_t component = read_ptr(actor + (uint64_t)co);
-        if (!is_game_heap_ptr(component)) continue;
+/* This build's UObject Outer is +0x10. Both HealthDataComponent and
+ * AttributeSetHealth are actor-owned. Validate those backlinks on every read,
+ * including cached offsets, so a reused address cannot borrow another pawn's HP. */
+static int read_actor_health_at(uint64_t actor, int component_off, int set_off,
+                                float *hp, float *maximum, float *alive) {
+    if (component_off < 0 || set_off < 0) return 0;
+    uint64_t component = read_ptr(actor + (uint64_t)component_off);
+    if (!is_telemetry_ptr(component) || read_ptr(component + 0x10) != actor) return 0;
+    uint64_t set = read_ptr(component + (uint64_t)set_off);
+    if (!is_telemetry_ptr(set) || read_ptr(set + 0x10) != actor) return 0;
+    return read_health_set(set, hp, maximum, alive);
+}
 
-        int reflected_set = find_object_field(
-            component, 0x100, 0x500, "AttributeSetHealth");
+static int discover_health_chain(uint64_t actor, int *component_off, int *set_off) {
+    int reflected_component = find_object_field(actor, 0x700, 0x1800, "HealthDataComponent");
+    int start = reflected_component >= 0 ? reflected_component : 0x700;
+    int end = reflected_component >= 0 ? reflected_component + 8 : 0x1800;
+    for (int co = start; co < end; co += 8) {
+        uint64_t component = read_ptr(actor + (uint64_t)co);
+        if (!is_telemetry_ptr(component) || read_ptr(component + 0x10) != actor) continue;
+        int reflected_set = find_object_field(component, 0x100, 0x500, "AttributeSetHealth");
         int set_start = reflected_set >= 0 ? reflected_set : 0x100;
         int set_end = reflected_set >= 0 ? reflected_set + 8 : 0x500;
         for (int so = set_start; so < set_end; so += 8) {
-            uint64_t set = read_ptr(component + (uint64_t)so);
-            float hp = 0.0f, max_hp = 0.0f, alive = 0.0f;
-            if (!read_health_set(set, &hp, &max_hp, &alive)) continue;
-            /* In UGPHealthDataComponent, HealthMAX is 0x28 bytes before the
-             * HealthSet pointer. This relationship survives the regional
-             * build's base-class size shift and rejects unrelated attribute-
-             * shaped objects that happen to contain plausible numbers. */
-            if (so < 0x28) continue;
+            /* HealthDataComponent's design default is a shape check only.
+             * AbilitySystem also references this set but lacks this field. */
             float component_max = read_float(component + (uint64_t)(so - 0x28));
-            if (!isfinite(component_max) || component_max < 10.0f ||
-                fabsf(component_max - max_hp) > fmaxf(2.0f, max_hp * 0.05f)) continue;
-            int score = 0;
-            if (alive >= 0.5f) score += 100;
-            if (hp > 0.01f) score += 100;
-            if (score > best_score) {
-                best_score = score;
-                best_component_off = co;
-                best_set_off = so;
-                best_hp = hp;
-                best_max_hp = max_hp;
-                best_alive = alive;
-            }
+            if (!isfinite(component_max) || component_max < 10 || component_max > 100000) continue;
+            float hp, maximum, alive;
+            if (!read_actor_health_at(actor, co, so, &hp, &maximum, &alive)) continue;
+            *component_off = co;
+            *set_off = so;
+            fprintf(stderr, "\n[+] Owned health chain actor+0x%x -> component+0x%x (%.1f/%.1f)\n",
+                    co, so, hp, maximum);
+            return 1;
         }
     }
-    if (best_component_off < 0) return 0;
-    *component_off = best_component_off;
-    *set_off = best_set_off;
-    fprintf(stderr,
-            "\n[+] Health chain actor+0x%x -> component+0x%x "
-            "(hp=%.1f/%.1f alive=%.0f score=%d)\n",
-            best_component_off, best_set_off, best_hp, best_max_hp,
-            best_alive, best_score);
-    if (best_score == 0) {
-        uint64_t component = read_ptr(actor + (uint64_t)best_component_off);
-        uint64_t set = read_ptr(component + (uint64_t)best_set_off);
-        fprintf(stderr, "[diag] health-set candidate floats:");
-        for (int off = 0x20; off <= 0x140; off += 4) {
-            float value = read_float(set + (uint64_t)off);
-            if (isfinite(value) && fabsf(value) >= 0.5f && fabsf(value) <= 100000.0f)
-                fprintf(stderr, " +%03x=%.2f", off, value);
-        }
-        fprintf(stderr, "\n");
-    }
-    return 1;
+    return 0;
 }
 
 #define MAX_HEALTH_LAYOUTS 64
@@ -2059,53 +1838,93 @@ typedef struct {
     uint64_t actor_class;
     int component_off;
     int set_off;
-    int death_trusted;
-    unsigned long last_attempt;
+    long long last_attempt;
 } HealthLayout;
 
 static HealthLayout health_layouts[MAX_HEALTH_LAYOUTS];
 static int health_layout_count = 0;
-static unsigned long health_layout_clock = 0;
 
-static HealthLayout *health_layout_for_actor(uint64_t actor) {
-    uint64_t actor_class = read_ptr(actor + OFF_UOBJECT_CLASS);
-    if (!is_game_heap_ptr(actor_class) && !is_any_ptr(actor_class)) return NULL;
-    health_layout_clock++;
-
+static int read_actor_health(uint64_t actor, float *hp, float *maximum, float *alive) {
+    uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
+    if (!is_telemetry_ptr(cls)) return 0;
     HealthLayout *layout = NULL;
     for (int i = 0; i < health_layout_count; i++) {
-        if (health_layouts[i].actor_class == actor_class) {
-            layout = &health_layouts[i];
-            break;
-        }
+        if (health_layouts[i].actor_class == cls) { layout = &health_layouts[i]; break; }
     }
-    if (!layout) {
-        if (health_layout_count >= MAX_HEALTH_LAYOUTS) return NULL;
+    if (!layout && health_layout_count < MAX_HEALTH_LAYOUTS) {
         layout = &health_layouts[health_layout_count++];
-        memset(layout, 0, sizeof(*layout));
-        layout->actor_class = actor_class;
-        layout->component_off = -1;
-        layout->set_off = -1;
+        *layout = (HealthLayout){ .actor_class = cls, .component_off = -1, .set_off = -1 };
     }
-
-    /* Retry a failed class occasionally: its first observed actor may still be
-     * constructing components. Successful layouts never scan again. */
-    if (layout->component_off < 0 &&
-        (layout->last_attempt == 0 || health_layout_clock - layout->last_attempt >= 3000)) {
-        layout->last_attempt = health_layout_clock;
-        int component_off = -1, set_off = -1;
-        if (discover_health_chain(actor, &component_off, &set_off)) {
-            layout->component_off = component_off;
-            layout->set_off = set_off;
-            uint64_t component = read_ptr(actor + (uint64_t)component_off);
-            uint64_t set = is_game_heap_ptr(component) ?
-                read_ptr(component + (uint64_t)set_off) : 0;
-            float hp = 0.0f, max_hp = 0.0f, alive = 0.0f;
-            layout->death_trusted = read_health_set(set, &hp, &max_hp, &alive) &&
-                hp > 0.01f && alive >= 0.5f;
+    if (layout && read_actor_health_at(actor, layout->component_off, layout->set_off,
+                                      hp, maximum, alive)) return 1;
+    /* Sibling bot classes normally share the layout. Try validated cached
+     * chains before scanning, including while a class discovery is throttled. */
+    for (int i = 0; i < health_layout_count; i++) {
+        HealthLayout *other = &health_layouts[i];
+        if (other == layout || other->component_off < 0) continue;
+        if (read_actor_health_at(actor, other->component_off, other->set_off, hp, maximum, alive)) {
+            if (layout) { layout->component_off = other->component_off; layout->set_off = other->set_off; }
+            return 1;
         }
     }
-    return layout;
+    long long now = sample_time_ms();
+    if (layout && layout->last_attempt && now - layout->last_attempt < 250) return 0;
+    if (layout) layout->last_attempt = now;
+    int co = -1, so = -1;
+    if (!discover_health_chain(actor, &co, &so)) return 0;
+    if (layout) { layout->component_off = co; layout->set_off = so; }
+    return read_actor_health_at(actor, co, so, hp, maximum, alive);
+}
+
+/* Extracted/finished and unpossessed pawns can remain in the level's actor
+ * array with intact meshes and health. They are no longer active participants.
+ * AI without PlayerState remain valid; a player with one must match its pawn. */
+static int actor_is_active_participant(uint64_t actor, uint64_t state) {
+    if (!is_telemetry_ptr(actor)) return 0;
+    if (!is_telemetry_ptr(state)) return 1;
+    uint64_t pawn = 0;
+    uint8_t flags = 0, finished = 0;
+    if (read_mem(state + OFF_PLAYER_STATE_PAWN_PRIVATE, &pawn, sizeof(pawn)) != sizeof(pawn) ||
+        read_mem(state + OFF_PLAYER_STATE_BOT_FLAGS, &flags, 1) != 1 ||
+        read_mem(state + OFF_PLAYER_STATE_FINISHED, &finished, 1) != 1) return 0;
+    return pawn == actor && finished == 0 && (flags & ((1 << 1) | (1 << 2) | (1 << 5))) == 0;
+}
+
+/* PlayerArray is independent of streamed-level actor ordering. Use its
+ * mutually linked active pawns both as discovery candidates and as a cache
+ * invalidation signal; an extracted pawn is never recovered from old state. */
+static int collect_roster_pawns(uint64_t world, uint64_t local_pawn,
+                                 uint64_t *pawns, int capacity) {
+    uint64_t state = read_ptr(world + OFF_UWORLD_GAME_STATE);
+    if (!is_telemetry_ptr(state)) return 0;
+    uint64_t data = read_ptr(state + 0x388);
+    int count = read_i32(state + 0x390);
+    if (!is_telemetry_ptr(data) || count < 1 || count > 256) return 0;
+    uint64_t states[256];
+    if (read_mem(data, states, (size_t)count * sizeof(*states)) !=
+        (ssize_t)((size_t)count * sizeof(*states))) return 0;
+    int used = 0;
+    for (int i = 0; i < count && used < capacity; i++) {
+        uint64_t ps = states[i];
+        if (!is_telemetry_ptr(ps)) continue;
+        uint64_t pawn = read_ptr(ps + OFF_PLAYER_STATE_PAWN_PRIVATE);
+        if (!is_telemetry_ptr(pawn) || read_ptr(pawn + OFF_APAWN_PLAYER_STATE) != ps ||
+            (pawn != local_pawn && !actor_is_active_participant(pawn, ps))) continue;
+        int duplicate = 0;
+        for (int j = 0; j < used; j++) if (pawns[j] == pawn) { duplicate = 1; break; }
+        if (!duplicate) pawns[used++] = pawn;
+    }
+    return used;
+}
+
+/* Death-box discovery shares the validated per-class layout. */
+static HealthLayout *health_layout_for_actor(uint64_t actor) {
+    float hp, maximum, alive;
+    if (!read_actor_health(actor, &hp, &maximum, &alive)) return NULL;
+    uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
+    for (int i = 0; i < health_layout_count; i++)
+        if (health_layouts[i].actor_class == cls) return &health_layouts[i];
+    return NULL;
 }
 
 /* FName layouts differ in the current Proxima build, so reflection can fail
@@ -2191,13 +2010,13 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
     (void)use_ctw; /* ComponentToWorld mode is retained for CLI compatibility. */
     uint64_t uworld = read_ptr(gworld_addr);
     if (!is_any_ptr(uworld)) return -1;
+    camera_position_valid = 0;
     if (verified_uworld != uworld) {
         verified_uworld = uworld;
         match_was_verified = 0;
         last_camera_timestamp = -1.0f;
-        stale_camera_frames = 0;
+        camera_sampled_at_ms = 0;
         health_layout_count = 0;
-        health_layout_clock = 0;
         memset(loot_values.actors, 0, sizeof(loot_values.actors));
         loot_values.next_actor = 0;
         loot_values.type_count = loot_values.next_type = 0;
@@ -2312,29 +2131,34 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             }
             if (resolved_camera_cache_off < 0) goto camera_done;
             uint64_t cache = camera_manager + (uint64_t)resolved_camera_cache_off;
-            uint64_t pov = cache + OFF_CAMERA_CACHE_POV;
-            float timestamp = read_float(cache);
-            camera_x = read_float(pov + OFF_POV_LOCATION) / 100.0f;
-            camera_y = read_float(pov + OFF_POV_LOCATION + 4) / 100.0f;
-            camera_z = read_float(pov + OFF_POV_LOCATION + 8) / 100.0f;
-            camera_pitch = read_float(pov + OFF_POV_ROTATION);
-            camera_yaw = read_float(pov + OFF_POV_ROTATION + 4);
-            camera_fov = read_float(pov + OFF_POV_FOV);
-            /* FMinimalViewInfo::FOV is the final rendered horizontal angle.
-             * +0x20 is DesiredFOV; FPPCameraFOV is a derived setting, not it. */
-            camera_valid = camera_x == camera_x && camera_y == camera_y && camera_z == camera_z &&
-                camera_pitch == camera_pitch && camera_yaw == camera_yaw &&
-                fabsf(camera_x) < 100000.0f && fabsf(camera_y) < 100000.0f &&
-                fabsf(camera_z) < 100000.0f && camera_fov >= 5.0f && camera_fov <= 180.0f;
+            unsigned char first[48], second[48];
+            if (read_mem(cache,first,sizeof(first)) != sizeof(first) ||
+                read_mem(cache,second,sizeof(second)) != sizeof(second) ||
+                memcmp(first,second,sizeof(first)) || !enc_handler_unmanaged(first+28)) goto camera_done;
+            float timestamp, xyz[3], angles[3];
+            memcpy(&timestamp,first,4); memcpy(xyz,first+16,12); memcpy(angles,first+32,12);
+            memcpy(&camera_fov,first+44,4);
+            camera_x=xyz[0]/100; camera_y=xyz[1]/100; camera_z=xyz[2]/100;
+            camera_pitch=angles[0]; camera_yaw=angles[1]; camera_roll=angles[2];
+            camera_valid = isfinite(timestamp) && timestamp > 0 &&
+                isfinite(camera_roll) && isfinite(camera_x) && isfinite(camera_y) && isfinite(camera_z) &&
+                isfinite(camera_pitch) && isfinite(camera_yaw) &&
+                fabsf(camera_x)<100000 && fabsf(camera_y)<100000 && fabsf(camera_z)<100000 &&
+                camera_fov>=5 && camera_fov<=150;
             if (camera_valid) {
-                if (timestamp == last_camera_timestamp) stale_camera_frames++;
-                else { last_camera_timestamp = timestamp; stale_camera_frames = 0; }
-                /* UE stops advancing CameraCache when the game is backgrounded. */
-                if (stale_camera_frames > 45) camera_valid = 0;
+                long long now=sample_time_ms();
+                if (timestamp!=last_camera_timestamp) {
+                    last_camera_timestamp=timestamp; camera_sampled_at_ms=now;
+                }
+                camera_valid=camera_sampled_at_ms>0 && now-camera_sampled_at_ms<=100;
             }
+            if (camera_valid) camera_stream_publish(game_pid,uworld,cache);
+
         }
     }
 camera_done:
+    camera_position_valid = camera_valid;
+    if (!camera_valid) { camera_roll=0; camera_stream_publish(game_pid,uworld,0); }
 
     if (!is_any_ptr(local_pawn) || !is_any_ptr(local_class) || !is_any_ptr(local_root)) {
         if (!is_any_ptr(local_pc) || !is_any_ptr(cached_local_class)) return 0;
@@ -2420,7 +2244,7 @@ camera_done:
             }
             if (!is_any_ptr(level_actor_data) || level_actor_count <= 0 || level_actor_count > 50000)
                 continue;
-            int scan_count = level_actor_count < 2000 ? level_actor_count : 2000;
+            int scan_count = level_actor_count;
             if (read_mem(level_actor_data, all_actor_ptrs, (size_t)scan_count * 8) !=
                 (ssize_t)((size_t)scan_count * 8)) continue;
 
@@ -2523,7 +2347,7 @@ camera_done:
                     int health_off = layout && layout->component_off >= 0 ?
                         layout->component_off : OFF_CHARACTER_HEALTH_COMPONENT;
                     uint64_t health_comp = read_ptr(actor + (uint64_t)health_off);
-                    uint64_t death_box = is_game_heap_ptr(health_comp) ?
+                    uint64_t death_box = is_game_heap_ptr(health_comp) && read_ptr(health_comp+0x10)==actor ?
                         read_ptr(health_comp + 0x7E8) : 0;
                     if (is_game_heap_ptr(death_box) && loot_actor_count < MAX_ACTORS) {
                         int duplicate_box = 0;
@@ -2591,6 +2415,12 @@ camera_done:
             cached_actor_count, MAX_ACTORS, current_characters, current_count);
     }
 
+    uint64_t roster_pawns[256];
+    int roster_count = collect_roster_pawns(uworld, local_pawn, roster_pawns, 256);
+    cached_actor_count = update_cached_combatants(
+        cached_actor_ptrs, cached_actor_kinds, cached_actor_authoritative,
+        cached_actor_count, MAX_ACTORS, roster_pawns, roster_count);
+
     uint64_t *actor_ptrs = cached_actor_ptrs;
     int to_read = cached_actor_count;
     num_entities = 0;
@@ -2626,13 +2456,8 @@ camera_done:
         int has_playerstate = !is_loot_actor && is_game_heap_ptr(player_state);
         diag_player_state++;
 
-        /* PlayerState::PawnPrivate is the authoritative currently possessed
-         * pawn. Old respawn/streaming pawn objects can remain in ULevel for
-         * minutes with plausible health and transforms far below the map. */
-        if (has_playerstate && !cached_actor_authoritative[i]) {
-            uint64_t active_pawn = read_ptr(player_state + OFF_PLAYER_STATE_PAWN_PRIVATE);
-            if (is_game_heap_ptr(active_pawn) && active_pawn != actor_ptrs[i]) continue;
-        }
+        if (!is_loot_actor && !is_self_pawn &&
+            !actor_is_active_participant(actor_ptrs[i], has_playerstate ? player_state : 0)) continue;
 
         // Dead characters do not produce an overlay and need no emulation.
         if (!is_loot_actor && !is_self_pawn) {
@@ -2651,9 +2476,13 @@ camera_done:
 
         /* Keep remote enemy bounds and the verified loot transform separate. */
         float world_position[3];
-        int position_valid = is_loot_actor ?
-            read_component_position(root, pos_off, world_position) :
-            read_character_position(root, world_position);
+        long long position_sampled_at = sample_time_ms();
+        int position_decoded = 0;
+        int position_valid;
+        if (is_loot_actor) position_valid = read_component_position(root, pos_off, world_position);
+        else if (position_decode_actor(actor_ptrs[i], root, world_position)) {
+            position_valid = 1; position_decoded = 1;
+        } else position_valid = read_character_position_sampled(root, world_position, &position_sampled_at);
         if (!position_valid) continue;
         float wx=world_position[0], wy=world_position[1], wz=world_position[2];
 
@@ -2691,6 +2520,7 @@ camera_done:
         }
 
         Entity *e = &entities[num_entities];
+        memset(e, 0, sizeof(*e));
         snprintf(e->id, sizeof(e->id), "ent_%llx", (unsigned long long)actor_ptrs[i]);
 
         /* Resolve class name and actor name via FName */
@@ -2743,6 +2573,9 @@ camera_done:
         e->player_state = has_playerstate ? player_state : 0;
         e->native_team = -1;
 
+        e->position_plaintext = position_valid;
+        e->position_decoded = position_decoded;
+        e->sampled_at_ms = position_sampled_at;
         e->x = mx;
         e->y = my;
         e->z = mz;
@@ -2764,34 +2597,17 @@ camera_done:
             num_entities++;
             continue;
         }
-        HealthLayout *health_layout = health_layout_for_actor(actor_ptrs[i]);
-        int health_comp_off = health_layout && health_layout->component_off >= 0 ?
-            health_layout->component_off : OFF_CHARACTER_HEALTH_COMPONENT;
-        uint64_t health_comp = read_ptr(actor_ptrs[i] + (uint64_t)health_comp_off);
-        int health_set_off = health_layout && health_layout->set_off >= 0 ?
-            health_layout->set_off : OFF_HEALTH_COMPONENT_SET;
-        uint64_t health_set = is_game_heap_ptr(health_comp) ?
-            read_ptr(health_comp + (uint64_t)health_set_off) : 0;
         float is_alive = 1.0f;
-        {
-            float hp = 0.0f, max_hp = 0.0f, alive = 1.0f;
-            if (read_health_set(health_set, &hp, &max_hp, &alive)) {
-                e->health = hp;
-                e->max_health = max_hp;
-                e->health_known = 1;
-                is_alive = alive;
-            }
-        }
+        e->health_known = read_actor_health(actor_ptrs[i], &e->health, &e->max_health, &is_alive);
 
         uint8_t character_dead = 0;
         uint8_t player_dead = 0;
         read_mem(actor_ptrs[i] + OFF_CHARACTER_LAST_IS_DEAD, &character_dead, 1);
         if (has_playerstate) read_mem(player_state + OFF_PLAYER_STATE_DEAD, &player_dead, 1);
-        /* Replicated actor/PlayerState death bits are authoritative. A health
-         * chain is accepted for drawing only; a bad regional-layout candidate
-         * must never hide a visibly alive pawn. */
+        /* Death bits and the validated actor-owned health snapshot agree on
+         * lifecycle. Unowned or unknown health never supplies a death verdict. */
         e->dead = (character_dead & 1) != 0 || (player_dead & 1) != 0 ||
-            (health_layout && health_layout->death_trusted && e->health_known &&
+            (e->health_known &&
              is_alive < 0.5f && e->health <= 0.01f);
 
         /* RootComponent is the character capsule. Prefer the engine capsule's
@@ -2804,38 +2620,7 @@ camera_done:
         e->half_height = capsule_half_height == capsule_half_height &&
             capsule_half_height >= 0.5f && capsule_half_height <= 2.5f ? capsule_half_height : 1.05f;
 
-        /* Discover skeleton mesh component on self pawn for bone reading */
-        if (is_self_pawn && resolved_mesh_off == -2) {
-            resolved_mesh_off = find_mesh_component(actor_ptrs[i]);
-            if (resolved_mesh_off >= 0) {
-                fprintf(stderr, "\n[+] SkeletalMeshComponent at actor+0x%x\n", resolved_mesh_off);
-                uint64_t mesh_comp = read_ptr(actor_ptrs[i] + resolved_mesh_off);
-                if (is_any_ptr(mesh_comp))
-                    discover_bone_map(mesh_comp);
-            } else {
-                resolved_mesh_off = -1;
-                fprintf(stderr, "\n[!] SkeletalMeshComponent not found on self pawn\n");
-                /* Dump all UObject fields on the pawn to help find it */
-                if (fname_pool_addr) {
-                    fprintf(stderr, "[diag] UObject fields on self pawn:\n");
-                    for (int off = 0x180; off < 0xC00; off += 8) {
-                        uint64_t obj = read_ptr(actor_ptrs[i] + (uint64_t)off);
-                        if (!is_game_heap_ptr(obj)) continue;
-                        uint64_t ocls = read_ptr(obj + OFF_UOBJECT_CLASS);
-                        if (!is_any_ptr(ocls)) continue;
-                        char cn[96] = {0};
-                        resolve_fname(read_i32(ocls + OFF_UOBJECT_NAME), cn, sizeof(cn));
-                        if (cn[0])
-                            fprintf(stderr, "  +0x%03x -> %s\n", off, cn);
-                    }
-                }
-            }
-        }
-
-        /* Read bones for this entity */
-        e->has_bones = 0;
-        if (resolved_mesh_off > 0)
-            read_entity_bones(e, actor_ptrs[i], root, resolved_mesh_off, pos_off);
+        read_entity_bones(e, actor_ptrs[i], root);
 
         /* Identify self: match against local pawn pointer */
         if (is_self_pawn) {
@@ -3016,10 +2801,13 @@ camera_done:
     /* Fallback self: if pawn not matched, create synthetic self from PC data */
     if (self_entity_id[0] == 0 && local_pc && num_entities > 0 && num_entities < MAX_ACTORS) {
         Entity *e = &entities[num_entities];
+        memset(e, 0, sizeof(*e));
         snprintf(e->id, sizeof(e->id), "self");
         strncpy(e->name, "Self", sizeof(e->name) - 1);
         strncpy(e->kind, "player", sizeof(e->kind) - 1);
         e->team = 1;
+        e->sampled_at_ms = sample_time_ms();
+        e->position_plaintext = camera_valid;
         e->native_team = -1;
         e->player_state = 0;
         e->health = 0.0f;
@@ -3100,22 +2888,27 @@ static int post_to_radar(void) {
     static char body[MAX_ACTORS * 2048 + 4096];
     int off = 0;
     off += snprintf(body + off, sizeof(body) - off,
-        "{\"self\":\"%s\",\"capturedElapsedMs\":%lld,\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
-        self_entity_id[0] ? self_entity_id : "", captured_elapsed_ms);
+        "{\"self\":\"%s\",\"capturedElapsedMs\":%lld,\"gamePid\":%d,\"world\":\"0x%llx\","
+        "\"cameraSampledElapsedMs\":%lld,\"cameraTimestamp\":%.9g,\"cameraPositionPlaintext\":%s,\"cameraRoll\":%.6f,\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
+        self_entity_id[0] ? self_entity_id : "", captured_elapsed_ms, game_pid,
+        (unsigned long long)verified_uworld, camera_sampled_at_ms, (double)last_camera_timestamp,
+        camera_position_valid ? "true" : "false", camera_roll);
     for (int i = 0; i < num_entities; i++) {
-        if (off > (int)sizeof(body) - 1536) break;
+        size_t reserve = 2048 + (size_t)entities[i].bone_count * 96;
+        if (reserve > sizeof(body) - (size_t)off - 32) break;
         if (i > 0) body[off++] = ',';
         char escaped_name[256];
         json_escape(entities[i].name, escaped_name, sizeof(escaped_name));
         off += snprintf(body + off, sizeof(body) - off,
             "{\"id\":\"%s\",\"kind\":\"%s\",\"x\":%.1f,\"y\":%.1f,\"z\":%.1f,"
             "\"yaw\":%.1f,\"pitch\":%.1f,\"fov\":%.1f,\"name\":\"%s\",\"health\":%.1f,\"maxHealth\":%.1f,"
-            "\"healthKnown\":%s,"
+            "\"healthKnown\":%s,\"positionPlaintext\":%s,\"positionDecoded\":%s,\"sampledElapsedMs\":%lld,"
             "\"halfHeight\":%.2f,\"dead\":%s,\"team\":%d,\"lastSeen\":%lld",
             entities[i].id, entities[i].kind[0] ? entities[i].kind : "player",
             entities[i].x, entities[i].y, entities[i].z,
             entities[i].yaw, entities[i].pitch, entities[i].fov, escaped_name, entities[i].health,
             entities[i].max_health, entities[i].health_known ? "true" : "false",
+            entities[i].position_plaintext ? "true" : "false", entities[i].position_decoded ? "true" : "false", entities[i].sampled_at_ms,
             entities[i].half_height, entities[i].dead ? "true" : "false",
             entities[i].team, now_ms);
         if (!strcmp(entities[i].kind, "loot")) {
@@ -3128,8 +2921,8 @@ static int post_to_radar(void) {
                 loot->container ? "true" : "false", loot->value_known ? LV_PRICE_SOURCE : "unknown");
         }
         if (entities[i].has_bones) {
-            off += snprintf(body + off, sizeof(body) - off, ",\"bones\":[");
-            for (int b = 0; b < NUM_SKELETON_BONES; b++) {
+            off += snprintf(body + off, sizeof(body) - off, ",\"bonesVerified\":true,\"boneCount\":%d,\"bones\":[", entities[i].bone_count);
+            for (int b = 0; b < entities[i].bone_count; b++) {
                 if (b > 0) body[off++] = ',';
                 off += snprintf(body + off, sizeof(body) - off,
                     "[%.2f,%.2f,%.2f]",
@@ -3137,6 +2930,9 @@ static int post_to_radar(void) {
                     entities[i].bone_pos[b][1],
                     entities[i].bone_pos[b][2]);
             }
+            off += snprintf(body + off, sizeof(body) - off, "],\"boneParents\":[");
+            for (int b = 0; b < entities[i].bone_count; b++)
+                off += snprintf(body + off, sizeof(body) - off, "%s%d", b ? "," : "", entities[i].bone_parent[b]);
             off += snprintf(body + off, sizeof(body) - off, "]");
         }
         body[off++] = '}';
@@ -3495,6 +3291,10 @@ int main(int argc, char **argv) {
     }
 
     if (mode_run) {
+        /* Send liveness packets even before a gameplay world is available.
+         * A zero world/cache never produces a valid camera or game read. */
+        camera_stream_publish(game_pid, 0, 0);
+        camera_stream_start();
         if (use_gworld == 0) {
             if (load_world_cache(game_pid, &use_gworld, &use_actor_src)) {
                 fprintf(stderr, "[+] Reusing verified world cache GWorld@0x%lx actorsrc=%d\n",
@@ -3560,6 +3360,7 @@ int main(int argc, char **argv) {
         unsigned pid_tick = 0;
         int game_missing = 0;
         while (session_active()) {
+            long long iteration_started = sample_time_ms();
             if ((pid_tick++ % 30) == 0) {
                 int active_pid = find_game_pid();
                 if (active_pid > 0 && active_pid != game_pid) {
@@ -3733,8 +3534,12 @@ int main(int argc, char **argv) {
                 consecutive_failures = 0;
                 zero_entity_frames = 0;
             }
-            usleep(33000); /* ~30 Hz data feed */
+            if (!self_verified) camera_stream_publish(game_pid,0,0);
+            long long remaining_ms=16-(sample_time_ms()-iteration_started);
+            if (remaining_ms>0) usleep((useconds_t)remaining_ms*1000);
         }
+        running=0;
+        camera_stream_stop();
         fprintf(stderr, "\n[*] Stopped\n");
         if (mem_fd >= 0) close(mem_fd);
         free(read_buf);
