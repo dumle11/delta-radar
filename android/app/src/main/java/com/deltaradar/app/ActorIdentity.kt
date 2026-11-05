@@ -2,12 +2,9 @@ package com.deltaradar.app
 
 internal object ActorIdentity {
     // Active ExpertId, not cosmetic HeroId or the pawn's default model.
-    private val operators = mapOf(
-        10010L to "Stinger", 10020L to "Toxik",
-        20010L to "Luna", 20020L to "Hackclaw",
-        30010L to "D-Wolf", 30020L to "Vyron",
-        40010L to "Shepherd", 40020L to "Uluru"
-    )
+    // Only UI-verified bindings belong here. Class-kit IDs and cosmetic IDs
+    // cannot be assigned operator names from a guessed numbering scheme.
+    private val operators = mapOf(20003L to "Hackclaw")
 
     fun label(kind: String, verified: Boolean, operatorId: Long, template: String): String {
         if (kind == "loot") return ""

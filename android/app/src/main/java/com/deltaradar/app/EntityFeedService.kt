@@ -215,7 +215,7 @@ class EntityFeedService : Service() {
                 "operatorId", "heroId", "npcTemplate", "identityVerified",
                 "id", "kind", "name", "team", "x", "y", "z", "yaw", "pitch", "fov",
                 "health", "maxHealth", "healthKnown", "halfHeight", "dead", "bones",
-                "positionPlaintext", "positionDecoded", "renderedOnScreen",
+                "positionPlaintext", "positionDecoded", "renderedOnScreen", "visibleFromCamera",
                 "bonesVerified", "boneCount", "boneParents", "sampledAt"
             )) if (raw.has(key) && !raw.isNull(key)) e.put(key, raw.get(key))
             if (!e.has("kind")) e.put("kind", "player")

@@ -19,6 +19,11 @@ object Settings {
     private const val TEAMMATE_DRAW_MODE_KEY = "teammate_draw_mode"
     private const val LOOT_COLOR_KEY = "loot_color"
     private const val LOOT_DRAW_MODE_KEY = "loot_draw_mode"
+    private const val VISIBLE_PLAYER_COLOR_KEY = "visible_player_color"
+    private const val VISIBLE_BOT_COLOR_KEY = "visible_bot_color"
+    private const val VISIBLE_TEAMMATE_COLOR_KEY = "visible_teammate_color"
+    private const val VISIBLE_LOOT_COLOR_KEY = "visible_loot_color"
+    private const val VISIBILITY_COLORS_KEY = "visibility_colors_enabled"
     private const val LINE_THICKNESS_KEY = "line_thickness_percent"
     private const val PLAYER_FEATURES_KEY = "player_features_v5"
     private const val BOT_FEATURES_KEY = "bot_features_v5"
@@ -29,6 +34,10 @@ object Settings {
     const val DEFAULT_BOT_COLOR: Int = 0xFF46D9FF.toInt()
     const val DEFAULT_TEAMMATE_COLOR: Int = 0xFF4FD08A.toInt()
     const val LOOT_COLOR: Int = 0xFF4BCA81.toInt()
+    const val DEFAULT_VISIBLE_PLAYER_COLOR: Int = 0xFFFFE066.toInt()
+    const val DEFAULT_VISIBLE_BOT_COLOR: Int = 0xFFFFE066.toInt()
+    const val DEFAULT_VISIBLE_TEAMMATE_COLOR: Int = 0xFFFFE066.toInt()
+    const val DEFAULT_VISIBLE_LOOT_COLOR: Int = 0xFFFFE066.toInt()
 
     const val DRAW_MODE_OFF = -1
     const val DRAW_MODE_LINES = 0
@@ -55,8 +64,18 @@ object Settings {
     fun setAimCircle(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("aim_circle", value).apply() }
     fun aimFov(ctx: Context) = prefs(ctx).getInt("aim_fov", 15).coerceIn(5, 45)
     fun setAimFov(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_fov", value.coerceIn(5, 45)).apply() }
-    fun aimStrength(ctx: Context) = prefs(ctx).getInt("aim_strength", 30).coerceIn(10, 60)
-    fun setAimStrength(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_strength", value.coerceIn(10, 60)).apply() }
+    fun aimStrength(ctx: Context) = prefs(ctx).getInt("aim_response_percent", 100).coerceIn(10, 100)
+    fun setAimStrength(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_response_percent", value.coerceIn(10, 100)).apply() }
+    fun aimTargetMask(ctx: Context) = prefs(ctx).getInt("aim_target_mask", AimMath.BOTS or AimMath.ENEMIES) and AimMath.ALL_TYPES
+    fun setAimTargetMask(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_target_mask", value and AimMath.ALL_TYPES).apply() }
+
+    const val AIM_BONE_HEAD = 0
+    const val AIM_BONE_CHEST = 1
+    const val AIM_BONE_BODY = 2
+
+    fun aimBone(ctx: Context) = prefs(ctx).getInt("aim_bone", AIM_BONE_BODY).coerceIn(AIM_BONE_HEAD, AIM_BONE_BODY)
+    fun setAimBone(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_bone", value.coerceIn(AIM_BONE_HEAD, AIM_BONE_BODY)).apply() }
+
     fun autoShoot(ctx: Context) = prefs(ctx).getBoolean("auto_shoot", false)
     fun setAutoShoot(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("auto_shoot", value).apply() }
     fun aimLookPoint(ctx: Context) = prefs(ctx).let {
@@ -115,6 +134,21 @@ object Settings {
 
     fun lootDrawMode(ctx: Context) = prefs(ctx).getInt(LOOT_DRAW_MODE_KEY, DRAW_MODE_BOXES)
     fun setLootDrawMode(ctx: Context, v: Int) { prefs(ctx).edit().putInt(LOOT_DRAW_MODE_KEY, v).apply() }
+
+    fun visibilityColorsEnabled(ctx: Context) = prefs(ctx).getBoolean(VISIBILITY_COLORS_KEY, true)
+    fun setVisibilityColorsEnabled(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(VISIBILITY_COLORS_KEY, v).apply() }
+
+    fun visiblePlayerColor(ctx: Context): Int = prefs(ctx).getInt(VISIBLE_PLAYER_COLOR_KEY, DEFAULT_VISIBLE_PLAYER_COLOR) or 0xFF000000.toInt()
+    fun setVisiblePlayerColor(ctx: Context, color: Int) { prefs(ctx).edit().putInt(VISIBLE_PLAYER_COLOR_KEY, color or 0xFF000000.toInt()).apply() }
+
+    fun visibleBotColor(ctx: Context): Int = prefs(ctx).getInt(VISIBLE_BOT_COLOR_KEY, DEFAULT_VISIBLE_BOT_COLOR) or 0xFF000000.toInt()
+    fun setVisibleBotColor(ctx: Context, color: Int) { prefs(ctx).edit().putInt(VISIBLE_BOT_COLOR_KEY, color or 0xFF000000.toInt()).apply() }
+
+    fun visibleTeammateColor(ctx: Context): Int = prefs(ctx).getInt(VISIBLE_TEAMMATE_COLOR_KEY, DEFAULT_VISIBLE_TEAMMATE_COLOR) or 0xFF000000.toInt()
+    fun setVisibleTeammateColor(ctx: Context, color: Int) { prefs(ctx).edit().putInt(VISIBLE_TEAMMATE_COLOR_KEY, color or 0xFF000000.toInt()).apply() }
+
+    fun visibleLootColor(ctx: Context): Int = prefs(ctx).getInt(VISIBLE_LOOT_COLOR_KEY, DEFAULT_VISIBLE_LOOT_COLOR) or 0xFF000000.toInt()
+    fun setVisibleLootColor(ctx: Context, color: Int) { prefs(ctx).edit().putInt(VISIBLE_LOOT_COLOR_KEY, color or 0xFF000000.toInt()).apply() }
 
     fun lineThicknessPercent(ctx: Context) = prefs(ctx).getInt(LINE_THICKNESS_KEY, 75).coerceIn(25, 300)
     fun setLineThicknessPercent(ctx: Context, v: Int) { prefs(ctx).edit().putInt(LINE_THICKNESS_KEY, v.coerceIn(25, 300)).apply() }

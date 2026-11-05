@@ -5,8 +5,8 @@ import org.junit.Test
 
 class ActorIdentityTest {
     @Test fun readsOperatorIdentityAndKeepsUnknownIdsExplicit() {
-        assertEquals("Stinger", ActorIdentity.label("player", true, 10010, ""))
-        assertEquals("Shepherd", ActorIdentity.label("player", true, 40010, ""))
+        assertEquals("Hackclaw", ActorIdentity.label("player", true, 20003, ""))
+        assertEquals("Operator 40010", ActorIdentity.label("player", true, 40010, ""))
         assertEquals("Operator 99999", ActorIdentity.label("player", true, 99999, ""))
         assertEquals("Unknown operator", ActorIdentity.label("player", false, 40010, ""))
     }
@@ -23,7 +23,7 @@ class ActorIdentityTest {
         assertEquals("Unknown bot", ActorIdentity.label("ai", true, 0, "bad\"template"))
     }
     @Test fun supportsOperatorsControlledByBotsAndIndependentTypeLabels() {
-        assertEquals("Shepherd bot", ActorIdentity.label("ai", true, 40010, ""))
+        assertEquals("Hackclaw bot", ActorIdentity.label("ai", true, 20003, ""))
         assertEquals("Shepherd", ActorIdentity.labelText("Player", "Shepherd", false, true))
         assertEquals("Player", ActorIdentity.labelText("Player", "Shepherd", true, false))
         assertEquals("Player · Shepherd", ActorIdentity.labelText("Player", "Shepherd", true, true))

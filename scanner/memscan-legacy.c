@@ -851,6 +851,8 @@ typedef struct {
     int position_plaintext;
     PositionObservation position_observation;
     int rendered_on_screen;
+    int engine_visible;
+    int visible_from_camera;
     int dead;
     int team;
     int native_team;
@@ -862,6 +864,50 @@ typedef struct {
 
 static Entity entities[MAX_ACTORS];
 static int num_entities = 0;
+
+/* Software occlusion: axis-aligned bounding boxes of large static meshes
+ * collected during actor cache refresh. Used to ray-test camera→enemy LOS. */
+typedef struct { float min[3], max[3]; uint64_t actor_addr; } OccluderAABB;
+#define MAX_OCCLUDERS 2048
+static OccluderAABB occluders[MAX_OCCLUDERS];
+static int num_occluders = 0;
+
+/* Temporal smoothing for rendered_on_screen and visible_from_camera.
+ * Keeps the flag high for a grace period after the engine drops it,
+ * preventing single-frame flicker from causing color changes or aim drops. */
+#define VIS_SMOOTH_TICKS 5
+#define VIS_SMOOTH_SLOTS 256
+static struct {
+    uint64_t actor;
+    int ros_ttl;
+    int vis_ttl;
+} vis_smooth[VIS_SMOOTH_SLOTS];
+
+static void vis_smooth_update(uint64_t actor, int *ros, int *vis) {
+    int slot = -1, empty = -1;
+    for (int i = 0; i < VIS_SMOOTH_SLOTS; i++) {
+        if (vis_smooth[i].actor == actor) { slot = i; break; }
+        if (empty < 0 && vis_smooth[i].actor == 0) empty = i;
+    }
+    if (slot < 0) {
+        slot = empty >= 0 ? empty : 0;
+        vis_smooth[slot].actor = actor;
+        vis_smooth[slot].ros_ttl = 0;
+        vis_smooth[slot].vis_ttl = 0;
+    }
+    if (*ros) vis_smooth[slot].ros_ttl = VIS_SMOOTH_TICKS;
+    else if (vis_smooth[slot].ros_ttl > 0) { vis_smooth[slot].ros_ttl--; *ros = 1; }
+    if (*vis) vis_smooth[slot].vis_ttl = VIS_SMOOTH_TICKS;
+    else if (vis_smooth[slot].vis_ttl > 0) { vis_smooth[slot].vis_ttl--; *vis = 1; }
+}
+
+static void vis_smooth_tick(void) {
+    for (int i = 0; i < VIS_SMOOTH_SLOTS; i++) {
+        if (vis_smooth[i].actor && vis_smooth[i].ros_ttl == 0 && vis_smooth[i].vis_ttl == 0)
+            vis_smooth[i].actor = 0;
+    }
+}
+
 static uint64_t diagnostic_gworld = 0, diagnostic_world = 0, diagnostic_level = 0;
 static uint64_t diagnostic_actor_data = 0;
 static int diagnostic_actor_count = 0;
@@ -1063,6 +1109,248 @@ static int actor_rendered_on_screen(uint64_t actor) {
     if (!is_telemetry_ptr(mesh)) return 0;
     uint8_t flags = 0;
     return read_mem(mesh + 0x8B8, &flags, 1) == 1 && (flags & 1) != 0;
+}
+
+/* Engine internal occlusion state at mesh+0x858 (Pad_858 in SDK dump).
+ * Value 2 = actually rendered/visible, 1 = occluded or not rendered.
+ * Returns: 1=visible, 0=occluded, -1=no mesh (flag unavailable).
+ * More reliable than bRecentlyRenderedOnScreen which is frustum-only on mobile. */
+static int actor_engine_visible(uint64_t actor) {
+    uint64_t mesh = read_ptr(actor + 0x3D0);
+    if (!is_telemetry_ptr(mesh)) return -1;
+    uint8_t state = 0;
+    if (read_mem(mesh + 0x858, &state, 1) != 1) return -1;
+    return state >= 2 ? 1 : 0;
+}
+
+/* --- Software occlusion ray-AABB test (slab method) --- */
+
+static int ray_hits_aabb(const float o[3], const float inv_d[3],
+                         const OccluderAABB *b, float tmax) {
+    float tmin = 0.0f;
+    for (int i = 0; i < 3; i++) {
+        float t1 = (b->min[i] - o[i]) * inv_d[i];
+        float t2 = (b->max[i] - o[i]) * inv_d[i];
+        if (t1 > t2) { float tmp = t1; t1 = t2; t2 = tmp; }
+        if (t1 > tmin) tmin = t1;
+        if (t2 < tmax) tmax = t2;
+    }
+    return tmin < tmax && tmax > 0.0f;
+}
+
+static int vis_dbg_enabled = 0;
+
+static int single_ray_blocked(float cam_x, float cam_y, float cam_z,
+                               float tx, float ty, float tz, int dbg_ray) {
+    float dir[3] = { tx - cam_x, ty - cam_y, tz - cam_z };
+    float dist_sq = dir[0]*dir[0] + dir[1]*dir[1] + dir[2]*dir[2];
+    if (dist_sq < 0.01f) return 0;
+    float dist = sqrtf(dist_sq);
+    float inv_dist = 1.0f / dist;
+    float inv_d[3], o[3] = { cam_x, cam_y, cam_z };
+    for (int i = 0; i < 3; i++) {
+        dir[i] *= inv_dist;
+        inv_d[i] = (fabsf(dir[i]) > 1e-8f) ? 1.0f / dir[i]
+                    : (dir[i] >= 0 ? 1e8f : -1e8f);
+    }
+    float t_limit = dist * 0.95f;
+    for (int j = 0; j < num_occluders; j++) {
+        const OccluderAABB *b = &occluders[j];
+        /* Skip occluders that contain the camera */
+        if (cam_x >= b->min[0] && cam_x <= b->max[0] &&
+            cam_y >= b->min[1] && cam_y <= b->max[1] &&
+            cam_z >= b->min[2] && cam_z <= b->max[2])
+            continue;
+        /* Skip occluders that contain the target */
+        if (tx >= b->min[0] && tx <= b->max[0] &&
+            ty >= b->min[1] && ty <= b->max[1] &&
+            tz >= b->min[2] && tz <= b->max[2])
+            continue;
+        /* Skip occluders too close to camera (< 3m) — small props near the
+         * camera subtend a huge angle and produce false occlusion */
+        float cx = (b->min[0]+b->max[0])*0.5f - cam_x;
+        float cy = (b->min[1]+b->max[1])*0.5f - cam_y;
+        float cz = (b->min[2]+b->max[2])*0.5f - cam_z;
+        if (cx*cx + cy*cy + cz*cz < 3.0f * 3.0f) continue;
+        if (ray_hits_aabb(o, inv_d, &occluders[j], t_limit)) {
+            if (vis_dbg_enabled && dbg_ray == 0) {
+                char occ_cls[64] = "?", occ_aname[64] = "?";
+                uint64_t oa = occluders[j].actor_addr;
+                if (oa) {
+                    int32_t a_idx = read_i32(oa + OFF_UOBJECT_NAME);
+                    resolve_fname(a_idx, occ_aname, sizeof(occ_aname));
+                    uint64_t oc = read_ptr(oa + OFF_UOBJECT_CLASS);
+                    if (is_any_ptr(oc)) {
+                        int32_t c_idx = read_i32(oc + OFF_UOBJECT_NAME);
+                        resolve_fname(c_idx, occ_cls, sizeof(occ_cls));
+                    }
+                }
+                fprintf(stderr, "    [ray] BLOCKED by occ[%d] min=(%.1f,%.1f,%.1f) max=(%.1f,%.1f,%.1f) actor=0x%llx cls=%s name=%s\n",
+                        j, occluders[j].min[0], occluders[j].min[1], occluders[j].min[2],
+                        occluders[j].max[0], occluders[j].max[1], occluders[j].max[2],
+                        (unsigned long long)oa, occ_cls, occ_aname);
+            }
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int is_visible_from_camera(float cam_x, float cam_y, float cam_z,
+                                   float tx, float ty, float tz) {
+    if (num_occluders == 0) return 1;
+    /* Compute perpendicular directions to the ray in the horizontal plane
+     * for multi-ray spread that adapts to the ray direction */
+    float dx = tx - cam_x, dy = ty - cam_y;
+    float hlen = sqrtf(dx*dx + dy*dy);
+    float perp_x, perp_y;
+    if (hlen > 0.01f) {
+        perp_x = -dy / hlen;
+        perp_y =  dx / hlen;
+    } else {
+        perp_x = 1.0f; perp_y = 0.0f;
+    }
+    /* 7 rays: center, head, feet, ±1m perpendicular, ±2m perpendicular */
+    float offsets[7][3] = {
+        { 0.0f,           0.0f,           0.0f  },
+        { 0.0f,           0.0f,           0.8f  },
+        { 0.0f,           0.0f,          -0.8f  },
+        {  perp_x * 1.0f,  perp_y * 1.0f, 0.0f  },
+        { -perp_x * 1.0f, -perp_y * 1.0f, 0.0f  },
+        {  perp_x * 2.0f,  perp_y * 2.0f, 0.0f  },
+        { -perp_x * 2.0f, -perp_y * 2.0f, 0.0f  },
+    };
+    for (int r = 0; r < 7; r++) {
+        if (!single_ray_blocked(cam_x, cam_y, cam_z,
+                                tx + offsets[r][0],
+                                ty + offsets[r][1],
+                                tz + offsets[r][2], r))
+        {
+            if (vis_dbg_enabled)
+                fprintf(stderr, "    [ray] CLEAR via ray %d cam=(%.1f,%.1f,%.1f)->tgt=(%.1f,%.1f,%.1f) occ=%d\n",
+                        r, cam_x, cam_y, cam_z, tx, ty, tz, num_occluders);
+            return 1;
+        }
+    }
+    if (vis_dbg_enabled)
+        fprintf(stderr, "    [ray] ALL 7 BLOCKED cam=(%.1f,%.1f,%.1f)->tgt=(%.1f,%.1f,%.1f) occ=%d\n",
+                cam_x, cam_y, cam_z, tx, ty, tz, num_occluders);
+    return 0;
+}
+
+/* Collect actors as occluder AABBs using the engine's cached world-space
+ * FBoxSphereBounds at USceneComponent+0x0148 (Origin + BoxExtent + SphereRadius).
+ * Works for ALL component types — no static mesh asset lookup needed. */
+#define OFF_COMPONENT_BOUNDS 0x0148
+
+static int occ_dbg_calls, occ_dbg_no_root, occ_dbg_no_mesh, occ_dbg_no_bounds;
+static int occ_dbg_too_small, occ_dbg_too_far, occ_dbg_added;
+static int occ_dbg_no_pos, occ_dbg_fallback;
+
+static void try_add_child_occluders(uint64_t actor, uint64_t root, float cam_x, float cam_y, float cam_z);
+
+static uint64_t occ_cur_actor = 0;
+static int try_add_occluder_from_component(uint64_t comp,
+                                            float cam_x, float cam_y, float cam_z) {
+    if (num_occluders >= MAX_OCCLUDERS) return 0;
+
+    /* Cached world-space bounds at +0x148:
+     * Origin(12) + enc_tag(4) + BoxExtent(12) + SphereRadius(4) = 32 bytes */
+    float raw[8];
+    if (read_mem(comp + OFF_COMPONENT_BOUNDS, raw, 32) != 32) {
+        occ_dbg_no_bounds++;
+        return 0;
+    }
+
+    float origin[3], extent[3];
+    int valid = 1;
+    for (int i = 0; i < 3 && valid; i++) {
+        origin[i] = raw[i];
+        extent[i] = fabsf(raw[4 + i]); /* skip 4-byte enc tag after origin */
+        if (!isfinite(origin[i]) || fabsf(origin[i]) > 10000000.0f) valid = 0;
+        if (!isfinite(extent[i]) || extent[i] > 500000.0f) valid = 0;
+    }
+    if (!valid) { occ_dbg_no_bounds++; return 0; }
+
+    if (extent[0] < 25.0f || extent[1] < 25.0f) { occ_dbg_too_small++; return 0; }
+    if (extent[2] < 50.0f) { occ_dbg_too_small++; return 0; }
+    float emax = extent[0] > extent[1]
+        ? (extent[0] > extent[2] ? extent[0] : extent[2])
+        : (extent[1] > extent[2] ? extent[1] : extent[2]);
+    if (emax > 5000.0f) { occ_dbg_too_small++; return 0; }
+    float hmin_ext = extent[0] < extent[1] ? extent[0] : extent[1];
+    if (hmin_ext > 500.0f) { occ_dbg_too_small++; return 0; }
+
+    /* Distance check in meters (bounds are in UU / centimeters) */
+    float ox = origin[0] / 100.0f, oy = origin[1] / 100.0f, oz = origin[2] / 100.0f;
+    float dx = ox - cam_x, dy = oy - cam_y, dz = oz - cam_z;
+    if (dx*dx + dy*dy + dz*dz > 300.0f * 300.0f) { occ_dbg_too_far++; return 0; }
+
+    occ_dbg_added++;
+    OccluderAABB *o = &occluders[num_occluders++];
+    o->actor_addr = occ_cur_actor;
+    /* Shrink wall-shaped AABBs along their longest horizontal axis by 100 UU
+     * (~1m) from each end to create doorway-width gaps */
+    float shrink[3] = {0, 0, 0};
+    float hmin_e = extent[0] < extent[1] ? extent[0] : extent[1];
+    float hmax_e = extent[0] > extent[1] ? extent[0] : extent[1];
+    if (hmin_e > 1.0f && hmax_e / hmin_e > 2.5f) {
+        int long_ax = extent[0] > extent[1] ? 0 : 1;
+        shrink[long_ax] = 100.0f;
+    }
+    for (int i = 0; i < 3; i++) {
+        float se = extent[i] - shrink[i];
+        if (se < 5.0f) se = 5.0f;
+        o->min[i] = (origin[i] - se) / 100.0f;
+        o->max[i] = (origin[i] + se) / 100.0f;
+    }
+    return 1;
+}
+
+static void try_add_child_occluders(uint64_t actor, uint64_t root, float cam_x, float cam_y, float cam_z) {
+    uint64_t children_data = read_ptr(root + 0x118);
+    int32_t children_count = 0;
+    read_mem(root + 0x118 + 8, &children_count, 4);
+    if (!is_any_ptr(children_data) || children_count <= 0 || children_count > 256) return;
+    for (int c = 0; c < children_count && num_occluders < MAX_OCCLUDERS; c++) {
+        uint64_t child = read_ptr(children_data + (uint64_t)c * 8);
+        if (!is_any_ptr(child)) continue;
+        if (!try_add_occluder_from_component(child, cam_x, cam_y, cam_z)) {
+            /* Walk one more level for nested components */
+            uint64_t gc_data = read_ptr(child + 0x118);
+            int32_t gc_count = 0;
+            read_mem(child + 0x118 + 8, &gc_count, 4);
+            if (is_any_ptr(gc_data) && gc_count > 0 && gc_count <= 128) {
+                for (int g = 0; g < gc_count && num_occluders < MAX_OCCLUDERS; g++) {
+                    uint64_t gc = read_ptr(gc_data + (uint64_t)g * 8);
+                    if (is_any_ptr(gc))
+                        try_add_occluder_from_component(gc, cam_x, cam_y, cam_z);
+                }
+            }
+        }
+    }
+}
+
+static void try_add_occluder(uint64_t actor, int root_off, int pos_off,
+                              float cam_x, float cam_y, float cam_z) {
+    occ_dbg_calls++;
+    if (num_occluders >= MAX_OCCLUDERS) return;
+    uint64_t root = read_ptr(actor + root_off);
+    if (!is_any_ptr(root)) { occ_dbg_no_root++; return; }
+
+    /* Check if this actor's root is flagged as occluder */
+    uint8_t occ_flags = 0;
+    read_mem(root + 0x278, &occ_flags, 1);
+    if (!(occ_flags & (1 << 6))) return;
+
+    /* Prefer children over root for more granular geometry (avoids huge
+     * AABBs that cover doorways/windows). Fall back to root only if no
+     * children exist or none qualify. */
+    occ_cur_actor = actor;
+    int before = num_occluders;
+    try_add_child_occluders(actor, root, cam_x, cam_y, cam_z);
+    if (num_occluders == before)
+        try_add_occluder_from_component(root, cam_x, cam_y, cam_z);
 }
 
 static uint64_t cached_local_class = 0;
@@ -1593,6 +1881,43 @@ camera_done:
         struct { uint64_t cls; int kind; } loot_classes[512];
         int loot_count = 0, loot_class_count = 0;
         cached_actor_count = 0;
+        if (occ_dbg_calls > 0) {
+            fprintf(stderr, "[occ] calls=%d no_root=%d no_mesh=%d no_pos=%d no_bounds=%d too_small=%d too_far=%d fallback=%d added=%d\n",
+                    occ_dbg_calls, occ_dbg_no_root, occ_dbg_no_mesh, occ_dbg_no_pos, occ_dbg_no_bounds,
+                    occ_dbg_too_small, occ_dbg_too_far, occ_dbg_fallback, occ_dbg_added);
+            int near_count = 0;
+            for (int oi = 0; oi < num_occluders; oi++) {
+                float cx = (occluders[oi].min[0]+occluders[oi].max[0])*0.5f;
+                float cy = (occluders[oi].min[1]+occluders[oi].max[1])*0.5f;
+                float dx = cx - camera_x, dy = cy - camera_y;
+                if (dx*dx+dy*dy < 50.0f*50.0f) {
+                    char oc_cls[64] = "", oc_aname[64] = "";
+                    int32_t a_fidx = 0, c_fidx = 0;
+                    uint64_t oa2 = occluders[oi].actor_addr;
+                    if (oa2) {
+                        a_fidx = read_i32(oa2 + OFF_UOBJECT_NAME);
+                        resolve_fname(a_fidx, oc_aname, sizeof(oc_aname));
+                        uint64_t oc2=read_ptr(oa2+OFF_UOBJECT_CLASS);
+                        if(is_any_ptr(oc2)) {
+                            c_fidx = read_i32(oc2+OFF_UOBJECT_NAME);
+                            resolve_fname(c_fidx, oc_cls, sizeof(oc_cls));
+                        }
+                    }
+                    fprintf(stderr, "  occ[%d] min=(%.1f,%.1f,%.1f) max=(%.1f,%.1f,%.1f) sz=(%.1f,%.1f,%.1f) a=0x%llx ci=%d[%s] ai=%d[%s]\n",
+                            oi, occluders[oi].min[0], occluders[oi].min[1], occluders[oi].min[2],
+                            occluders[oi].max[0], occluders[oi].max[1], occluders[oi].max[2],
+                            occluders[oi].max[0]-occluders[oi].min[0],
+                            occluders[oi].max[1]-occluders[oi].min[1],
+                            occluders[oi].max[2]-occluders[oi].min[2],
+                            (unsigned long long)oa2, c_fidx, oc_cls, a_fidx, oc_aname);
+                    near_count++;
+                }
+            }
+            fprintf(stderr, "  [occ] %d occluders within 50m of camera\n", near_count);
+        }
+        occ_dbg_calls = occ_dbg_no_root = occ_dbg_no_mesh = occ_dbg_no_pos = occ_dbg_no_bounds = 0;
+        occ_dbg_too_small = occ_dbg_too_far = occ_dbg_fallback = occ_dbg_added = 0;
+        num_occluders = 0;
         /* Prioritize actual player/teammate pawns before scanning loot-heavy
          * levels. Distance filtering belongs to the overlay's shared slider. */
         for (int i = 0; i < roster_count && cached_actor_count < MAX_ACTORS; i++) {
@@ -1710,6 +2035,8 @@ camera_done:
                         loot_actor_classes[loot_count] = cls;
                         loot_kinds[loot_count++] = (uint8_t)loot_kind;
                     }
+                } else {
+                    try_add_occluder(actor, root_off, pos_off, camera_x, camera_y, camera_z);
                 }
             }
         }
@@ -1734,6 +2061,8 @@ camera_done:
     uint64_t *actor_ptrs = cached_actor_ptrs;
     int to_read = cached_actor_count;
     num_entities = 0;
+    vis_smooth_tick();
+    { static unsigned vis_tick = 0; vis_dbg_enabled = ((vis_tick++ % 90) == 0); }
 
     /* Collect positions for duplicate detection */
     float pos_list[MAX_ACTORS][3];
@@ -1904,7 +2233,15 @@ camera_done:
         e->z = mz;
         e->position_plaintext = position_plaintext;
         e->position_observation = position_observation;
-        e->rendered_on_screen = actor_rendered_on_screen(actor_ptrs[i]);
+        int raw_ros = actor_rendered_on_screen(actor_ptrs[i]);
+        int raw_raycast = is_visible_from_camera(camera_x, camera_y, camera_z, mx, my, mz);
+        e->engine_visible = 0;
+        if (vis_dbg_enabled && num_occluders > 0)
+            fprintf(stderr, "  [vis] %s ros=%d ray=%d cam(%.1f,%.1f)->tgt(%.1f,%.1f)\n",
+                    e->name, raw_ros, raw_raycast, camera_x, camera_y, mx, my);
+        vis_smooth_update(actor_ptrs[i], &raw_ros, &raw_raycast);
+        e->rendered_on_screen = raw_ros;
+        e->visible_from_camera = raw_ros && raw_raycast;
         e->yaw = read_float(root + OFF_USCENE_RELATIVE_YAW);
         e->pitch = read_float(root + OFF_USCENE_RELATIVE_PITCH);
         /* Matching SDK chain:
@@ -1990,16 +2327,18 @@ camera_done:
     {
         static unsigned diag_tick2 = 0;
         if ((diag_tick2++ % 90) == 0 && num_entities > 0) {
-            fprintf(stderr, "\n[diag] self=(%.1f,%.1f,%.1f) entities=%d\n",
-                    cached_self_pos[0], cached_self_pos[1], cached_self_pos[2], num_entities);
+            fprintf(stderr, "\n[diag] self=(%.1f,%.1f,%.1f) entities=%d occluders=%d\n",
+                    cached_self_pos[0], cached_self_pos[1], cached_self_pos[2], num_entities, num_occluders);
             for (int i = 0; i < num_entities && i < 16; i++) {
                 Entity *e = &entities[i];
                 fprintf(stderr,
                         "  [%s] kind=%s pos=(%.1f,%.1f,%.1f) hp=%.0f/%.0f hh=%.2f "
-                        "dead=%d team=%d native=%d fov=%.1f name=%s\n",
+                        "dead=%d team=%d native=%d fov=%.1f vis=%d ros=%d evis=%d name=%s\n",
                         e->id, e->kind, e->x, e->y, e->z, e->health,
                         e->max_health, e->half_height, e->dead, e->team,
-                        e->native_team, e->fov, e->name);
+                        e->native_team, e->fov, e->visible_from_camera,
+                        e->rendered_on_screen, e->engine_visible,
+                        e->name);
             }
         }
     }
@@ -2200,9 +2539,9 @@ static int post_to_radar(void) {
     }
     off += diagnostic_length;
     APPEND_SNAPSHOT(
-        ",\"gamePid\":%d,\"cameraSampledAt\":%lld,\"cameraTimestamp\":%.6f,\"cameraPositionPlaintext\":%s,\"localPlayerControlled\":%s,\"self\":\"%s\",\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
+        ",\"gamePid\":%d,\"cameraSampledAt\":%lld,\"cameraTimestamp\":%.6f,\"cameraPositionPlaintext\":%s,\"localPlayerControlled\":%s,\"self\":\"%s\",\"numOccluders\":%d,\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
         game_pid, camera_sampled_at_ms, (double)last_camera_timestamp, camera_position_plaintext ? "true" : "false",
-        local_player_controlled ? "true" : "false", self_entity_id[0] ? self_entity_id : "");
+        local_player_controlled ? "true" : "false", self_entity_id[0] ? self_entity_id : "", num_occluders);
     int i;
     for (i = 0; i < num_entities; i++) {
         int bone_budget = entities[i].has_bones && entities[i].bone_count > 0 &&
@@ -2218,6 +2557,7 @@ static int post_to_radar(void) {
             "\"yaw\":%.4f,\"pitch\":%.4f,\"fov\":%.1f,\"name\":\"%s\",\"health\":%.1f,\"maxHealth\":%.1f,"
             "\"className\":\"%s\",\"classAddress\":\"0x%llx\","
             "\"healthKnown\":%s,\"positionPlaintext\":%s,\"positionDecoded\":%s,\"renderedOnScreen\":%s,"
+            "\"visibleFromCamera\":%s,"
             "\"halfHeight\":%.2f,\"dead\":%s,\"team\":%d,\"lastSeen\":%lld",
             entities[i].id, entities[i].kind[0] ? entities[i].kind : "player", entities[i].sampled_at_ms,
             entities[i].x, entities[i].y, entities[i].z,
@@ -2227,6 +2567,7 @@ static int post_to_radar(void) {
             entities[i].position_plaintext ? "true" : "false",
             entities[i].position_observation.decoded ? "true" : "false",
             entities[i].rendered_on_screen ? "true" : "false",
+            entities[i].visible_from_camera ? "true" : "false",
             entities[i].half_height, entities[i].dead ? "true" : "false",
             entities[i].team, now_ms);
         APPEND_SNAPSHOT(
@@ -2878,7 +3219,7 @@ int main(int argc, char **argv) {
                     else zero_entity_frames++;
                 }
                 if (publish_count != last_reported_count || (++report_tick % 150) == 0) {
-                    fprintf(stderr, "\r[+] Entities: %d%s    ", publish_count,
+                    fprintf(stderr, "\r[+] Entities: %d  Occluders: %d%s    ", publish_count, num_occluders,
                             n > 0 && !self_verified ? " (unverified world)" : "");
                     last_reported_count = publish_count;
                 }

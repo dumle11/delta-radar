@@ -166,6 +166,7 @@ class OverlayService : Service() {
         val aimTargets = mutableListOf<AimMath.Target>()
         val collectAimTargets = !selfDead && cameraPlaintext &&
             cameraTime > 0 && (Settings.aimEnabled(this) || Settings.autoShoot(this))
+        val aimBonePref = Settings.aimBone(this)
         val rejected = mutableListOf<String>()
         var hiddenPlayers = 0
         val projectionTime = System.currentTimeMillis()
@@ -205,13 +206,48 @@ class OverlayService : Service() {
                 rejected.add("$id:dead"); continue
             }
             // Targeting is independent of each category's drawing switches.
-            if (collectAimTargets && (kind == "player" || kind == "ai") && team == 2 &&
+            if (collectAimTargets && (kind == "player" || kind == "ai") && team in 1..2 &&
                 healthKnown && health > .01 && sourceFrame > 0 &&
                 ent.optLong("seenFrame", -1L) == sourceFrame &&
                 ent.optBoolean("positionPlaintext", false)) {
                 val hh = ent.optDouble("halfHeight", 1.05).coerceIn(.5, 2.5)
-                val body = ProjectionMath.project(dx, dy, dz + hh * .2,
-                    myYaw, myPitch, hfovDeg, screenAspect)
+                var bodyX = dx; var bodyY = dy; var bodyZ = dz + hh * .2
+                if (ent.optBoolean("bonesVerified")) {
+                    val joints = ent.optJSONArray("bones")
+                    val boneCount = ent.optInt("boneCount")
+                    if (boneCount in listOf(17, 19) && joints != null && joints.length() >= boneCount) {
+                        fun bonePos(index: Int): Triple<Double, Double, Double>? {
+                            val j = joints.optJSONArray(index) ?: return null
+                            if (j.length() != 3) return null
+                            val bx = j.optDouble(0); val by = j.optDouble(1); val bz = j.optDouble(2)
+                            if (!bx.isFinite() || !by.isFinite() || !bz.isFinite()) return null
+                            if (kotlin.math.abs(bx - ex) > 2.5 || kotlin.math.abs(by - ey) > 2.5 || kotlin.math.abs(bz - baseZ) > 2.5) return null
+                            return Triple(bx + motion.x - mx, by + motion.y - my, bz + motion.z - mz)
+                        }
+                        val headIndex = if (boneCount == 19) 7 else 6
+                        val chestIndex = 2
+                        val chosen = when (aimBonePref) {
+                            Settings.AIM_BONE_HEAD -> bonePos(headIndex) ?: bonePos(chestIndex)
+                            Settings.AIM_BONE_CHEST -> bonePos(chestIndex)
+                            else -> null
+                        } ?: run {
+                            val pelvis = joints.optJSONArray(0)
+                            val spine = joints.optJSONArray(1)
+                            if (pelvis?.length() == 3 && spine?.length() == 3) {
+                                val x = pelvis.optDouble(0) * .35 + spine.optDouble(0) * .65
+                                val y = pelvis.optDouble(1) * .35 + spine.optDouble(1) * .65
+                                val z = pelvis.optDouble(2) * .35 + spine.optDouble(2) * .65
+                                if (x.isFinite() && y.isFinite() && z.isFinite() &&
+                                    kotlin.math.abs(x - ex) < 2.5 && kotlin.math.abs(y - ey) < 2.5 && kotlin.math.abs(z - baseZ) < 2.5)
+                                    Triple(x + motion.x - mx, y + motion.y - my, z + motion.z - mz)
+                                else null
+                            } else null
+                        }
+                        if (chosen != null) { bodyX = chosen.first; bodyY = chosen.second; bodyZ = chosen.third }
+                    }
+                }
+                val body = ProjectionMath.project(bodyX, bodyY, bodyZ,
+                    myYaw, myPitch, hfovDeg, screenAspect, clipToEdge = false, rollDegrees = cameraRoll)
                 val top = ProjectionMath.project(dx, dy, dz + hh,
                     myYaw, myPitch, hfovDeg, screenAspect)
                 val bottom = ProjectionMath.project(dx, dy, dz - hh,
@@ -220,7 +256,8 @@ class OverlayService : Service() {
                 aimTargets.add(AimMath.Target(id, body.x, body.y,
                     height * .12f / screenAspect.toFloat(), height * .2f,
                     kind, team, onScreen = body.onScreen && top.inFront && bottom.inFront,
-                    positionPlaintext = true, renderedOnScreen = ent.optBoolean("renderedOnScreen", false)))
+                    positionPlaintext = true, renderedOnScreen = ent.optBoolean("renderedOnScreen", false),
+                    visibleFromCamera = ent.optBoolean("visibleFromCamera", false), name = name))
             }
             val features = when {
                 !isCombatEntity -> lootFeatures
@@ -306,14 +343,16 @@ class OverlayService : Service() {
                 health = health.toFloat(), maxHealth = ent.optDouble("maxHealth", 100.0).toFloat(),
                 healthKnown = healthKnown,
                 boneScreenX = bonePose?.x, boneScreenY = bonePose?.y, boneParents = bonePose?.parents, bodyBounds = projectedBounds,
-                team = team, actorType = ent.optString("actorType", "")
+                team = team, actorType = ent.optString("actorType", ""),
+                visible = ent.optBoolean("visibleFromCamera", false)
             ))
         }
 
         aimController.frame = if (selfDead || !snapshot.optBoolean("localPlayerControlled", false) ||
             !cameraPlaintext || cameraTime <= 0) null
         else AimController.Frame(aimTargets, metrics.widthPixels, metrics.heightPixels, sourceTimeMs,
-            cameraTime, myYaw, myPitch, hfovDeg, cameraSampledAt)
+            cameraTime, myYaw, myPitch, hfovDeg, cameraSampledAt,
+            wm.defaultDisplay.rotation, "${snapshot.optInt("gamePid")}:${snapshot.optString("world")}:$selfId")
         enemyFrames.sortBy { it.distanceMeters }
         val warning = if (hiddenPlayers > 0)
             getString(R.string.unverified_players_hidden, hiddenPlayers) else null
@@ -344,7 +383,12 @@ class OverlayService : Service() {
                 com.deltaradar.app.Settings.botDrawMode(this),
                 com.deltaradar.app.Settings.teammateDrawMode(this),
                 com.deltaradar.app.Settings.lootDrawMode(this),
-                com.deltaradar.app.Settings.lineThicknessPercent(this) / 100f)
+                com.deltaradar.app.Settings.lineThicknessPercent(this) / 100f,
+                com.deltaradar.app.Settings.visibilityColorsEnabled(this),
+                com.deltaradar.app.Settings.visiblePlayerColor(this),
+                com.deltaradar.app.Settings.visibleBotColor(this),
+                com.deltaradar.app.Settings.visibleTeammateColor(this),
+                com.deltaradar.app.Settings.visibleLootColor(this))
             view.submit(frame, android.os.SystemClock.elapsedRealtime())
         }
         if (Looper.myLooper() == Looper.getMainLooper()) applyFrame.run() else handler.post(applyFrame)
@@ -516,6 +560,23 @@ class OverlayService : Service() {
         toggle(R.id.aimEnabled, Settings.aimEnabled(this)) {
             Settings.setAimEnabled(this, it); aimController.resetFeedback()
         }
+        val boneButtons = listOf(R.id.aimBoneHead, R.id.aimBoneChest, R.id.aimBoneBody)
+        val boneValues = listOf(Settings.AIM_BONE_HEAD, Settings.AIM_BONE_CHEST, Settings.AIM_BONE_BODY)
+        fun updateBoneButtons(selected: Int) {
+            boneButtons.forEachIndexed { i, id ->
+                val active = boneValues[i] == selected
+                view.findViewById<TextView>(id).apply {
+                    setBackgroundColor(if (active) 0xFF4fd08a.toInt() else 0xFF1E2940.toInt())
+                    setTextColor(if (active) 0xFF0a0e12.toInt() else 0xFFc8d6e0.toInt())
+                }
+            }
+        }
+        updateBoneButtons(Settings.aimBone(this))
+        boneButtons.forEachIndexed { i, id ->
+            view.findViewById<View>(id).setOnClickListener {
+                Settings.setAimBone(this, boneValues[i]); updateBoneButtons(boneValues[i])
+            }
+        }
         toggle(R.id.aimCircle, Settings.aimCircle(this)) { Settings.setAimCircle(this, it) }
         toggle(R.id.aimAutoShoot, Settings.autoShoot(this)) { Settings.setAutoShoot(this, it) }
         fun slider(id: Int, label: Int, minimum: Int, value: Int, title: String, save: (Int) -> Unit) {
@@ -537,8 +598,17 @@ class OverlayService : Service() {
         slider(R.id.aimFovSlider, R.id.aimFovLabel, 5, Settings.aimFov(this), "FOV radius") {
             Settings.setAimFov(this, it)
         }
-        slider(R.id.aimStrengthSlider, R.id.aimStrengthLabel, 10, Settings.aimStrength(this), "Aim strength") {
+        slider(R.id.aimStrengthSlider, R.id.aimStrengthLabel, 10, Settings.aimStrength(this), "Aim response") {
             Settings.setAimStrength(this, it)
+        }
+        val targetBoxes = listOf(R.id.aimBots to AimMath.BOTS, R.id.aimEnemies to AimMath.ENEMIES, R.id.aimFriendlies to AimMath.FRIENDLIES)
+        for ((id, bit) in targetBoxes) view.findViewById<android.widget.CheckBox>(id).apply {
+            isChecked = Settings.aimTargetMask(this@OverlayService) and bit != 0
+            setOnCheckedChangeListener { _, checked ->
+                val old = Settings.aimTargetMask(this@OverlayService)
+                Settings.setAimTargetMask(this@OverlayService, if (checked) old or bit else old and bit.inv())
+                aimController.resetFeedback()
+            }
         }
         view.findViewById<TextView>(R.id.aimStatus).text = aimController.status
         val fire = Settings.aimFirePoint(this)
@@ -689,6 +759,29 @@ class OverlayService : Service() {
         view.findViewById<View>(R.id.toggleShowPlayers).visibility = View.GONE
         view.findViewById<View>(R.id.toggleShowTeammates).visibility = View.GONE
         view.findViewById<View>(R.id.toggleShowLoot).visibility = View.GONE
+
+        val visColorsOn = com.deltaradar.app.Settings.visibilityColorsEnabled(this)
+        updateToggle(view.findViewById(R.id.toggleVisibilityColorsState), visColorsOn)
+        view.findViewById<LinearLayout>(R.id.toggleVisibilityColors).setOnClickListener {
+            val enabled = !com.deltaradar.app.Settings.visibilityColorsEnabled(this)
+            com.deltaradar.app.Settings.setVisibilityColorsEnabled(this, enabled)
+            updateToggle(view.findViewById(R.id.toggleVisibilityColorsState), enabled)
+        }
+        val visColorPresets = listOf(
+            R.id.visColorYellow to 0xFFFFE066.toInt(),
+            R.id.visColorGreen to 0xFF4fd08a.toInt(),
+            R.id.visColorWhite to 0xFFFFFFFF.toInt(),
+            R.id.visColorOrange to 0xFFFF8C42.toInt(),
+            R.id.visColorPurple to 0xFF9B59B6.toInt()
+        )
+        visColorPresets.forEach { (id, c) ->
+            view.findViewById<View>(id).setOnClickListener {
+                com.deltaradar.app.Settings.setVisiblePlayerColor(this, c)
+                com.deltaradar.app.Settings.setVisibleBotColor(this, c)
+                com.deltaradar.app.Settings.setVisibleTeammateColor(this, c)
+                com.deltaradar.app.Settings.setVisibleLootColor(this, c)
+            }
+        }
 
         setupEntityFeaturePanel(view, R.id.playerFeatureContainer, Settings.EntityType.PLAYER)
         setupEntityFeaturePanel(view, R.id.teammateFeatureContainer, Settings.EntityType.TEAMMATE)
@@ -979,8 +1072,11 @@ class OverlayService : Service() {
     override fun dump(fd: java.io.FileDescriptor, writer: java.io.PrintWriter, args: Array<out String>) {
         writer.println("Aim: ${aimController.status}")
         writer.println("Fault: ${aimController.faultMessage() ?: "none"}")
-        writer.println("Gestures: ${aimController.gesturesSent}; confirmed: ${aimController.correctionsConfirmed}; fire presses: ${aimController.shotsSent}")
+        writer.println("Gestures: ${aimController.gesturesSent}; camera samples: ${aimController.cameraSamplesSeen}; fire presses: ${aimController.shotsSent}")
         writer.println("Look area: ${Settings.aimLookPoint(this)}")
+        writer.println("Aim error pixels: ${aimController.lastErrorPixels}; physical contacts: ${aimController.physicalContacts}; target mask: ${Settings.aimTargetMask(this)}")
+        writer.println("Locked target id: ${aimController.lockedTargetId()}")
+        writer.println(aimController.traceDump())
     }
 
     override fun onDestroy() {

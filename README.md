@@ -23,42 +23,34 @@ The scanner and Android app must use the same abstract socket name:
 
 ## Aim controls
 
-Open the overlay bubble and select **Aim** beside **Visual**. Enable
-**Automatic aim · no hold button** to track verified enemy players' and bots'
-torsos inside the circle. No activation-button setup is required. **FOV
-radius** changes the circle from 5–45% of the shorter screen dimension;
-**Aim strength** controls each camera adjustment. Drawing and targeting use
-the same radius, independently of the Visual switches.
+Open **Aim** in the overlay menu and enable **Automatic aim · no hold button**.
+Choose Bots, Enemy players, and Friendly players / teammates independently;
+any combination, including none or all, is supported. **FOV radius** controls
+acquisition within 5–45% of the shorter screen dimension. An acquired, live,
+verified target remains selected while it can be tracked, even outside that
+circle. Death releases the lock.
 
-**Customize camera drag area (optional)** selects where touchscreen camera
-drags begin; it is not an aim activation button. The default needs no setup.
-Use **Use default camera drag area** to remove custom calibration. Centre/left look points from the first
-Aim build fall back to the measured right-hand area (70% across, 55% down). For **Auto shoot on crosshair**, first choose **Set fire
-button** and tap the centre of the game's fire control. Calibration captures
-the tap without forwarding it. Back or the instruction banner cancels it.
-Saved locations scale with screen resolution.
+**Aim response** ranges from 10–100%, defaulting to 100%. Full response applies
+the fastest calibrated corrections; lower values soften them. Touchscreen and
+camera latency still apply. The controller measures both axes, preserves those
+measurements across contact resets, and accounts for corrections still in flight.
+It acts only on fresh camera poses and pauses for camera data older than 100 ms,
+menus, loss of game focus, and an uncontrolled/dead local pawn.
 
-Aim uses root touchscreen gestures, without game-memory writes. It pauses
-when the overlay menu opens, the local player dies, the game loses focus, or
-the camera sample is older than 300 ms. Teammates, loot, unknown teams, dead actors
-and off-screen actors are excluded. Automatic input also requires the reader
-metadata for unmanaged handler indices (0xFFFF), clear encryption flags,
-plaintext bounds and a plaintext world transform agreeing within
-50 cm, positive known health, a plaintext camera and a recently rendered mesh.
-The local pawn must be alive and linked to its controller and PlayerState.
-Missing metadata is rejected. Encrypted positions
-remain unsupported; player markers without passing position and current
-camera checks are hidden and cannot be targeted automatically. The overlay
-shows a warning with the number hidden. The mesh's rendered flag is a necessary filter,
-not a guaranteed line-of-sight test.
+The rooted touch bridge currently supports the tested OnePlus 5 Synaptics
+s3320 touchscreen. It forwards physical touches while adding an aim contact,
+so walking and stationary fire touches can coexist with tracking. Moving a
+physical finger in the right camera area yields camera control to the player.
+**Customize camera drag area** changes the starting point (default 70% across,
+55% down). **Set fire button** configures optional auto shoot; auto shoot is
+independent and remains off unless enabled.
 
-Each small camera gesture waits for a newer camera timestamp and a measured
-reduction in targeting error. Missing response or increasing error stops assistance until it is reset
-with the automatic aim switch. Large manual camera movements and zoom changes
-yield briefly to the player instead of latching a calibration fault. Input gestures may interrupt simultaneous manual touches.
-Torso alignment and firing have been exercised against visible firing-range
-dummies; encrypted multiplayer targets and full-match behavior remain unverified.
-See [the investigation notes](docs/AIM_POSITION_INVESTIGATION_2026-11-03.md).
+Targets require verified world positions, known positive health and a recently
+rendered mesh. Verified decoded positions are supported. Unknown teams and
+unverified positions are excluded. Render status does not establish line of
+sight. Input does not write game memory. See the current
+[aim validation report](docs/AIM_TRACKING_2026-11-04.md) for device evidence and
+remaining limits.
 
 ## Reader
 
@@ -152,4 +144,11 @@ To rebuild the reader with the Android NDK:
 ```bash
 "$ANDROID_NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang" \
   -O2 -Wall -Wextra -Werror scanner/memscan-legacy.c -o scanner/memscan-legacy -lm
+```
+
+Rebuild the touch bridge before assembling the Android app:
+
+```bash
+"$ANDROID_NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang" \
+  -O2 -Wall -Wextra -Werror scanner/touch-bridge.c -o scanner/touch-bridge -lm
 ```

@@ -46,8 +46,11 @@ val prepareScannerAssets by tasks.registering(Sync::class) {
     val reader = providers.gradleProperty("scannerBinary").orNull?.let { file(it) }
         ?: scannerDir.resolve("memscan-legacy")
     from(reader) { rename { "memscan_legacy" } }
+    val touchBridge = scannerDir.resolve("touch-bridge")
+    from(touchBridge) { rename { "touch_bridge" } }
     doFirst {
         require(reader.isFile) { "The scanner binary is required" }
+        require(touchBridge.isFile) { "Build scanner/touch-bridge before assembling the app" }
     }
     into(scannerAssets)
 }

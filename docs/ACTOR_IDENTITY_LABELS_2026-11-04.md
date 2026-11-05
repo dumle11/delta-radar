@@ -23,10 +23,11 @@ preferences migrate to v5 with their old bits preserved and type labels enabled.
 - The replicated PlayerState RoleType byte was zero on all sampled players and
   is deliberately not used to call them bosses.
 
-The initial friendly-name catalog covers Stinger (10010), Toxik (10020), Luna
-(20010), Hackclaw (20020), D-Wolf (30010), Vyron (30020), Shepherd (40010), and
-Uluru (40020). Additional valid IDs display `Operator <id>` until their names are
-verified and added. An unavailable identity displays `Unknown operator/bot`.
+The verified friendly-name catalog currently contains **Hackclaw (20003)**,
+confirmed by selecting Hackclaw in the firing-range loadout and observing the
+active component ID. Eight earlier ID/name assignments were assumptions and
+have been removed. Other valid IDs display `Operator <id>` until their names
+are verified. An unavailable identity displays `Unknown operator/bot`.
 Bot template labels retain role/variant tokens, including Boss and Guard, and
 normalize Basic/Normal to Regular. They never infer bosses or guards from HP.
 Unknown valid templates retain their descriptive tokens rather than borrowing
@@ -42,7 +43,7 @@ operator, boss, or skin.
   changes, zero PlayerState ExpertId, component ownership/class/backlink
   rejection, template priority, and invalid template characters.
 - A live installed snapshot contained 13 combat actors with 13 verified
-  identities: Shepherd, Crocodile, Regular AR/SMG/Shotgun, Elite Shotgun, and
+  identities: an operator ID, Crocodile, Regular AR/SMG/Shotgun, Elite Shotgun, and
   Shield 01. A screenshot confirms type labels beside bot names/distances.
   No live boss/guard was observed; those strings were tested in fixtures.
 - Device UI tests toggled each category's type switch off/on and verified the

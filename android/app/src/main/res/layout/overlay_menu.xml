@@ -276,6 +276,58 @@
                             android:textStyle="bold" android:background="#1E2940" />
                     </LinearLayout>
 
+                    <!-- Visibility colors -->
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#1E2940" android:layout_marginBottom="8dp" />
+                    <LinearLayout android:id="@+id/toggleVisibilityColors"
+                        android:layout_width="match_parent" android:layout_height="42dp"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:paddingLeft="4dp" android:paddingRight="4dp"
+                        android:clickable="true" android:focusable="true">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:text="Visibility colors"
+                            android:textColor="#c8d6e0" android:textSize="13sp" />
+                        <TextView android:id="@+id/toggleVisibilityColorsState"
+                            android:layout_width="48dp" android:layout_height="24dp"
+                            android:gravity="center" android:text="OFF"
+                            android:textColor="#e5534b" android:textSize="11sp"
+                            android:textStyle="bold" android:background="#1E2940" />
+                    </LinearLayout>
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Change box/line color when an actor is visible (rendered on screen)"
+                        android:textColor="#5c6b78" android:textSize="10sp"
+                        android:paddingLeft="4dp" android:layout_marginBottom="4dp" />
+                    <LinearLayout android:id="@+id/visibilityColorRow"
+                        android:layout_width="match_parent" android:layout_height="28dp"
+                        android:orientation="horizontal" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="8dp">
+                        <TextView android:id="@+id/visColorYellow"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="Yellow"
+                            android:textSize="9sp" android:textColor="#0a0e12" android:background="#FFE066"
+                            android:clickable="true" android:focusable="true" />
+                        <TextView android:id="@+id/visColorGreen"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="Green"
+                            android:textSize="9sp" android:textColor="#0a0e12" android:background="#4fd08a"
+                            android:clickable="true" android:focusable="true" />
+                        <TextView android:id="@+id/visColorWhite"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="White"
+                            android:textSize="9sp" android:textColor="#0a0e12" android:background="#FFFFFF"
+                            android:clickable="true" android:focusable="true" />
+                        <TextView android:id="@+id/visColorOrange"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="Orange"
+                            android:textSize="9sp" android:textColor="#0a0e12" android:background="#FF8C42"
+                            android:clickable="true" android:focusable="true" />
+                        <TextView android:id="@+id/visColorPurple"
+                            android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+                            android:layout_margin="1dp" android:gravity="center" android:text="Purple"
+                            android:textSize="9sp" android:textColor="#FFFFFF" android:background="#9B59B6"
+                            android:clickable="true" android:focusable="true" />
+                    </LinearLayout>
+
                     <!-- Render distance -->
                     <LinearLayout
                         android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -645,13 +697,46 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="vertical" android:padding="14dp" android:background="#0a0e12">
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:text="BODY AIM" android:textColor="#4fd08a" android:textSize="11sp"
+                        android:text="AIM ASSIST" android:textColor="#4fd08a" android:textSize="11sp"
                         android:textStyle="bold" android:layout_marginBottom="6dp" />
                     <Switch android:id="@+id/aimEnabled" android:layout_width="match_parent"
                         android:layout_height="48dp" android:text="Automatic aim · no hold button" android:textColor="#c8d6e0" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:text="Enable aim to track a verified enemy inside the circle. No button setup is needed for aiming."
+                        android:text="Acquire a selected actor inside the circle, then retain that target while it remains alive and visible. Manual camera touches take priority."
                         android:textColor="#8a9aaa" android:textSize="12sp" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Aim at (choose any, all, or none)" android:textColor="#c8d6e0" android:textSize="13sp" />
+                    <CheckBox android:id="@+id/aimBots" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Bots" android:textColor="#c8d6e0" android:buttonTint="#4fd08a" />
+                    <CheckBox android:id="@+id/aimEnemies" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Enemy players" android:textColor="#c8d6e0" android:buttonTint="#4fd08a" />
+                    <CheckBox android:id="@+id/aimFriendlies" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Friendly players / teammates" android:textColor="#c8d6e0" android:buttonTint="#4fd08a" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="Target bone" android:textColor="#c8d6e0" android:textSize="13sp"
+                        android:layout_marginTop="6dp" android:layout_marginBottom="4dp" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"
+                        android:orientation="horizontal" android:layout_marginBottom="8dp">
+                        <TextView android:id="@+id/aimBoneHead"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Head" android:textSize="10sp"
+                            android:textColor="#c8d6e0" android:background="#1E2940"
+                            android:clickable="true" android:focusable="true" />
+                        <TextView android:id="@+id/aimBoneChest"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Chest" android:textSize="10sp"
+                            android:textColor="#c8d6e0" android:background="#1E2940"
+                            android:clickable="true" android:focusable="true" />
+                        <TextView android:id="@+id/aimBoneBody"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Body" android:textSize="10sp"
+                            android:textColor="#0a0e12" android:background="#4fd08a"
+                            android:clickable="true" android:focusable="true" />
+                    </LinearLayout>
+
                     <Switch android:id="@+id/aimCircle" android:layout_width="match_parent"
                         android:layout_height="48dp" android:text="Show FOV circle" android:textColor="#c8d6e0" />
                     <TextView android:id="@+id/aimFovLabel" android:layout_width="match_parent"
@@ -659,9 +744,12 @@
                     <SeekBar android:id="@+id/aimFovSlider" android:layout_width="match_parent"
                         android:layout_height="48dp" android:max="40" android:contentDescription="Aim FOV radius" />
                     <TextView android:id="@+id/aimStrengthLabel" android:layout_width="match_parent"
-                        android:layout_height="wrap_content" android:textColor="#c8d6e0" android:text="Aim strength: 30%" />
+                        android:layout_height="wrap_content" android:textColor="#c8d6e0" android:text="Aim response: 100%" />
                     <SeekBar android:id="@+id/aimStrengthSlider" android:layout_width="match_parent"
-                        android:layout_height="48dp" android:max="50" android:contentDescription="Aim assistance strength" />
+                        android:layout_height="48dp" android:max="90" android:contentDescription="Aim response speed" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:text="100% gives the fastest calibrated correction; lower values approach more gently. Camera and game latency still apply."
+                        android:textColor="#8aa0b0" android:textSize="11sp" android:layout_marginBottom="8dp" />
                     <Switch android:id="@+id/aimAutoShoot" android:layout_width="match_parent"
                         android:layout_height="48dp" android:text="Auto shoot on crosshair" android:textColor="#c8d6e0" />
                     <TextView android:id="@+id/aimStatus" android:layout_width="match_parent"
@@ -684,7 +772,7 @@
                         android:text="Set your fire button before enabling auto shoot."
                         android:layout_marginTop="10dp" android:textSize="12sp" />
                     <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:text="Targets the torso only when the reader reports a plaintext position, known positive health and an on-screen rendered mesh. Encrypted or unverified targets are skipped. Aim stops if camera feedback does not improve. Rendering is not a guarantee of line of sight."
+                        android:text="Targets the preferred bone (head/chest/body) with fallback to visible bones. Only aims at visible actors with known health and a rendered mesh. Loses lock when enemy goes behind cover. Moving a finger in the camera area yields manual control."
                         android:textColor="#8a9aaa" android:textSize="12sp" android:layout_marginTop="12dp" />
                 </LinearLayout>
             </ScrollView>

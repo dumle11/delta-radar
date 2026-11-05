@@ -33,7 +33,8 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         val boneParents: IntArray? = null,
         val bodyBounds: FloatArray? = null,
         val team: Int = 2,
-        val actorType: String = ""
+        val actorType: String = "",
+        val visible: Boolean = false
     )
     data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>, val warning: String? = null)
 
@@ -51,6 +52,11 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     private var botDrawMode = Settings.DRAW_MODE_BOXES
     private var teammateDrawMode = Settings.DRAW_MODE_BOXES
     private var lootDrawMode = Settings.DRAW_MODE_BOXES
+    private var visibilityColors = false
+    private var visPlayerColor = Settings.DEFAULT_VISIBLE_PLAYER_COLOR
+    private var visBotColor = Settings.DEFAULT_VISIBLE_BOT_COLOR
+    private var visTeammateColor = Settings.DEFAULT_VISIBLE_TEAMMATE_COLOR
+    private var visLootColor = Settings.DEFAULT_VISIBLE_LOOT_COLOR
     private var thicknessScale = 0.75f
     private val density = resources.displayMetrics.density
 
@@ -80,45 +86,42 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
     private val healthBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC000000.toInt() }
     private val healthFillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rounded = RectF()
-    private val expire = Runnable { clear(); onExpired() }
+    private val expire = Runnable { clear(); invalidate(); onExpired() }
 
     init {
-        visibility = GONE
+        setWillNotDraw(false)
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         isClickable = false; isFocusable = false
     }
 
     fun setStyle(pFeatures: Int, bFeatures: Int, tFeatures: Int, lFeatures: Int,
                  pColor: Int, bColor: Int, tColor: Int, lColor: Int,
-                 pMode: Int, bMode: Int, tMode: Int, lMode: Int, thickness: Float) {
-        if (playerFeatures == pFeatures && botFeatures == bFeatures && teammateFeatures == tFeatures &&
-            lootFeatures == lFeatures && playerColor == pColor && botColor == bColor &&
-            teammateColor == tColor && lootColor == lColor &&
-            playerDrawMode == pMode && botDrawMode == bMode && teammateDrawMode == tMode &&
-            lootDrawMode == lMode &&
-            thicknessScale == thickness) return
+                 pMode: Int, bMode: Int, tMode: Int, lMode: Int, thickness: Float,
+                 visColors: Boolean = false,
+                 vpColor: Int = 0, vbColor: Int = 0, vtColor: Int = 0, vlColor: Int = 0) {
         playerFeatures = pFeatures; botFeatures = bFeatures; teammateFeatures = tFeatures; lootFeatures = lFeatures
         playerColor = pColor; botColor = bColor; teammateColor = tColor; lootColor = lColor
         playerDrawMode = pMode; botDrawMode = bMode; teammateDrawMode = tMode; lootDrawMode = lMode
+        visibilityColors = visColors
+        visPlayerColor = vpColor; visBotColor = vbColor; visTeammateColor = vtColor; visLootColor = vlColor
         thicknessScale = thickness.coerceIn(0.25f, 3f)
-        if (pFeatures == 0 && bFeatures == 0 && tFeatures == 0 && lFeatures == 0) clear()
-        else if (frame != null) invalidate()
+        if (frame != null) invalidate()
     }
 
     fun submit(value: Frame, receivedAtMs: Long) {
         if (value.me == null || (value.enemies.isEmpty() && value.warning == null)) { clear(); return }
         frame = value; receivedAt = receivedAtMs
         removeCallbacks(expire)
-        visibility = VISIBLE
+        if (visibility != VISIBLE) visibility = VISIBLE
         invalidate()
         postDelayed(expire, (FRESHNESS_MS - (SystemClock.elapsedRealtime() - receivedAt)).coerceAtLeast(1))
     }
 
     fun clear() {
-        removeCallbacks(expire); frame = null; visibility = GONE
+        removeCallbacks(expire); frame = null; invalidate()
     }
 
-    override fun onDetachedFromWindow() { clear(); super.onDetachedFromWindow() }
+    override fun onDetachedFromWindow() { removeCallbacks(expire); frame = null; super.onDetachedFromWindow() }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -126,7 +129,7 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
         val healthThickness = Settings.healthBarThicknessDp(context) * density
         val data = frame ?: return
         if (SystemClock.elapsedRealtime() - receivedAt >= FRESHNESS_MS || width <= 0 || height <= 0) {
-            post(expire); return
+            frame = null; post { onExpired() }; return
         }
         val me = data.me ?: return
         val padding = 2f * density
@@ -150,12 +153,18 @@ class EnemyLinesView(context: Context, private val onExpired: () -> Unit) : View
             val my = me.second * height
             val isLoot = enemy.kind == "loot" || enemy.kind == "objective"
             val isPlayer = enemy.kind == "player"
-            val entityColor = when {
+            val baseColor = when {
                 isLoot -> lootColor
                 enemy.team == 1 -> teammateColor
                 isPlayer -> playerColor
                 else -> botColor
             }
+            val entityColor = if (visibilityColors && enemy.visible) when {
+                isLoot -> visLootColor
+                enemy.team == 1 -> visTeammateColor
+                isPlayer -> visPlayerColor
+                else -> visBotColor
+            } else baseColor
             val entityMode = when {
                 isLoot -> lootDrawMode
                 enemy.team == 1 -> teammateDrawMode
