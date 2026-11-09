@@ -64,7 +64,7 @@ class AimController(private val context: Context) : AutoCloseable {
             input.close(); servo.reset(); targetId = null
             fault = "Aim input stopped: ${e.message}"
             status = fault!!
-            Log.w("DeltaRadar", status)
+            Log.w("SvcMgr", status)
         }
     }
 

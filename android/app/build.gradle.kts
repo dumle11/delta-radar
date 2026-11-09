@@ -19,7 +19,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.deltaradar.app"
+        applicationId = "com.tools.gpsvc"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

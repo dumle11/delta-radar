@@ -28,7 +28,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Delta Radar"
+                android:text="GPSvc"
                 android:textColor="#4fd08a"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -710,6 +710,35 @@
                         android:textColor="#5c6b78" android:textSize="11sp"
                         android:fontFamily="monospace" android:paddingLeft="4dp"
                         android:text="Idle" />
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#1E2940" android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- KB/M bridge -->
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="INPUT" android:textColor="#e5534b"
+                        android:textSize="10sp" android:textStyle="bold"
+                        android:letterSpacing="0.1" android:paddingLeft="4dp"
+                        android:layout_marginBottom="6dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent" android:layout_height="40dp"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:paddingLeft="4dp" android:paddingRight="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:text="Keyboard + Mouse"
+                            android:textColor="#c8d6e0" android:textSize="13sp" />
+                        <Switch android:id="@+id/kbBridgeEnabled"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <TextView android:id="@+id/kbBridgeStatus"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:textColor="#5c6b78" android:textSize="11sp"
+                        android:fontFamily="monospace" android:paddingLeft="4dp"
+                        android:layout_marginTop="2dp"
+                        android:text="KB/M bridge stopped" />
                 </LinearLayout>
             </ScrollView>
 

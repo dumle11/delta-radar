@@ -23,7 +23,7 @@ class FeedExpiryDeviceTest {
             SystemClock.sleep(20)
         val service = EntityFeedService.instance!!
         val socket = LocalSocket()
-        socket.connect(LocalSocketAddress("delta_radar_feed", LocalSocketAddress.Namespace.ABSTRACT))
+        socket.connect(LocalSocketAddress("x7f3a91", LocalSocketAddress.Namespace.ABSTRACT))
         client = socket
         socket.outputStream.write(("""{"self":"test-camera","entities":[{"id":"test-camera","x":0,"y":0,"z":0,"yaw":0,"pitch":0,"fov":80},{"id":"test-enemy","x":10,"y":0,"z":0}]}""" + "\n").toByteArray())
         val receivedDeadline = SystemClock.elapsedRealtime() + 5000

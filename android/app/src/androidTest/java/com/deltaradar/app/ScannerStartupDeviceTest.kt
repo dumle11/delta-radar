@@ -42,7 +42,7 @@ class ScannerStartupDeviceTest {
                 entered?.countDown()
                 release?.await(5, TimeUnit.SECONDS)
                 if (verificationFails.get()) return CommandRunner.Result("", null, true, false)
-                val identity = JSONObject().put("project", "delta-radar").put("api", 31)
+                val identity = JSONObject().put("project", "dr").put("api", 31)
                     .put("sourceSha256", BuildConfig.SCANNER_SOURCESHA256).put("revision", BuildConfig.SCANNER_REVISION)
                 return ok("uid=0(root)\n$identity")
             }

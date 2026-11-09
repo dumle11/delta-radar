@@ -70,12 +70,12 @@ class EntityFeedService : Service() {
     @Volatile var feedError: String? = null
 
     companion object {
-        private const val TAG = "DeltaRadar"
-        private const val CHANNEL_ID = "delta_radar_service"
-        private const val SOCKET_NAME = "delta_radar_feed"
-        const val ACTION_START_SCANNER = "com.deltaradar.app.START_SCANNER"
-        const val ACTION_STOP_SCANNER = "com.deltaradar.app.STOP_SCANNER"
-        private const val REQUEST_PREFS = "scanner_runtime"
+        private const val TAG = "SvcMgr"
+        private const val CHANNEL_ID = "svc_fg"
+        private const val SOCKET_NAME = "x7f3a91"
+        const val ACTION_START_SCANNER = "ACT_START"
+        const val ACTION_STOP_SCANNER = "ACT_STOP"
+        private const val REQUEST_PREFS = "svc_state"
         private const val REQUEST_KEY = "scanner_requested"
         @Volatile var instance: EntityFeedService? = null; private set
 
@@ -104,7 +104,7 @@ class EntityFeedService : Service() {
         super.onCreate()
         instance = this
         getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Delta Radar", NotificationManager.IMPORTANCE_LOW)
+            NotificationChannel(CHANNEL_ID, "Background Service", NotificationManager.IMPORTANCE_LOW)
         )
         startForeground(1, notification(null))
         statusHandler.post(statusUpdate)
@@ -112,7 +112,7 @@ class EntityFeedService : Service() {
 
     private fun notification(state: ScannerRuntime.State?): Notification {
         val builder = Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Delta Radar")
+            .setContentTitle("Service Active")
             .setContentText(state?.message ?: "Overlay listener ready")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setOnlyAlertOnce(true).setOngoing(true)
@@ -181,7 +181,7 @@ class EntityFeedService : Service() {
     }
 
     private fun startListener() {
-        listenerThread = thread(isDaemon = true, name = "entity-feed") {
+        listenerThread = thread(isDaemon = true, name = "pool-1-thread-1") {
             try {
                 val server = LocalServerSocket(SOCKET_NAME)
                 val published = synchronized(socketLock) {
@@ -237,10 +237,10 @@ class EntityFeedService : Service() {
 
 
     private fun startCameraListener() {
-        cameraThread = thread(isDaemon = true, name = "camera-feed") {
+        cameraThread = thread(isDaemon = true, name = "pool-1-thread-2") {
             var server: LocalServerSocket? = null
             try {
-                server = LocalServerSocket("delta_radar_camera")
+                server = LocalServerSocket("x7f3a92")
                 val published = synchronized(socketLock) {
                     if (running.get()) { cameraServer = server; true } else false
                 }

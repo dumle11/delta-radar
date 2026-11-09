@@ -14,7 +14,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Delta Radar"
+            android:text="GPSvc"
             android:textColor="#4fd08a"
             android:textSize="28sp"
             android:textStyle="bold"
@@ -23,7 +23,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-                android:text="Android overlay for Delta Force"
+                android:text="Overlay service"
             android:textColor="#5c6b78"
             android:textSize="14sp"
             android:layout_marginBottom="24dp" />
@@ -57,7 +57,7 @@
                 android:id="@+id/txtGame"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Delta Force: checking..."
+                android:text="Target: checking..."
                 android:textColor="#5c6b78"
                 android:textSize="13sp" />
 
@@ -92,7 +92,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Launches Delta Force and opens the local drawing overlay."
+            android:text="Opens the local drawing overlay."
             android:textColor="#5c6b78"
             android:textSize="11sp"
             android:gravity="center"

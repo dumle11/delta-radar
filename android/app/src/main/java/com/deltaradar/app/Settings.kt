@@ -3,7 +3,7 @@ package com.deltaradar.app
 import android.content.Context
 
 object Settings {
-    private const val PREFS = "delta_radar"
+    private const val PREFS = "app_prefs"
     private const val LINES_KEY = "draw_enemy_lines"
     private const val LABELS_KEY = "show_enemy_labels"
     private const val SHOW_PLAYERS_KEY = "show_players"
@@ -197,6 +197,9 @@ object Settings {
 
     fun autoShoot(ctx: Context) = prefs(ctx).getBoolean("auto_shoot", false)
     fun setAutoShoot(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("auto_shoot", value).apply() }
+
+    fun kbBridgeEnabled(ctx: Context) = prefs(ctx).getBoolean("kb_bridge_enabled", false)
+    fun setKbBridgeEnabled(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("kb_bridge_enabled", value).apply() }
     fun aimLookPoint(ctx: Context) = prefs(ctx).let {
         AimMath.lookPointOrDefault(it.getFloat("aim_look_x", .75f), it.getFloat("aim_look_y", .3f))
     }

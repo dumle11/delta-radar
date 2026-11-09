@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "DeltaRadar"
+rootProject.name = "GPSvc"
 include(":app")

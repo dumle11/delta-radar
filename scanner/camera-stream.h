@@ -1,7 +1,7 @@
 #ifndef DELTA_CAMERA_STREAM_H
 #define DELTA_CAMERA_STREAM_H
 #ifndef CAMERA_STREAM_SOCKET_NAME
-#define CAMERA_STREAM_SOCKET_NAME "delta_radar_camera"
+#define CAMERA_STREAM_SOCKET_NAME "x7f3a92"
 #endif
 
 /* This sampler owns its state and reads via process_vm_readv only. Publishing

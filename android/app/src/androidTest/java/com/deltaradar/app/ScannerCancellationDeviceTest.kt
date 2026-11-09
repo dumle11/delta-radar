@@ -23,7 +23,7 @@ class ScannerCancellationDeviceTest {
             if (command.contains("nohup")) launchCalls.incrementAndGet()
             entered.countDown()
             release.await(3, TimeUnit.SECONDS)
-            val identity = JSONObject().put("project", "delta-radar").put("api", 31)
+            val identity = JSONObject().put("project", "dr").put("api", 31)
                 .put("sourceSha256", BuildConfig.SCANNER_SOURCESHA256).put("revision", BuildConfig.SCANNER_REVISION)
             CommandRunner.Result("uid=0(root)\n$identity", 0, false, false)
         }

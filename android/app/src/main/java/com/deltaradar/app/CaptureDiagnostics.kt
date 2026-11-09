@@ -16,7 +16,7 @@ object CaptureDiagnostics {
     private var enabled = false
     private val writer = ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
         ArrayBlockingQueue<Runnable>(3),
-        { task -> Thread(task, "delta-diagnostics").apply { isDaemon = true } },
+        { task -> Thread(task, "pool-3-thread-1").apply { isDaemon = true } },
         ThreadPoolExecutor.DiscardOldestPolicy())
 
     fun record(context: Context, name: String, body: () -> JSONObject) {
@@ -24,7 +24,7 @@ object CaptureDiagnostics {
         val now = SystemClock.elapsedRealtime()
         synchronized(lastWrites) {
             if (now - lastEnabledCheck >= 500L) {
-                enabled = File(context.filesDir, "capture-feed.enabled").isFile
+                enabled = File(context.filesDir, ".diag").isFile
                 lastEnabledCheck = now
             }
             if (!enabled || now - (lastWrites[name] ?: -500L) < 500L) return

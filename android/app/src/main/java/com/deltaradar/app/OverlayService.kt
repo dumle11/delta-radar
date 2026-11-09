@@ -37,6 +37,7 @@ class OverlayService : Service() {
     private var enemyLinesView: EnemyLinesView? = null
     private var aimFovView: AimFovView? = null
     private lateinit var aimController: AimController
+    private var kbBridge: KbBridgeController? = null
     val overlayDrawnFrames: Long get() = enemyLinesView?.drawnFrames ?: 0L
     val overlayVisible: Boolean get() = enemyLinesView?.visibility == View.VISIBLE
     @Volatile var lastPublishedSequence: Long = -1L
@@ -91,7 +92,7 @@ class OverlayService : Service() {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
         try { wm.addView(view, params); enemyLinesView = view }
-        catch (e: Exception) { android.util.Log.w("DeltaRadar", "Overlay window: ${e.message}") }
+        catch (e: Exception) { android.util.Log.w("SvcMgr", "Overlay window: ${e.message}") }
     }
 
     private fun ensureAimWindow() {
@@ -109,7 +110,7 @@ class OverlayService : Service() {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
         try { wm.addView(view, params); aimFovView = view }
-        catch (e: Exception) { android.util.Log.w("DeltaRadar", "Aim FOV window: ${e.message}") }
+        catch (e: Exception) { android.util.Log.w("SvcMgr", "Aim FOV window: ${e.message}") }
     }
 
     /** May be called by the feed thread. Intermediate snapshots are not queued. */
@@ -126,7 +127,7 @@ class OverlayService : Service() {
     private fun runProjection() {
         try { refreshEnemyLines(::finishProjection) }
         catch (e: Exception) {
-            android.util.Log.w("DeltaRadar", "Overlay projection: ${e.message}")
+            android.util.Log.w("SvcMgr", "Overlay projection: ${e.message}")
             finishProjection()
         }
     }
@@ -439,8 +440,8 @@ class OverlayService : Service() {
         if (projectionNow - lastProjectionLogAt >= 5_000L) {
             lastProjectionLogAt = projectionNow
             android.util.Log.i(
-                "DeltaRadar",
-                "Overlay frame: rendered=${enemyFrames.size} rejected=${rejected.size} feed=${service.entityCount}"
+                "SvcMgr",
+                "Frame: rendered=${enemyFrames.size} rejected=${rejected.size} feed=${service.entityCount}"
             )
         }
         publishProjection(finished) {
@@ -848,12 +849,27 @@ class OverlayService : Service() {
             }
         }
         view.findViewById<TextView>(R.id.aimClearFirePoint).setOnClickListener {
-            val prefs = getSharedPreferences("delta_radar", MODE_PRIVATE)
+            val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
             prefs.edit().remove("aim_fire_x").remove("aim_fire_y").apply()
             updateFireLabel()
         }
 
         view.findViewById<TextView>(R.id.aimStatus).text = aimController.status
+
+        val kbSwitch = view.findViewById<android.widget.Switch>(R.id.kbBridgeEnabled)
+        val kbStatus = view.findViewById<TextView>(R.id.kbBridgeStatus)
+        kbSwitch.isChecked = Settings.kbBridgeEnabled(this)
+        kbStatus.text = kbBridge?.status ?: "KB/M bridge stopped"
+        kbSwitch.setOnCheckedChangeListener { _, checked ->
+            Settings.setKbBridgeEnabled(this, checked)
+            if (checked) {
+                if (kbBridge == null) kbBridge = KbBridgeController(this)
+                kbBridge?.start()
+            } else {
+                kbBridge?.stop()
+            }
+            kbStatus.text = kbBridge?.status ?: "KB/M bridge stopped"
+        }
     }
 
     private fun startFirePointCapture(callback: (Float, Float) -> Unit) {
@@ -1100,6 +1116,7 @@ class OverlayService : Service() {
     override fun onDestroy() {
         lifecycle.destroy()
         aimController.close()
+        kbBridge?.close(); kbBridge = null
         stopOverlayRefresh()
         projectionWork.close()
         aimFovView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
@@ -1116,8 +1133,8 @@ class OverlayService : Service() {
     private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
 
     companion object {
-        const val ACTION_SHOW = "com.deltaradar.OVERLAY_SHOW"
-        const val ACTION_HIDE = "com.deltaradar.OVERLAY_HIDE"
+        const val ACTION_SHOW = "ACT_SHOW"
+        const val ACTION_HIDE = "ACT_HIDE"
         private var sInstance: OverlayService? = null
         val instance: OverlayService? get() = sInstance
 

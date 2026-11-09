@@ -30,7 +30,7 @@ class FeedLifecycleDeviceTest {
         return EntityFeedService.instance!!
     }
     private fun connect() = LocalSocket().also {
-        it.connect(LocalSocketAddress("delta_radar_feed", LocalSocketAddress.Namespace.ABSTRACT))
+        it.connect(LocalSocketAddress("x7f3a91", LocalSocketAddress.Namespace.ABSTRACT))
         clients.add(it)
     }
     private fun send(client: LocalSocket, line: String) {

@@ -25,7 +25,7 @@
 #include <time.h>
 
 #define GAME_PKG "com.proxima.dfm"
-#define RADAR_SOCKET_NAME "delta_radar_feed"
+#define RADAR_SOCKET_NAME "x7f3a91"
 #define MAX_ACTORS 512
 #define READ_BUF_SIZE (4 * 1024 * 1024)
 #define MAX_REGIONS 16384

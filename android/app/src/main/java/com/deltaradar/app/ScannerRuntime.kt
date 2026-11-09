@@ -13,7 +13,7 @@ object ScannerRuntime {
     data class State(val phase: Phase, val message: String)
     @Volatile var state = State(Phase.IDLE, "Scanner stopped")
         private set
-    private val worker = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "scanner-control").apply { isDaemon = true } }
+    private val worker = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "pool-2-thread-1").apply { isDaemon = true } }
     private val recoveries = ScannerRecoveryBudget()
     private var current: ScannerSession? = null
     private var owner: EntityFeedService? = null
@@ -53,7 +53,7 @@ object ScannerRuntime {
                 check(verification.success) { failure("Scanner verification", verification) }
                 check(verification.output.contains("uid=0")) { "Root was not granted" }
                 val identity = JSONObject(verification.output.lines().last { it.startsWith("{") })
-                check(identity.getString("project") == "delta-radar" && identity.getInt("api") == 31 &&
+                check(identity.getString("project") == "dr" && identity.getInt("api") == 31 &&
                     identity.getString("sourceSha256") == BuildConfig.SCANNER_SOURCESHA256 &&
                     identity.getString("revision") == BuildConfig.SCANNER_REVISION) { "Scanner build identity differs" }
                 val deadline = android.os.SystemClock.elapsedRealtime() + 3000
@@ -105,7 +105,7 @@ object ScannerRuntime {
                         session.recordStatus(state.message)
                     }
                 }
-                Log.i("DeltaRadar", "Verified scanner start: path=${BuildConfig.SCANNER_PATH} pid=$pid session=${session.id}")
+                Log.i("SvcMgr", "Verified start: pid=$pid session=${session.id}")
                 scheduleMonitor(context, session, pid, execute)
             } catch (e: Exception) {
                 fail(session, e.message ?: "Scanner start failed")
@@ -132,7 +132,7 @@ object ScannerRuntime {
             }
             synchronized(this) {
                 if (current === session && state.phase != Phase.WAITING_FOR_GAME) {
-                    state = State(Phase.WAITING_FOR_GAME, "Waiting for Delta Force to finish opening")
+                    state = State(Phase.WAITING_FOR_GAME, "Waiting for target to finish opening")
                     session.recordStatus(state.message)
                 }
             }
@@ -189,7 +189,7 @@ object ScannerRuntime {
             if (current === session) {
                 current = null; owner = null
                 if (recoveries.allow(android.os.SystemClock.elapsedRealtime())) {
-                    Log.w("DeltaRadar", "Owned scanner exited; starting a new verified session")
+                    Log.w("SvcMgr", "Owned process exited; starting a new verified session")
                     beginStart(context, execute)
                 } else {
                     state = State(Phase.FAILED, "Scanner keeps exiting; tap Retry scanner")
@@ -209,7 +209,7 @@ object ScannerRuntime {
                 state = State(Phase.FAILED, message)
             }
         }
-        Log.w("DeltaRadar", "Scanner session ended: $message")
+        Log.w("SvcMgr", "Session ended: $message")
     }
 
     private fun failure(label: String, result: CommandRunner.Result) =
@@ -244,6 +244,6 @@ object ScannerRuntime {
                 "if [ \"\$(readlink /proc/\$p/exe)\" = $executable ] && " +
                 "tr '\\000' '\\n' </proc/\$p/cmdline | grep -F -x -- $leaseArgument >/dev/null; " +
                 "then kill -TERM \"\$p\"; fi")
-        if (!result.success) Log.w("DeltaRadar", "Owned scanner cleanup uncertain; lease revoked; no retry")
+        if (!result.success) Log.w("SvcMgr", "Cleanup uncertain; lease revoked; no retry")
     }
 }

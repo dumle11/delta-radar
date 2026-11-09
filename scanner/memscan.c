@@ -25,6 +25,7 @@
 #include <time.h>
 #include <stdatomic.h>
 #include <pthread.h>
+#include <sys/prctl.h>
 
 #ifndef DELTA_SOURCE_REVISION
 #define DELTA_SOURCE_REVISION "unrecorded"
@@ -61,7 +62,7 @@ static int session_active(void) {
 }
 
 #define GAME_PKG "com.proxima.dfm"
-#define RADAR_SOCKET_NAME "delta_radar_feed"
+#define RADAR_SOCKET_NAME "x7f3a91"
 #define MAX_ACTORS 512
 #define READ_BUF_SIZE (4 * 1024 * 1024)
 #define MAX_REGIONS 16384
@@ -2889,7 +2890,7 @@ static int post_to_radar(void) {
     int off = 0;
     off += snprintf(body + off, sizeof(body) - off,
         "{\"self\":\"%s\",\"capturedElapsedMs\":%lld,\"gamePid\":%d,\"world\":\"0x%llx\","
-        "\"cameraSampledElapsedMs\":%lld,\"cameraTimestamp\":%.9g,\"cameraPositionPlaintext\":%s,\"cameraRoll\":%.6f,\"map\":{\"name\":\"delta_force\",\"width\":10000,\"height\":10000},\"entities\":[",
+        "\"cameraSampledElapsedMs\":%lld,\"cameraTimestamp\":%.9g,\"cameraPositionPlaintext\":%s,\"cameraRoll\":%.6f,\"map\":{\"name\":\"world\",\"width\":10000,\"height\":10000},\"entities\":[",
         self_entity_id[0] ? self_entity_id : "", captured_elapsed_ms, game_pid,
         (unsigned long long)verified_uworld, camera_sampled_at_ms, (double)last_camera_timestamp,
         camera_position_valid ? "true" : "false", camera_roll);
@@ -2952,7 +2953,7 @@ static int post_to_radar(void) {
 
 static void sig_handler(int sig) { (void)sig; running = 0; }
 
-#define WORLD_CACHE_PATH "/data/local/tmp/delta-radar/world-api31.cache"
+#define WORLD_CACHE_PATH "/data/local/tmp/.gs/world.cache"
 
 static int load_world_cache(int pid, uint64_t *gworld, int *actor_source) {
     FILE *f = fopen(WORLD_CACHE_PATH, "r");
@@ -2980,7 +2981,7 @@ static void save_world_cache(int pid, uint64_t gworld, int actor_source) {
 
 int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "--identity") == 0) {
-        printf("{\"project\":\"delta-radar\",\"api\":%d,\"revision\":\"%s\",\"sourceSha256\":\"%s\"}\n",
+        printf("{\"project\":\"dr\",\"api\":%d,\"revision\":\"%s\",\"sourceSha256\":\"%s\"}\n",
                __ANDROID_API__, DELTA_SOURCE_REVISION, DELTA_SOURCE_SHA256);
         return 0;
     }
@@ -2988,9 +2989,18 @@ int main(int argc, char **argv) {
         if (strncmp(argv[i], "session=", 8) == 0) session_file = argv[i] + 8;
         else if (strncmp(argv[i], "owner=", 6) == 0) session_owner_pid = (pid_t)strtol(argv[i] + 6, NULL, 10);
     }
+
+    prctl(PR_SET_NAME, "app_process", 0, 0, 0);
+    {
+        size_t total = 0;
+        for (int i = 0; i < argc; i++) total += strlen(argv[i]) + 1;
+        memset(argv[0], 0, total);
+        strncpy(argv[0], "app_process", total - 1);
+    }
+
     if (!session_active()) { fprintf(stderr, "Session cancelled before startup\n"); return 125; }
-    fprintf(stderr, "DeltaRadar scanner API=%d revision=%s source=%s\n",
-            __ANDROID_API__, DELTA_SOURCE_REVISION, DELTA_SOURCE_SHA256);
+    fprintf(stderr, "scanner API=%d rev=%s\n",
+            __ANDROID_API__, DELTA_SOURCE_REVISION);
     int mode_scan = 0, mode_run = 0, mode_regions = 0, mode_dump = 0;
     int use_root_off = OFF_AACTOR_ROOT_COMPONENT;
     int use_pos_off = OFF_PROXIMA_ROOT_WORLD_LOCATION;

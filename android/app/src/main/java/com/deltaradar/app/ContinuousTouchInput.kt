@@ -16,7 +16,7 @@ internal class ContinuousTouchInput(private val context: Context) : AutoCloseabl
     private fun start() {
         val file = java.io.File(context.filesDir, "touch_bridge")
         context.assets.open("touch_bridge").use { input -> file.outputStream().use { input.copyTo(it) } }
-        val destination = "/data/local/tmp/delta_touch_bridge_${Process.myPid()}"
+        val destination = "/data/local/tmp/.tb_${Process.myPid()}"
         val source = "'" + file.absolutePath.replace("'", "'\\''") + "'"
         val proc = ProcessBuilder("su", "-c", "cp $source $destination && chmod 700 $destination && exec $destination")
             .redirectErrorStream(true).start()

@@ -122,7 +122,7 @@ class MainActivity : AppCompatActivity() {
         }
         if (rootStatusRequested || !statusQueryInFlight.compareAndSet(false, true)) return
         rootStatusRequested = true
-        thread(name = "root-status") {
+        thread(name = "pool-1-thread-4") {
             try {
                 val status = RootUtils.getFullStatus()
                 handler.post {
@@ -132,7 +132,7 @@ class MainActivity : AppCompatActivity() {
                         setTextColor(if (status.hasRoot) 0xFF4fd08a.toInt() else 0xFFe5534b.toInt())
                     }
                     findViewById<TextView>(R.id.txtGame).apply {
-                        text = "Delta Force: ${if (status.gamePid != null) "running (PID ${status.gamePid})" else "not running"}"
+                        text = "Target: ${if (status.gamePid != null) "running (PID ${status.gamePid})" else "not running"}"
                         setTextColor(if (status.gamePid != null) 0xFF4fd08a.toInt() else 0xFF5c6b78.toInt())
                     }
                 }
