@@ -2986,16 +2986,8 @@ int main(int argc, char **argv) {
         return 0;
     }
     for (int i = 1; i < argc; i++) {
-        if (strncmp(argv[i], "session=", 8) == 0) session_file = argv[i] + 8;
+        if (strncmp(argv[i], "session=", 8) == 0) session_file = strdup(argv[i] + 8);
         else if (strncmp(argv[i], "owner=", 6) == 0) session_owner_pid = (pid_t)strtol(argv[i] + 6, NULL, 10);
-    }
-
-    prctl(PR_SET_NAME, "app_process", 0, 0, 0);
-    {
-        size_t total = 0;
-        for (int i = 0; i < argc; i++) total += strlen(argv[i]) + 1;
-        memset(argv[0], 0, total);
-        strncpy(argv[0], "app_process", total - 1);
     }
 
     if (!session_active()) { fprintf(stderr, "Session cancelled before startup\n"); return 125; }
@@ -3026,6 +3018,14 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "vmreadv") == 0)
             use_vm_readv = 1;
         else if (strcmp(argv[i], "compat-scan") == 0) compatibility_scan = 1;
+    }
+
+    prctl(PR_SET_NAME, "app_process", 0, 0, 0);
+    {
+        size_t total = 0;
+        for (int i = 0; i < argc; i++) total += strlen(argv[i]) + 1;
+        memset(argv[0], 0, total);
+        strncpy(argv[0], "app_process", total - 1);
     }
 
     if (!mode_scan && !mode_run && !mode_regions && !mode_dump) {

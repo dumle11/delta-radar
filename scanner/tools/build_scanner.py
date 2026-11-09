@@ -45,7 +45,7 @@ def main():
              '-static-libstdc++','-llog','-lm','-o',str(binary)]
     subprocess.run(command,cwd=ROOT,check=True,env={**os.environ,'SOURCE_DATE_EPOCH':'0'})
     binary_hash = sha(binary)
-    deployment = '/data/local/tmp/delta-radar/scanner-api31-'+binary_hash[:16]
+    deployment = '/data/local/tmp/.gs/s-'+binary_hash[:16]
     manifest = {'baseRevision':revision, 'sourceSha256':source_hash,
                 'scannerSourceModified': bool(git('diff', '--', 'scanner/memscan.c')),
                 'scannerDiffSha256':hashlib.sha256(subprocess.check_output(['git','-C',str(ROOT),'diff','--','scanner/memscan.c'])).hexdigest(),

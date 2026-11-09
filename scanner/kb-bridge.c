@@ -21,6 +21,7 @@
  *   1/2/3       → weapon slots
  *   4           → knife
  *   Esc         → back/cancel
+ *   CapsLock    → silent step
  *
  * Calibrated for OnePlus 7T (2400x1080 landscape, rotation=1,
  * raw panel 1080x2400). All positions are fractional (0.0-1.0)
@@ -64,7 +65,8 @@
 #define SLOT_GADGET    13
 #define SLOT_WEAPON    14
 #define SLOT_BACK      15
-#define NUM_SLOTS      16
+#define SLOT_SILENT    16
+#define NUM_SLOTS      17
 
 /* ==================== HUD POSITIONS (fractional) ====================
  * Mapped from firing-range screenshot on OnePlus 7T (2400x1080).
@@ -81,8 +83,8 @@
 #define LOOK_CY         0.40f
 
 /* Right fire button (large circle, auto-ADS) */
-#define FIRE_R_X        0.650f
-#define FIRE_R_Y        0.590f
+#define FIRE_R_X        0.853f
+#define FIRE_R_Y        0.731f
 
 /* Sight / ADS button (X icon when active, far right edge) */
 #define ADS_X           0.943f
@@ -97,12 +99,12 @@
 #define LEAN_R_Y        0.417f
 
 /* Reload (two bullets icon, below fire, above Gadget 2) */
-#define RELOAD_X        0.650f
-#define RELOAD_Y        0.700f
+#define RELOAD_X        0.779f
+#define RELOAD_Y        0.836f
 
 /* Interact - ? button (doors, containers) */
-#define INTERACT_X      0.650f
-#define INTERACT_Y      0.470f
+#define INTERACT_X      0.701f
+#define INTERACT_Y      0.350f
 
 /* Pickup - gun/item prompt button (above ? button) */
 #define PICKUP_X        0.650f
@@ -148,8 +150,12 @@
 #define KNIFE_Y         0.667f
 
 /* Back / cancel */
-#define BACK_X          0.025f
-#define BACK_Y          0.040f
+#define BACK_X          0.945f
+#define BACK_Y          0.078f
+
+/* Silent step (toggle) */
+#define SILENT_X        0.953f
+#define SILENT_Y        0.236f
 
 /* Mouse sensitivity: raw mouse units per screen pixel of drag */
 #define MOUSE_SENS      3.0f
@@ -293,7 +299,7 @@ static int find_devices(void) {
         if (fd < 0) continue;
         char name[128] = {0};
         ioctl(fd, EVIOCGNAME(sizeof(name)), name);
-        if (strstr(name, "Delta") || strstr(name, "uinput")) { close(fd); continue; }
+        if (strstr(name, "virtual") || strstr(name, "uinput")) { close(fd); continue; }
         unsigned long props = 0;
         ioctl(fd, EVIOCGPROP(sizeof(props)), &props);
         if (props & (1UL << INPUT_PROP_DIRECT)) { close(fd); continue; }
@@ -325,10 +331,10 @@ static int setup_virtual(void) {
                   ABS_MT_POSITION_Y, ABS_MT_TOUCH_MAJOR};
     for (unsigned i = 0; i < sizeof(axes)/sizeof(*axes); i++) ioctl(virtual_fd, UI_SET_ABSBIT, axes[i]);
     struct uinput_user_dev dev = {0};
-    snprintf(dev.name, sizeof(dev.name), "Delta KB Bridge");
+    snprintf(dev.name, sizeof(dev.name), "virtual-input");
     dev.id.bustype = BUS_VIRTUAL; dev.id.vendor = 0x18d1;
     dev.id.product = 0xd17b; dev.id.version = 1;
-    dev.absmax[ABS_MT_SLOT] = 9;
+    dev.absmax[ABS_MT_SLOT] = NUM_SLOTS - 1;
     dev.absmax[ABS_MT_TRACKING_ID] = 65535;
     dev.absmax[ABS_MT_POSITION_X] = RAW_XMAX;
     dev.absmax[ABS_MT_POSITION_Y] = RAW_YMAX;
@@ -424,6 +430,9 @@ static void handle_key(int code, int value) {
 
     /* Back / cancel */
     case KEY_ESC: if (fresh) tap(SLOT_BACK, BACK_X, BACK_Y); break;
+
+    /* Silent step */
+    case KEY_CAPSLOCK: if (fresh) tap(SLOT_SILENT, SILENT_X, SILENT_Y); break;
     }
 }
 

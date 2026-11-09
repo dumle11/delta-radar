@@ -76,7 +76,7 @@ static int setup(void){
  if(ioctl(virtual_fd,UI_SET_EVBIT,EV_SYN)<0||ioctl(virtual_fd,UI_SET_EVBIT,EV_KEY)<0||ioctl(virtual_fd,UI_SET_EVBIT,EV_ABS)<0||ioctl(virtual_fd,UI_SET_PROPBIT,INPUT_PROP_DIRECT)<0)return 0;
  int keys[]={BTN_TOUCH,BTN_TOOL_FINGER,KEY_BACK,KEY_APPSELECT,KEY_F4};for(unsigned i=0;i<sizeof(keys)/sizeof(*keys);i++)if(ioctl(virtual_fd,UI_SET_KEYBIT,keys[i])<0)return 0;
  int axes[]={ABS_MT_SLOT,ABS_MT_TRACKING_ID,ABS_MT_POSITION_X,ABS_MT_POSITION_Y,ABS_MT_TOUCH_MAJOR,ABS_MT_TOUCH_MINOR};for(unsigned i=0;i<sizeof(axes)/sizeof(*axes);i++)if(ioctl(virtual_fd,UI_SET_ABSBIT,axes[i])<0)return 0;
- struct uinput_user_dev dev={0};snprintf(dev.name,sizeof(dev.name),"Delta Touch Bridge");dev.id.bustype=BUS_VIRTUAL;dev.id.vendor=0x18d1;dev.id.product=0xd17a;dev.id.version=1;
+ struct uinput_user_dev dev={0};snprintf(dev.name,sizeof(dev.name),"virtual-touchscreen");dev.id.bustype=BUS_VIRTUAL;dev.id.vendor=0x18d1;dev.id.product=0xd17a;dev.id.version=1;
  dev.absmax[ABS_MT_SLOT]=SLOTS-1;dev.absmin[ABS_MT_TRACKING_ID]=0;dev.absmax[ABS_MT_TRACKING_ID]=65535;dev.absmax[ABS_MT_POSITION_X]=raw_xmax;dev.absmax[ABS_MT_POSITION_Y]=raw_ymax;dev.absmax[ABS_MT_TOUCH_MAJOR]=255;dev.absmax[ABS_MT_TOUCH_MINOR]=255;
  if(write(virtual_fd,&dev,sizeof(dev))!=sizeof(dev)||ioctl(virtual_fd,UI_DEV_CREATE)<0)return 0;
  return 1;
