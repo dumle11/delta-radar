@@ -63,6 +63,12 @@
                 android:text="Visual" android:textSize="13sp" android:textColor="#5c6b78"
                 android:gravity="center" android:clickable="true" android:focusable="true" />
 
+            <TextView android:id="@+id/tabAim"
+                android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="match_parent"
+                android:text="Aim" android:textSize="13sp" android:textColor="#5c6b78"
+                android:gravity="center" android:clickable="true" android:focusable="true" />
+
             <TextView android:id="@+id/tabLogs"
                 android:layout_width="0dp" android:layout_weight="1"
                 android:layout_height="match_parent"
@@ -208,6 +214,25 @@
                         <SeekBar android:id="@+id/lineThicknessSeek"
                             android:layout_width="match_parent" android:layout_height="36dp"
                             android:max="275" android:progress="50" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="8dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:orientation="horizontal" android:gravity="center_vertical">
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:text="Loot / container opacity"
+                                android:textColor="#c8d6e0" android:textSize="13sp" />
+                            <TextView android:id="@+id/lootOpacityValue"
+                                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                                android:text="100%" android:textColor="#4fd08a"
+                                android:textSize="12sp" android:textStyle="bold" />
+                        </LinearLayout>
+                        <SeekBar android:id="@+id/lootOpacitySeek"
+                            android:layout_width="match_parent" android:layout_height="36dp"
+                            android:max="90" android:progress="90" />
                     </LinearLayout>
 
                     <!-- Divider -->
@@ -466,9 +491,6 @@
                             android:layout_height="match_parent" android:layout_margin="1dp"
                             android:gravity="center" android:text="Boxes" android:textSize="10sp"
                             android:textColor="#0a0e12" android:background="#4fd08a" />
-                        <TextView android:id="@+id/lootModeMarker"
-                            android:layout_width="0dp" android:layout_weight="0"
-                            android:layout_height="match_parent" android:visibility="gone" />
                     </LinearLayout>
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="28dp"
@@ -495,6 +517,199 @@
                             android:layout_margin="1dp" android:gravity="center" android:text="Orange"
                             android:textSize="9sp" android:textColor="#0a0e12" android:background="#FF8C42" />
                     </LinearLayout>
+                </LinearLayout>
+            </ScrollView>
+
+            <!-- Aim tab -->
+            <ScrollView android:id="@+id/aimScroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="10dp"
+                    android:background="#0a0e12">
+
+                    <!-- Enable aim -->
+                    <LinearLayout
+                        android:layout_width="match_parent" android:layout_height="40dp"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:paddingLeft="4dp" android:paddingRight="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:text="Aim assist"
+                            android:textColor="#c8d6e0" android:textSize="13sp" />
+                        <Switch android:id="@+id/aimEnabled"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#1E2940" android:layout_marginTop="4dp"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Target types -->
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="TARGETS" android:textColor="#e5534b"
+                        android:textSize="10sp" android:textStyle="bold"
+                        android:letterSpacing="0.1" android:paddingLeft="4dp"
+                        android:layout_marginBottom="6dp" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:paddingLeft="4dp" android:paddingRight="4dp">
+                        <CheckBox android:id="@+id/aimBots"
+                            android:layout_width="wrap_content" android:layout_height="32dp"
+                            android:text="Bots" android:textColor="#c8d6e0" android:textSize="12sp" />
+                        <CheckBox android:id="@+id/aimEnemies"
+                            android:layout_width="wrap_content" android:layout_height="32dp"
+                            android:text="Enemy players" android:textColor="#c8d6e0" android:textSize="12sp" />
+                        <CheckBox android:id="@+id/aimFriendlies"
+                            android:layout_width="wrap_content" android:layout_height="32dp"
+                            android:text="Friendlies" android:textColor="#c8d6e0" android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#1E2940" android:layout_marginTop="4dp"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Bone selector -->
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="AIM BONE" android:textColor="#e5534b"
+                        android:textSize="10sp" android:textStyle="bold"
+                        android:letterSpacing="0.1" android:paddingLeft="4dp"
+                        android:layout_marginBottom="6dp" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="32dp"
+                        android:orientation="horizontal" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="8dp">
+                        <TextView android:id="@+id/aimBoneHead"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Head" android:textSize="10sp"
+                            android:textColor="#c8d6e0" android:background="#1E2940"
+                            android:clickable="true" android:focusable="true" />
+                        <TextView android:id="@+id/aimBoneChest"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Chest" android:textSize="10sp"
+                            android:textColor="#c8d6e0" android:background="#1E2940"
+                            android:clickable="true" android:focusable="true" />
+                        <TextView android:id="@+id/aimBoneBody"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Body" android:textSize="10sp"
+                            android:textColor="#0a0e12" android:background="#4fd08a"
+                            android:clickable="true" android:focusable="true" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#1E2940" android:layout_marginBottom="8dp" />
+
+                    <!-- Show FOV circle -->
+                    <LinearLayout
+                        android:layout_width="match_parent" android:layout_height="40dp"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:paddingLeft="4dp" android:paddingRight="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:text="Show FOV circle"
+                            android:textColor="#c8d6e0" android:textSize="13sp" />
+                        <Switch android:id="@+id/aimCircle"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <!-- FOV slider -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginTop="4dp"
+                        android:layout_marginBottom="8dp">
+                        <TextView android:id="@+id/aimFovLabel"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Aim FOV radius: 15%" android:textColor="#c8d6e0"
+                            android:textSize="13sp" />
+                        <SeekBar android:id="@+id/aimFovSlider"
+                            android:layout_width="match_parent" android:layout_height="36dp"
+                            android:max="40" android:progress="10" />
+                    </LinearLayout>
+
+                    <!-- Strength slider -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="vertical" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="8dp">
+                        <TextView android:id="@+id/aimStrengthLabel"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Aim response: 100%" android:textColor="#c8d6e0"
+                            android:textSize="13sp" />
+                        <SeekBar android:id="@+id/aimStrengthSlider"
+                            android:layout_width="match_parent" android:layout_height="36dp"
+                            android:max="90" android:progress="90" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#1E2940" android:layout_marginBottom="8dp" />
+
+                    <!-- Auto shoot -->
+                    <LinearLayout
+                        android:layout_width="match_parent" android:layout_height="40dp"
+                        android:orientation="horizontal" android:gravity="center_vertical"
+                        android:paddingLeft="4dp" android:paddingRight="4dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:text="Auto shoot"
+                            android:textColor="#c8d6e0" android:textSize="13sp" />
+                        <Switch android:id="@+id/aimAutoShoot"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#1E2940" android:layout_marginTop="4dp"
+                        android:layout_marginBottom="8dp" />
+
+                    <!-- Fire point -->
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="FIRE BUTTON POSITION" android:textColor="#e5534b"
+                        android:textSize="10sp" android:textStyle="bold"
+                        android:letterSpacing="0.1" android:paddingLeft="4dp"
+                        android:layout_marginBottom="6dp" />
+
+                    <TextView android:id="@+id/aimFirePointLabel"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:textColor="#5c6b78" android:textSize="11sp"
+                        android:paddingLeft="4dp" android:layout_marginBottom="6dp"
+                        android:text="Not set — aim only activates when you press fire" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="36dp"
+                        android:orientation="horizontal" android:paddingLeft="4dp"
+                        android:paddingRight="4dp" android:layout_marginBottom="8dp">
+                        <TextView android:id="@+id/aimSetFirePoint"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Tap to set" android:textSize="11sp"
+                            android:textColor="#0a0e12" android:background="#e5534b"
+                            android:clickable="true" android:focusable="true" />
+                        <TextView android:id="@+id/aimClearFirePoint"
+                            android:layout_width="0dp" android:layout_weight="1"
+                            android:layout_height="match_parent" android:layout_margin="1dp"
+                            android:gravity="center" android:text="Clear" android:textSize="11sp"
+                            android:textColor="#c8d6e0" android:background="#1E2940"
+                            android:clickable="true" android:focusable="true" />
+                    </LinearLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp"
+                        android:background="#1E2940" android:layout_marginBottom="8dp" />
+
+                    <!-- Status -->
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="STATUS" android:textColor="#4fd08a"
+                        android:textSize="10sp" android:textStyle="bold"
+                        android:letterSpacing="0.1" android:paddingLeft="4dp"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView android:id="@+id/aimStatus"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:textColor="#5c6b78" android:textSize="11sp"
+                        android:fontFamily="monospace" android:paddingLeft="4dp"
+                        android:text="Idle" />
                 </LinearLayout>
             </ScrollView>
 

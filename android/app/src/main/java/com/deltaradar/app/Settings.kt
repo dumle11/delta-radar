@@ -25,6 +25,9 @@ object Settings {
     private const val LOOT_FEATURES_KEY = "loot_features_v4"
     private const val LOOT_VALUE_FILTER_KEY = "loot_value_filter"
     private const val LOOT_MINIMUM_VALUE_KEY = "loot_minimum_unit_value"
+    private const val CONTAINER_GUIDE_KEY = "container_guide"
+    private const val CONTAINER_LINES_KEY = "container_lines"
+    private const val LOOT_OPACITY_KEY = "loot_opacity_percent"
 
     const val DEFAULT_PLAYER_COLOR: Int = 0xFFE5534B.toInt()
     const val DEFAULT_BOT_COLOR: Int = 0xFF46D9FF.toInt()
@@ -61,6 +64,16 @@ object Settings {
     private fun setShowLoot(ctx: Context, v: Boolean) { prefs(ctx).edit().putBoolean(SHOW_LOOT_KEY, v).apply() }
 
     fun lootValueFilter(ctx: Context) = prefs(ctx).getBoolean(LOOT_VALUE_FILTER_KEY, false)
+    fun containerGuide(ctx: Context) = prefs(ctx).getBoolean(CONTAINER_GUIDE_KEY, true)
+    fun setContainerGuide(ctx: Context, enabled: Boolean) {
+        prefs(ctx).edit().putBoolean(CONTAINER_GUIDE_KEY, enabled).apply()
+    }
+    fun containerLines(ctx: Context) = prefs(ctx).getBoolean(CONTAINER_LINES_KEY, false)
+    fun setContainerLines(ctx: Context, enabled: Boolean) {
+        prefs(ctx).edit().putBoolean(CONTAINER_LINES_KEY, enabled).apply()
+    }
+    fun lootOpacityPercent(ctx: Context) = prefs(ctx).getInt(LOOT_OPACITY_KEY, 100).coerceIn(10, 100)
+    fun setLootOpacityPercent(ctx: Context, v: Int) { prefs(ctx).edit().putInt(LOOT_OPACITY_KEY, v.coerceIn(10, 100)).apply() }
     fun setLootValueFilter(ctx: Context, enabled: Boolean) {
         prefs(ctx).edit().putBoolean(LOOT_VALUE_FILTER_KEY, enabled).apply()
     }
@@ -162,5 +175,40 @@ object Settings {
     fun setEntityFeature(ctx: Context, type: EntityType, feature: Int, enabled: Boolean) {
         val old = entityFeatures(ctx, type)
         setEntityFeatures(ctx, type, if (enabled) old or feature else old and feature.inv())
+    }
+
+    // ── Aim assist ──────────────────────────────────────────────
+    fun aimEnabled(ctx: Context) = prefs(ctx).getBoolean("aim_enabled", false)
+    fun setAimEnabled(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("aim_enabled", value).apply() }
+    fun aimCircle(ctx: Context) = prefs(ctx).getBoolean("aim_circle", true)
+    fun setAimCircle(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("aim_circle", value).apply() }
+    fun aimFov(ctx: Context) = prefs(ctx).getInt("aim_fov", 15).coerceIn(5, 45)
+    fun setAimFov(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_fov", value.coerceIn(5, 45)).apply() }
+    fun aimStrength(ctx: Context) = prefs(ctx).getInt("aim_response_percent", 100).coerceIn(10, 100)
+    fun setAimStrength(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_response_percent", value.coerceIn(10, 100)).apply() }
+    fun aimTargetMask(ctx: Context) = prefs(ctx).getInt("aim_target_mask", AimMath.BOTS or AimMath.ENEMIES) and AimMath.ALL_TYPES
+    fun setAimTargetMask(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_target_mask", value and AimMath.ALL_TYPES).apply() }
+
+    const val AIM_BONE_HEAD = 0
+    const val AIM_BONE_CHEST = 1
+    const val AIM_BONE_BODY = 2
+    fun aimBone(ctx: Context) = prefs(ctx).getInt("aim_bone", AIM_BONE_BODY).coerceIn(AIM_BONE_HEAD, AIM_BONE_BODY)
+    fun setAimBone(ctx: Context, value: Int) { prefs(ctx).edit().putInt("aim_bone", value.coerceIn(AIM_BONE_HEAD, AIM_BONE_BODY)).apply() }
+
+    fun autoShoot(ctx: Context) = prefs(ctx).getBoolean("auto_shoot", false)
+    fun setAutoShoot(ctx: Context, value: Boolean) { prefs(ctx).edit().putBoolean("auto_shoot", value).apply() }
+    fun aimLookPoint(ctx: Context) = prefs(ctx).let {
+        AimMath.lookPointOrDefault(it.getFloat("aim_look_x", .75f), it.getFloat("aim_look_y", .3f))
+    }
+    fun aimFirePoint(ctx: Context): Pair<Float, Float>? = prefs(ctx).let {
+        if (!it.contains("aim_fire_x")) null else it.getFloat("aim_fire_x", 0f) to it.getFloat("aim_fire_y", 0f)
+    }
+    fun resetAimLookPoint(ctx: Context) {
+        prefs(ctx).edit().remove("aim_look_x").remove("aim_look_y").apply()
+    }
+    fun setAimTouchPoint(ctx: Context, fire: Boolean, x: Float, y: Float) {
+        val key = if (fire) "aim_fire" else "aim_look"
+        prefs(ctx).edit().putFloat("${key}_x", x.coerceIn(.02f, .98f))
+            .putFloat("${key}_y", y.coerceIn(.02f, .98f)).apply()
     }
 }

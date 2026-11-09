@@ -34,9 +34,13 @@ class EnemyLinesView(context: Context) : View(context) {
         val boneScreenY: FloatArray? = null,
         val boneParents: IntArray? = null,
         val bodyBounds: FloatArray? = null,
-        val team: Int = 2
+        val team: Int = 2,
+        val containerGuide: Boolean = false,
+        val lootValue: Double = Double.NaN
     )
-    data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>)
+    data class Frame(val me: Pair<Float, Float>?, val enemies: List<Enemy>,
+                     val suppressNonPlayer: Boolean = false,
+                     val nearbyContainerCount: Int = 0)
 
     @Volatile var drawnFrames = 0L
         private set
@@ -47,6 +51,10 @@ class EnemyLinesView(context: Context) : View(context) {
     private var botFeatures = 0
     private var teammateFeatures = 0
     private var lootFeatures = 0
+    private var containerGuideEnabled = false
+    private var containerFeatures = LootDisplayPolicy.CONTAINER_FEATURES_BASE
+    private var lootOpacityPercent = 100
+    private var lootMinimumValue = 20_000
     private var playerColor = Settings.DEFAULT_PLAYER_COLOR
     private var botColor = Settings.DEFAULT_BOT_COLOR
     private var teammateColor = Settings.DEFAULT_TEAMMATE_COLOR
@@ -93,18 +101,29 @@ class EnemyLinesView(context: Context) : View(context) {
 
     fun setStyle(pFeatures: Int, bFeatures: Int, tFeatures: Int, lFeatures: Int,
                  pColor: Int, bColor: Int, tColor: Int, lColor: Int,
-                 pMode: Int, bMode: Int, tMode: Int, lMode: Int, thickness: Float) {
+                 pMode: Int, bMode: Int, tMode: Int, lMode: Int, thickness: Float,
+                 containerGuideEnabled: Boolean = false,
+                 containerFeatures: Int = LootDisplayPolicy.CONTAINER_FEATURES_BASE,
+                 lootOpacityPercent: Int = 100,
+                 lootMinimumValue: Int = 20_000) {
         if (playerFeatures == pFeatures && botFeatures == bFeatures && teammateFeatures == tFeatures &&
             lootFeatures == lFeatures && playerColor == pColor && botColor == bColor &&
             teammateColor == tColor && lootColor == lColor &&
             playerDrawMode == pMode && botDrawMode == bMode && teammateDrawMode == tMode &&
             lootDrawMode == lMode &&
-            thicknessScale == thickness) return
+            thicknessScale == thickness && this.containerGuideEnabled == containerGuideEnabled &&
+            this.containerFeatures == containerFeatures &&
+            this.lootOpacityPercent == lootOpacityPercent &&
+            this.lootMinimumValue == lootMinimumValue) return
+        this.containerGuideEnabled = containerGuideEnabled
+        this.containerFeatures = containerFeatures
+        this.lootOpacityPercent = lootOpacityPercent
+        this.lootMinimumValue = lootMinimumValue
         playerFeatures = pFeatures; botFeatures = bFeatures; teammateFeatures = tFeatures; lootFeatures = lFeatures
         playerColor = pColor; botColor = bColor; teammateColor = tColor; lootColor = lColor
         playerDrawMode = pMode; botDrawMode = bMode; teammateDrawMode = tMode; lootDrawMode = lMode
         thicknessScale = thickness.coerceIn(0.25f, 3f)
-        if (pFeatures == 0 && bFeatures == 0 && tFeatures == 0 && lFeatures == 0) clear()
+        if (pFeatures == 0 && bFeatures == 0 && tFeatures == 0 && lFeatures == 0 && !containerGuideEnabled) clear()
         else if (frame != null) invalidate()
     }
 
@@ -139,7 +158,14 @@ class EnemyLinesView(context: Context) : View(context) {
         }
         val padding = 2f * density
         var occupiedCount = 0
-        for (enemy in data.enemies) {
+        val sorted = data.enemies.sortedBy { e ->
+            when {
+                e.kind == "player" && e.team != 1 -> 2
+                e.kind == "player" || e.kind == "ai" -> 1
+                else -> 0
+            }
+        }
+        for (enemy in sorted) {
             // Tracers, labels and boxes must use the same camera sample.
             // Blending screen coordinates adds lag during every camera turn.
             val ex = enemy.screenX * width
@@ -148,19 +174,35 @@ class EnemyLinesView(context: Context) : View(context) {
             val my = me.second * height
             val isLoot = enemy.kind == "loot" || enemy.kind == "objective"
             val isPlayer = enemy.kind == "player"
-            val entityColor = when {
-                isLoot -> lootColor
+            val isCombatant = isPlayer || enemy.kind == "ai"
+            if (data.suppressNonPlayer && !isCombatant) continue
+            val guide = enemy.containerGuide && containerGuideEnabled
+            if ((guide || isLoot) && enemy.distanceMeters > LootDisplayPolicy.LOOT_MAX_DISTANCE) continue
+            val baseColor = when {
+                guide || isLoot -> LootDisplayPolicy.lootDistanceColor(enemy.distanceMeters)
                 enemy.team == 1 -> teammateColor
                 isPlayer -> playerColor
                 else -> botColor
             }
+            val highValue = !guide && isLoot && enemy.lootValue > lootMinimumValue.toDouble()
+            val medValue = !guide && isLoot && !highValue && enemy.lootValue >= 10_000.0
+            val notableValue = highValue || medValue
+            val valueColor = when {
+                highValue -> 0xFFE5534B.toInt()
+                medValue -> 0xFFFFD700.toInt()
+                else -> baseColor
+            }
+            val entityColor = if ((guide || isLoot) && !notableValue && lootOpacityPercent < 100)
+                LootDisplayPolicy.applyOpacity(baseColor, lootOpacityPercent) else valueColor
             val entityMode = when {
+                guide -> Settings.DRAW_MODE_BOXES
                 isLoot -> lootDrawMode
                 enemy.team == 1 -> teammateDrawMode
                 isPlayer -> playerDrawMode
                 else -> botDrawMode
             }
             val features = when {
+                guide -> containerFeatures
                 isLoot -> lootFeatures
                 enemy.team == 1 -> teammateFeatures
                 isPlayer -> playerFeatures
@@ -177,8 +219,10 @@ class EnemyLinesView(context: Context) : View(context) {
             var labelCenterX = ex
             var labelTopY = ey
 
+            val applyLootFade = (guide || isLoot) && !notableValue && lootOpacityPercent < 100
             if (drawTracer) {
-                linePaint.color = 0xD5090D16.toInt()
+                val shadowAlpha = if (applyLootFade) (0xD5 * lootOpacityPercent / 100).coerceIn(1, 255) else 0xD5
+                linePaint.color = (shadowAlpha shl 24) or 0x090D16
                 linePaint.strokeWidth = 3f * density * thicknessScale
                 canvas.drawLine(mx, my, ex, ey, linePaint)
                 linePaint.color = entityColor
@@ -186,6 +230,8 @@ class EnemyLinesView(context: Context) : View(context) {
                 canvas.drawLine(mx, my, ex, ey, linePaint)
             }
 
+            val savedBoxShadowAlpha = boxShadowPaint.alpha
+            if (applyLootFade) boxShadowPaint.alpha = (savedBoxShadowAlpha * lootOpacityPercent / 100).coerceIn(1, 255)
             var boxHeightForLabel = 48f * density
             if (enemy.kind == "loot" && !enemy.onScreen && drawBody) {
                 // A nearby safe's actor origin can be below the camera's view.
@@ -215,17 +261,24 @@ class EnemyLinesView(context: Context) : View(context) {
                 val feetX = enemy.feetX * width
                 val feetY = enemy.feetY * height
                 val body = enemy.bodyBounds
-                val top = body?.get(1)?.times(height) ?: minOf(headY, feetY)
-                val bottom = body?.get(3)?.times(height) ?: maxOf(headY, feetY)
+                var top = body?.get(1)?.times(height) ?: minOf(headY, feetY)
+                var bottom = body?.get(3)?.times(height) ?: maxOf(headY, feetY)
+                // Container markers must remain visible at navigation range.
+                if (guide && bottom - top < 8f * density) {
+                    val center = (top + bottom) * 0.5f
+                    top = center - 4f * density
+                    bottom = center + 4f * density
+                }
                 val boxH = (bottom - top).coerceAtLeast(1f)
                 boxHeightForLabel = boxH
                 val centerX = body?.let { (it[0] + it[2]) * width * .5f } ?: ((headX + feetX) * .5f)
                 labelCenterX = centerX
                 labelTopY = top
 
+                val strokeScale = if (guide) 0.5f else 1f
                 boxPaint.color = entityColor
-                boxPaint.strokeWidth = density * thicknessScale
-                boxShadowPaint.strokeWidth = 2.5f * density * thicknessScale
+                boxPaint.strokeWidth = density * thicknessScale * strokeScale
+                boxShadowPaint.strokeWidth = 2.5f * density * thicknessScale * strokeScale
                 val healthBoxW = boxH * when (enemy.kind) {
                     "vehicle" -> 0.9f
                     "loot" -> 0.65f
@@ -248,11 +301,11 @@ class EnemyLinesView(context: Context) : View(context) {
                         }
                     }
                     Settings.DRAW_MODE_BOXES -> {
-                        val boxW = boxH * when (enemy.kind) {
+                        val boxW = (boxH * when (enemy.kind) {
                             "vehicle" -> 0.9f
                             "loot" -> 0.65f
                             else -> 0.45f
-                        }
+                        }).coerceAtLeast(if (guide) 8f * density else 0f)
                         val left = centerX - boxW * 0.5f
                         val right = centerX + boxW * 0.5f
                         val bounds = enemy.bodyBounds
@@ -278,10 +331,34 @@ class EnemyLinesView(context: Context) : View(context) {
                 }
             }
 
+            if (applyLootFade) boxShadowPaint.alpha = savedBoxShadowAlpha
             if (drawName || drawDistance) {
-                val labelScale = if (enemy.onScreen)
+                val applyLootAlpha = (guide || isLoot) && !notableValue && lootOpacityPercent < 100
+                val savedTextColor = textPaint.color
+                val savedTextAlpha = textPaint.alpha
+                val savedBgColor = labelBgPaint.color
+                val savedBgAlpha = labelBgPaint.alpha
+                val savedOutlineColor = labelOutline.color
+                val savedOutlineAlpha = labelOutline.alpha
+                if (highValue) {
+                    textPaint.color = 0xFFFFFFFF.toInt()
+                    labelBgPaint.color = 0xE6801A1A.toInt()
+                    labelOutline.color = 0xFFE5534B.toInt()
+                } else if (medValue) {
+                    textPaint.color = 0xFF000000.toInt()
+                    labelBgPaint.color = 0xE6FFD700.toInt()
+                    labelOutline.color = 0xFFCCAA00.toInt()
+                }
+                if (applyLootAlpha) {
+                    textPaint.alpha = (textPaint.alpha * lootOpacityPercent / 100).coerceIn(1, 255)
+                    labelBgPaint.alpha = (labelBgPaint.alpha * lootOpacityPercent / 100).coerceIn(1, 255)
+                    labelOutline.alpha = (labelOutline.alpha * lootOpacityPercent / 100).coerceIn(1, 255)
+                }
+                var labelScale = if (enemy.onScreen)
                     (boxHeightForLabel / (72f * density)).coerceIn(0.45f, 1f)
                 else 0.6f
+                if (guide && enemy.distanceMeters > 60.0)
+                    labelScale *= (1f - ((enemy.distanceMeters - 60.0) / 140.0).coerceIn(0.0, 0.4).toFloat())
                 textPaint.textSize = 9f * resources.displayMetrics.scaledDensity * labelScale
                 labelOutline.strokeWidth = density * thicknessScale
                 textPaint.getFontMetrics(fontMetrics)
@@ -326,7 +403,36 @@ class EnemyLinesView(context: Context) : View(context) {
                     canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelOutline)
                     canvas.drawText(distance, distanceLeft + scaledPadding, ly + scaledPadding - metrics.ascent, textPaint)
                 }
+                if (notableValue) {
+                    textPaint.color = savedTextColor
+                    labelBgPaint.color = savedBgColor
+                    labelOutline.color = savedOutlineColor
+                }
+                if (applyLootAlpha) {
+                    textPaint.alpha = savedTextAlpha
+                    labelBgPaint.alpha = savedBgAlpha
+                    labelOutline.alpha = savedOutlineAlpha
+                }
             }
+        }
+        if (data.nearbyContainerCount > 0 && containerGuideEnabled) {
+            val count = data.nearbyContainerCount
+            val countText = "$count container${if (count > 1) "s" else ""} nearby"
+            val savedSize = textPaint.textSize
+            val savedColor = textPaint.color
+            textPaint.textSize = 10f * resources.displayMetrics.scaledDensity
+            textPaint.getFontMetrics(fontMetrics)
+            val tw = textPaint.measureText(countText) + 2 * padding
+            val th = fontMetrics.descent - fontMetrics.ascent + 2 * padding
+            val cx = width - tw - 8 * density
+            val cy = 8 * density
+            rounded.set(cx, cy, cx + tw, cy + th)
+            canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelBgPaint)
+            canvas.drawRoundRect(rounded, 3 * density, 3 * density, labelOutline)
+            textPaint.color = LootDisplayPolicy.lootDistanceColor(0.0)
+            canvas.drawText(countText, cx + padding, cy + padding - fontMetrics.ascent, textPaint)
+            textPaint.color = savedColor
+            textPaint.textSize = savedSize
         }
     }
 }

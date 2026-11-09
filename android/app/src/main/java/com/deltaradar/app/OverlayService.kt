@@ -35,6 +35,8 @@ class OverlayService : Service() {
     private var overlaysHidden = false
     private val lifecycle = OverlayLifecycle()
     private var enemyLinesView: EnemyLinesView? = null
+    private var aimFovView: AimFovView? = null
+    private lateinit var aimController: AimController
     val overlayDrawnFrames: Long get() = enemyLinesView?.drawnFrames ?: 0L
     val overlayVisible: Boolean get() = enemyLinesView?.visibility == View.VISIBLE
     @Volatile var lastPublishedSequence: Long = -1L
@@ -48,6 +50,9 @@ class OverlayService : Service() {
     private val projectionWork = ConflatedWork()
     private val publicationGate = FramePublicationGate()
     @Volatile private var lastProjectionLogAt = 0L
+    @Volatile private var knownHipFov = 0.0
+    @Volatile private var adsLatch = false
+    @Volatile private var adsDivergenceCount = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -55,14 +60,16 @@ class OverlayService : Service() {
         super.onCreate()
         wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         sInstance = this
+        aimController = AimController(this)
         bubbleX = dpToPx(8); bubbleY = dpToPx(100)
         ensureEnemyLinesWindow()
+        ensureAimWindow()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_SHOW -> { lifecycle.show(); overlaysHidden = false; if (bubbleView == null && !isMenuOpen) showBubble() }
-            ACTION_HIDE -> { lifecycle.hide(); stopOverlayRefresh(); overlaysHidden = true; enemyLinesView?.clear(); removeBubble(); if (isMenuOpen) closeMenu(false) }
+            ACTION_HIDE -> { overlaysHidden = true; aimController.paused = true; aimController.frame = null; aimFovView?.visibility = View.GONE; lifecycle.hide(); stopOverlayRefresh(); enemyLinesView?.clear(); removeBubble(); if (isMenuOpen) closeMenu(false) }
             else -> { lifecycle.show(); overlaysHidden = false; if (bubbleView == null && !isMenuOpen) showBubble() }
         }
         return START_NOT_STICKY
@@ -85,6 +92,24 @@ class OverlayService : Service() {
         }
         try { wm.addView(view, params); enemyLinesView = view }
         catch (e: Exception) { android.util.Log.w("DeltaRadar", "Overlay window: ${e.message}") }
+    }
+
+    private fun ensureAimWindow() {
+        if (aimFovView != null || !AndroidSettings.canDrawOverlays(this)) return
+        val view = AimFovView(this)
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START; x = 0; y = 0
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        try { wm.addView(view, params); aimFovView = view }
+        catch (e: Exception) { android.util.Log.w("DeltaRadar", "Aim FOV window: ${e.message}") }
     }
 
     /** May be called by the feed thread. Intermediate snapshots are not queued. */
@@ -156,12 +181,32 @@ class OverlayService : Service() {
             return
         }
 
+        val entityFov = cameraFov
         var cameraRoll = 0.0
         selectedCamera?.let { camera ->
             mx=camera.x; my=camera.y; mz=camera.z; myYaw=camera.yaw; myPitch=camera.pitch
             cameraRoll=camera.roll; cameraFov=camera.fov
         }
         val hfovDeg = cameraFov
+        if (!adsLatch) {
+            if (selectedCamera != null && hfovDeg < entityFov - 0.5) {
+                adsDivergenceCount++
+                if (adsDivergenceCount >= 8) {
+                    adsLatch = true
+                    knownHipFov = entityFov
+                }
+            } else {
+                adsDivergenceCount = 0
+                knownHipFov = hfovDeg
+            }
+        } else {
+            adsDivergenceCount = 0
+            if (selectedCamera == null || hfovDeg >= knownHipFov - 0.5) {
+                adsLatch = false
+                knownHipFov = hfovDeg
+            }
+        }
+        val isADS = adsLatch
         val metrics = android.util.DisplayMetrics()
         @Suppress("DEPRECATION")
         wm.defaultDisplay.getRealMetrics(metrics)
@@ -174,11 +219,37 @@ class OverlayService : Service() {
         val botFeatures = Settings.entityFeatures(this, Settings.EntityType.BOT)
         val teammateFeatures = Settings.entityFeatures(this, Settings.EntityType.TEAMMATE)
         val lootFeatures = Settings.entityFeatures(this, Settings.EntityType.LOOT)
+        val containerGuide = Settings.containerGuide(this)
+        val containerLines = Settings.containerLines(this)
         val lootValueFilter = Settings.lootValueFilter(this)
         val lootMinimumValue = Settings.lootMinimumValue(this)
         val renderDist = com.deltaradar.app.Settings.renderDistance(this).toDouble()
 
+        var suppressNonPlayer = isADS
+        var nearbyContainerCount = 0
+        for (i in 0 until entities.length()) {
+            val ent = entities.getJSONObject(i)
+            if (ent.optString("id") == selfId) continue
+            val kind = ent.optString("kind", "player")
+            val dx = ent.optDouble("x") - mx; val dy = ent.optDouble("y") - my; val dz = ent.optDouble("z") - mz
+            val distSq = dx * dx + dy * dy + dz * dz
+            if (kind == "player" && ent.optInt("team", 0) != 1 && distSq < LootDisplayPolicy.SUPPRESS_RADIUS_SQ)
+                suppressNonPlayer = true
+            if (kind == "loot" && ent.optBoolean("lootContainer", false) &&
+                !ent.optBoolean("lootContentsKnown", false) && distSq < LootDisplayPolicy.NEARBY_CONTAINER_RADIUS_SQ)
+                nearbyContainerCount++
+        }
+
         val enemyFrames = mutableListOf<EnemyLinesView.Enemy>()
+        val aimTargets = mutableListOf<AimMath.Target>()
+        val hasCameraFeed = selectedCamera != null
+        val cameraTime = selectedCamera?.let { it.sampledAt.toDouble() } ?: 0.0
+        val cameraSampledAt = selectedCamera?.sampledAt ?: 0L
+        val sourceFrame = snapshot.json.optLong("frame", 0)
+        val selfDead = snapshot.json.optBoolean("selfDead", false)
+        val collectAimTargets = !selfDead && hasCameraFeed &&
+            cameraTime > 0 && (Settings.aimEnabled(this) || Settings.autoShoot(this))
+        val aimBonePref = Settings.aimBone(this)
         val rejected = mutableListOf<String>()
         // Snapshot validation already guarantees unique IDs; do not rebuild a map.
         for (i in 0 until entities.length()) {
@@ -187,15 +258,24 @@ class OverlayService : Service() {
             if (id == selfId) continue
             val kind = ent.optString("kind", "player")
             var name = ent.optString("name", id)
+            var lootDisplay: LootDisplayPolicy.Display? = null
+            var lootUnitValue = Double.NaN
             if (kind == "loot") {
                 val value = ent.optDouble("lootUnitValue", Double.NaN)
+                lootUnitValue = value
                 val known = ent.optBoolean("lootValueKnown", false)
                 val source = ent.optString("lootValueSource", "")
-                if (!LootValuePolicy.passes(lootValueFilter, lootMinimumValue, known, source, value)) {
-                    rejected.add("$id:loot-value"); continue
+                val contentsKnown = ent.optBoolean("lootContentsKnown", false)
+                lootDisplay = LootDisplayPolicy.select(ent.optBoolean("lootContainer", false),
+                    containerGuide, containerLines, contentsKnown, lootFeatures, lootValueFilter, lootMinimumValue, known, source, value)
+                if (lootDisplay == null) {
+                    rejected.add("$id:loot-hidden"); continue
                 }
-                if (LootValuePolicy.knownValue(known, source, value))
-                    name += " · ${LootValuePolicy.label(value)} each"
+                if (!lootDisplay.containerGuide && LootValuePolicy.knownValue(known, source, value)) {
+                    val isContainer = ent.optBoolean("lootContainer", false)
+                    name = if (isContainer) "$name · ${LootValuePolicy.label(value)}"
+                           else LootValuePolicy.label(value)
+                }
             }
             val combat = kind == "player" || kind == "ai"
             if (combat && ent.has("sampledElapsedMs") && projectionTime - ent.getLong("sampledElapsedMs") !in 0..150) continue
@@ -222,7 +302,61 @@ class OverlayService : Service() {
             if (ent.optBoolean("dead", false) || (healthKnown && health <= 0.01)) {
                 rejected.add("$id:dead"); continue
             }
+            if (collectAimTargets && (kind == "player" || kind == "ai") &&
+                healthKnown && health > .01 &&
+                (sourceFrame == 0L || ent.optLong("seenFrame", -1L) == sourceFrame) &&
+                ent.optBoolean("positionPlaintext", false)) {
+                val hh = ent.optDouble("halfHeight", 1.05).coerceIn(.5, 2.5)
+                var bodyX = dx; var bodyY = dy; var bodyZ = dz + hh * .2
+                if (ent.optBoolean("bonesVerified")) {
+                    val joints = ent.optJSONArray("bones")
+                    val boneCount = ent.optInt("boneCount")
+                    if ((boneCount == 17 || boneCount == 19) && joints != null && joints.length() >= boneCount) {
+                        fun bonePos(index: Int): Triple<Double, Double, Double>? {
+                            val j = joints.optJSONArray(index) ?: return null
+                            if (j.length() != 3) return null
+                            val bx = j.optDouble(0); val by = j.optDouble(1); val bz = j.optDouble(2)
+                            if (!bx.isFinite() || !by.isFinite() || !bz.isFinite()) return null
+                            if (kotlin.math.abs(bx - ex) > 2.5 || kotlin.math.abs(by - ey) > 2.5 || kotlin.math.abs(bz - baseZ) > 2.5) return null
+                            return Triple(bx + motion.x - mx, by + motion.y - my, bz + motion.z - mz)
+                        }
+                        val headIndex = if (boneCount == 19) 7 else 6
+                        val chestIndex = 2
+                        val chosen = when (aimBonePref) {
+                            Settings.AIM_BONE_HEAD -> bonePos(headIndex) ?: bonePos(chestIndex)
+                            Settings.AIM_BONE_CHEST -> bonePos(chestIndex)
+                            else -> null
+                        } ?: run {
+                            val pelvis = joints.optJSONArray(0)
+                            val spine = joints.optJSONArray(1)
+                            if (pelvis?.length() == 3 && spine?.length() == 3) {
+                                val bx = pelvis.optDouble(0) * .35 + spine.optDouble(0) * .65
+                                val by = pelvis.optDouble(1) * .35 + spine.optDouble(1) * .65
+                                val bz = pelvis.optDouble(2) * .35 + spine.optDouble(2) * .65
+                                if (bx.isFinite() && by.isFinite() && bz.isFinite() &&
+                                    kotlin.math.abs(bx - ex) < 2.5 && kotlin.math.abs(by - ey) < 2.5 && kotlin.math.abs(bz - baseZ) < 2.5)
+                                    Triple(bx + motion.x - mx, by + motion.y - my, bz + motion.z - mz)
+                                else null
+                            } else null
+                        }
+                        if (chosen != null) { bodyX = chosen.first; bodyY = chosen.second; bodyZ = chosen.third }
+                    }
+                }
+                val body = ProjectionMath.project(bodyX, bodyY, bodyZ,
+                    myYaw, myPitch, hfovDeg, screenAspect, clipToEdge = false, rollDegrees = cameraRoll)
+                val aimTop = ProjectionMath.project(dx, dy, dz + hh,
+                    myYaw, myPitch, hfovDeg, screenAspect)
+                val aimBottom = ProjectionMath.project(dx, dy, dz - hh,
+                    myYaw, myPitch, hfovDeg, screenAspect)
+                val aimHeight = kotlin.math.abs(aimBottom.y - aimTop.y)
+                aimTargets.add(AimMath.Target(id, body.x, body.y,
+                    aimHeight * .12f / screenAspect.toFloat(), aimHeight * .2f,
+                    kind, team, onScreen = body.onScreen && aimTop.inFront && aimBottom.inFront,
+                    positionPlaintext = true, renderedOnScreen = true,
+                    visibleFromCamera = true, name = name))
+            }
             val features = when {
+                lootDisplay != null -> lootDisplay.features
                 !isCombatEntity -> lootFeatures
                 team == 1 -> teammateFeatures
                 kind == "player" -> playerFeatures
@@ -284,12 +418,19 @@ class OverlayService : Service() {
                 healthKnown = healthKnown,
                 boneScreenX = bonePose?.x, boneScreenY = bonePose?.y,
                 boneParents = bonePose?.parents, bodyBounds = bounds,
-                team = team
+                team = team, containerGuide = lootDisplay?.containerGuide == true,
+                lootValue = lootUnitValue
             ))
         }
 
         enemyFrames.sortBy { it.distanceMeters }
-        val frame = EnemyLinesView.Frame(meScreen, enemyFrames)
+        val frame = EnemyLinesView.Frame(meScreen, enemyFrames, suppressNonPlayer, nearbyContainerCount)
+        val sourceTimeMs = System.currentTimeMillis()
+        aimController.frame = if (selfDead || aimTargets.isEmpty())
+            null
+        else AimController.Frame(aimTargets, metrics.widthPixels, metrics.heightPixels, sourceTimeMs,
+            cameraTime, myYaw, myPitch, hfovDeg, sourceTimeMs,
+            rotation = (getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation)
         // Building and writing a full per-entity signature whenever any actor
         // crossed a one-metre boundary produced logcat traffic almost every
         // frame. On this device that competes with rendering and the scanner.
@@ -321,11 +462,21 @@ class OverlayService : Service() {
                 com.deltaradar.app.Settings.botDrawMode(this),
                 com.deltaradar.app.Settings.teammateDrawMode(this),
                 com.deltaradar.app.Settings.lootDrawMode(this),
-                com.deltaradar.app.Settings.lineThicknessPercent(this) / 100f)
+                com.deltaradar.app.Settings.lineThicknessPercent(this) / 100f,
+                containerGuideEnabled = containerGuide,
+                containerFeatures = LootDisplayPolicy.containerFeatures(containerLines),
+                lootOpacityPercent = com.deltaradar.app.Settings.lootOpacityPercent(this),
+                lootMinimumValue = lootMinimumValue)
             val deadline = minOf(snapshot.status.receivedAtMs + EntitySnapshotStore.FRESHNESS_MS,
                 selectedCamera?.let { it.sampledAt + 101 } ?: Long.MAX_VALUE)
             view.submit(frame, snapshot.status.receivedAtMs, deadline)
             lastPublishedSequence = snapshot.status.sequence
+            aimController.paused = overlaysHidden || isMenuOpen
+            aimFovView?.apply {
+                radiusPercent = Settings.aimFov(this@OverlayService)
+                visibility = if (!aimController.paused && aimController.gameForeground &&
+                    Settings.aimCircle(this@OverlayService)) View.VISIBLE else View.GONE
+            }
             CaptureDiagnostics.record(this, "latest-overlay-frame.json") {
                 org.json.JSONObject().put("sequence", snapshot.status.sequence)
                     .put("dataReceivedElapsedMs", snapshot.status.receivedAtMs)
@@ -335,7 +486,8 @@ class OverlayService : Service() {
                         enemyFrames.forEach { e -> list.put(org.json.JSONObject()
                             .put("id", e.id).put("kind", e.kind).put("team", e.team)
                             .put("x", e.screenX.toDouble()).put("y", e.screenY.toDouble())
-                            .put("onScreen", e.onScreen).put("distance", e.distanceMeters)) }
+                            .put("onScreen", e.onScreen).put("distance", e.distanceMeters)
+                            .put("containerGuide", e.containerGuide)) }
                     }).put("rejected", org.json.JSONArray(rejected))
             }
         }
@@ -400,6 +552,8 @@ class OverlayService : Service() {
     private fun openMenu() {
         if (isMenuOpen) return
         isMenuOpen = true
+        aimController.paused = true
+        aimFovView?.visibility = View.GONE
         stopOverlayRefresh()
         enemyLinesView?.clear()
         removeBubble()
@@ -420,6 +574,7 @@ class OverlayService : Service() {
         setupTabs(view)
         setupGeneralTab(view)
         setupVisualTab(view)
+        setupAimTab(view)
 
         view.findViewById<View>(R.id.btnClose).setOnClickListener { closeMenu() }
         view.findViewById<View>(R.id.menuBackground).setOnClickListener { closeMenu() }
@@ -429,8 +584,8 @@ class OverlayService : Service() {
     }
 
     private fun setupTabs(view: View) {
-        val tabs = listOf(R.id.tabGeneral, R.id.tabVisual, R.id.tabLogs)
-        val panels = listOf(R.id.generalScroll, R.id.visualScroll, R.id.logScroll)
+        val tabs = listOf(R.id.tabGeneral, R.id.tabVisual, R.id.tabAim, R.id.tabLogs)
+        val panels = listOf(R.id.generalScroll, R.id.visualScroll, R.id.aimScroll, R.id.logScroll)
         fun select(index: Int) {
             selectedTab = index
             tabs.forEachIndexed { i, id ->
@@ -508,6 +663,22 @@ class OverlayService : Service() {
             }
         })
 
+        val opacitySeek = view.findViewById<SeekBar>(R.id.lootOpacitySeek)
+        val opacityValue = view.findViewById<TextView>(R.id.lootOpacityValue)
+        val currentOpacity = com.deltaradar.app.Settings.lootOpacityPercent(this)
+        opacitySeek.max = 90
+        opacitySeek.progress = currentOpacity - 10
+        opacityValue.text = "$currentOpacity%"
+        opacitySeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onStartTrackingTouch(s: SeekBar) {}
+            override fun onProgressChanged(s: SeekBar, v: Int, fromUser: Boolean) {
+                opacityValue.text = "${v + 10}%"
+            }
+            override fun onStopTrackingTouch(s: SeekBar) {
+                com.deltaradar.app.Settings.setLootOpacityPercent(this@OverlayService, s.progress + 10)
+            }
+        })
+
         // Player draw mode + color
         setupDrawModeButtons(view,
             listOf(R.id.playerModeOff, R.id.playerModeLines, R.id.playerModeBoxes, R.id.playerModeSkeleton),
@@ -565,7 +736,7 @@ class OverlayService : Service() {
         }
 
         setupDrawModeButtons(view,
-            listOf(R.id.lootModeOff, R.id.lootModeLines, R.id.lootModeBoxes, R.id.lootModeMarker),
+            listOf(R.id.lootModeOff, R.id.lootModeLines, R.id.lootModeBoxes),
             com.deltaradar.app.Settings.lootDrawMode(this), Settings.LOOT_COLOR
         ) { mode -> com.deltaradar.app.Settings.setLootDrawMode(this, mode) }
         val lootPresets = listOf(
@@ -580,6 +751,135 @@ class OverlayService : Service() {
                 com.deltaradar.app.Settings.setLootColor(this, c)
             }
         }
+    }
+
+    private fun setupAimTab(view: View) {
+        val aimEnabled = view.findViewById<android.widget.Switch>(R.id.aimEnabled)
+        aimEnabled.isChecked = Settings.aimEnabled(this)
+        aimEnabled.setOnCheckedChangeListener { _, checked -> Settings.setAimEnabled(this, checked) }
+
+        val aimBots = view.findViewById<android.widget.CheckBox>(R.id.aimBots)
+        val aimEnemies = view.findViewById<android.widget.CheckBox>(R.id.aimEnemies)
+        val aimFriendlies = view.findViewById<android.widget.CheckBox>(R.id.aimFriendlies)
+        val mask = Settings.aimTargetMask(this)
+        aimBots.isChecked = mask and AimMath.BOTS != 0
+        aimEnemies.isChecked = mask and AimMath.ENEMIES != 0
+        aimFriendlies.isChecked = mask and AimMath.FRIENDLIES != 0
+        fun saveMask() {
+            var m = 0
+            if (aimBots.isChecked) m = m or AimMath.BOTS
+            if (aimEnemies.isChecked) m = m or AimMath.ENEMIES
+            if (aimFriendlies.isChecked) m = m or AimMath.FRIENDLIES
+            Settings.setAimTargetMask(this, m)
+        }
+        aimBots.setOnCheckedChangeListener { _, _ -> saveMask() }
+        aimEnemies.setOnCheckedChangeListener { _, _ -> saveMask() }
+        aimFriendlies.setOnCheckedChangeListener { _, _ -> saveMask() }
+
+        val boneButtons = listOf(
+            view.findViewById<TextView>(R.id.aimBoneHead),
+            view.findViewById<TextView>(R.id.aimBoneChest),
+            view.findViewById<TextView>(R.id.aimBoneBody)
+        )
+        fun updateBone(sel: Int) {
+            Settings.setAimBone(this, sel)
+            boneButtons.forEachIndexed { i, btn ->
+                val active = i == sel
+                btn.setBackgroundColor(if (active) 0xFF4fd08a.toInt() else 0xFF1E2940.toInt())
+                btn.setTextColor(if (active) 0xFF0a0e12.toInt() else 0xFFc8d6e0.toInt())
+            }
+        }
+        updateBone(Settings.aimBone(this))
+        boneButtons.forEachIndexed { i, btn -> btn.setOnClickListener { updateBone(i) } }
+
+        val aimCircle = view.findViewById<android.widget.Switch>(R.id.aimCircle)
+        aimCircle.isChecked = Settings.aimCircle(this)
+        aimCircle.setOnCheckedChangeListener { _, checked -> Settings.setAimCircle(this, checked) }
+
+        val fovLabel = view.findViewById<TextView>(R.id.aimFovLabel)
+        val fovSlider = view.findViewById<SeekBar>(R.id.aimFovSlider)
+        val currentFov = Settings.aimFov(this)
+        fovLabel.text = "Aim FOV radius: $currentFov%"
+        fovSlider.max = 40
+        fovSlider.progress = currentFov - 5
+        fovSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onStartTrackingTouch(s: SeekBar) {}
+            override fun onProgressChanged(s: SeekBar, v: Int, fromUser: Boolean) {
+                fovLabel.text = "Aim FOV radius: ${v + 5}%"
+            }
+            override fun onStopTrackingTouch(s: SeekBar) {
+                Settings.setAimFov(this@OverlayService, s.progress + 5)
+            }
+        })
+
+        val strengthLabel = view.findViewById<TextView>(R.id.aimStrengthLabel)
+        val strengthSlider = view.findViewById<SeekBar>(R.id.aimStrengthSlider)
+        val currentStrength = Settings.aimStrength(this)
+        strengthLabel.text = "Aim response: $currentStrength%"
+        strengthSlider.max = 90
+        strengthSlider.progress = currentStrength - 10
+        strengthSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onStartTrackingTouch(s: SeekBar) {}
+            override fun onProgressChanged(s: SeekBar, v: Int, fromUser: Boolean) {
+                strengthLabel.text = "Aim response: ${v + 10}%"
+            }
+            override fun onStopTrackingTouch(s: SeekBar) {
+                Settings.setAimStrength(this@OverlayService, s.progress + 10)
+            }
+        })
+
+        val autoShoot = view.findViewById<android.widget.Switch>(R.id.aimAutoShoot)
+        autoShoot.isChecked = Settings.autoShoot(this)
+        autoShoot.setOnCheckedChangeListener { _, checked -> Settings.setAutoShoot(this, checked) }
+
+        val fireLabel = view.findViewById<TextView>(R.id.aimFirePointLabel)
+        fun updateFireLabel() {
+            val fp = Settings.aimFirePoint(this)
+            fireLabel.text = if (fp != null) "Fire point: ${(fp.first * 100).toInt()}%, ${(fp.second * 100).toInt()}%"
+            else "Not set — aim only activates when you press fire"
+        }
+        updateFireLabel()
+
+        view.findViewById<TextView>(R.id.aimSetFirePoint).setOnClickListener {
+            closeMenu(false)
+            startFirePointCapture { x, y ->
+                Settings.setAimTouchPoint(this, true, x, y)
+                showBubble()
+            }
+        }
+        view.findViewById<TextView>(R.id.aimClearFirePoint).setOnClickListener {
+            val prefs = getSharedPreferences("delta_radar", MODE_PRIVATE)
+            prefs.edit().remove("aim_fire_x").remove("aim_fire_y").apply()
+            updateFireLabel()
+        }
+
+        view.findViewById<TextView>(R.id.aimStatus).text = aimController.status
+    }
+
+    private fun startFirePointCapture(callback: (Float, Float) -> Unit) {
+        val wm = getSystemService(WINDOW_SERVICE) as android.view.WindowManager
+        val metrics = resources.displayMetrics
+        val overlay = View(this).apply {
+            setBackgroundColor(0x44FF0000)
+            setOnTouchListener { v, event ->
+                if (event.action == android.view.MotionEvent.ACTION_DOWN) {
+                    val nx = event.rawX / metrics.widthPixels
+                    val ny = event.rawY / metrics.heightPixels
+                    wm.removeView(v)
+                    callback(nx, ny)
+                    true
+                } else false
+            }
+        }
+        val params = android.view.WindowManager.LayoutParams(
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            android.graphics.PixelFormat.TRANSLUCENT
+        )
+        wm.addView(overlay, params)
     }
 
     private fun setupEntityFeaturePanel(view: View, containerId: Int, type: Settings.EntityType) {
@@ -672,6 +972,45 @@ class OverlayService : Service() {
     }
 
     private fun setupLootValueControls(container: LinearLayout) {
+        val guideToggle = TextView(this).apply {
+            textSize = 11f
+            setTextColor(0xFF4FD08A.toInt())
+            setPadding(0, dpToPx(8), 0, dpToPx(8))
+            isClickable = true
+            isFocusable = true
+        }
+        fun refreshGuide() {
+            guideToggle.text = "Container guide: " + if (Settings.containerGuide(this)) "ON" else "OFF"
+        }
+        guideToggle.setOnClickListener {
+            Settings.setContainerGuide(this, !Settings.containerGuide(this))
+            refreshGuide()
+        }
+        refreshGuide()
+        container.addView(guideToggle)
+
+        val linesToggle = TextView(this).apply {
+            textSize = 11f
+            setTextColor(0xFF4FD08A.toInt())
+            setPadding(0, dpToPx(4), 0, dpToPx(4))
+            isClickable = true
+            isFocusable = true
+        }
+        fun refreshLines() {
+            linesToggle.text = "  Container lines: " + if (Settings.containerLines(this)) "ON" else "OFF"
+        }
+        linesToggle.setOnClickListener {
+            Settings.setContainerLines(this, !Settings.containerLines(this))
+            refreshLines()
+        }
+        refreshLines()
+        container.addView(linesToggle)
+
+        container.addView(TextView(this).apply {
+            text = "Loot and containers colored by distance: green (close), orange (mid), red (far), faint past 200m. Looted containers disappear. All non-player overlays hide when an enemy player is within 50m or when ADS. Nearby container count shown in top-right."
+            textSize = 10f
+            setTextColor(0xFF9AAAB8.toInt())
+        })
         val toggle = TextView(this).apply {
             textSize = 11f
             setTextColor(0xFFc8d6e0.toInt())
@@ -712,7 +1051,7 @@ class OverlayService : Service() {
             })
         })
         container.addView(TextView(this).apply {
-            text = "Filters ordinary collectibles by individual value. Keys, gear and unknown contents/prices are hidden when ON."
+            text = "Filters ordinary collectibles by individual value. Keys, gear and unknown prices are hidden when ON. Container guide bypasses this filter."
             textSize = 10f
             setTextColor(0xFF9AAAB8.toInt())
         })
@@ -760,8 +1099,11 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         lifecycle.destroy()
+        aimController.close()
         stopOverlayRefresh()
         projectionWork.close()
+        aimFovView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
+        aimFovView = null
         enemyLinesView?.let { try { wm.removeView(it) } catch (_: Exception) {} }
         enemyLinesView = null
         removeBubble()

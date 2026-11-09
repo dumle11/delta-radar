@@ -87,7 +87,19 @@ No new phone interaction or game-memory capture was performed to create this
 checkpoint. The user's last report is that the APK works; the installation-time
 stopped-process observations are historical, not current phone state.
 
-## Next work: stability, then measured performance
+## Requested offline feature investigation — visible enemy fill
+
+The user requested red fill on exposed enemy surfaces alongside boxes/skeleton,
+authorized offline preparation, and offered match assistance on 2026-11-05.
+[Offline findings and the test plan](ENEMY_VISIBLE_FILL.md) identify an
+effect/second-material-pass lead in the bundled SDK. No usable pixel mask or
+working fill has been verified. Only an offline SDK indexer and notes were
+added; runtime source, deployment pins and installed binaries are unchanged.
+Automated game-memory diagnostics have not resumed. Any coordinated feature
+investigation should be recorded separately from accepted-pair stability and
+performance measurements below.
+
+## Stability, then measured performance
 
 At the next coordinated device session, verify the current pair's lifecycle,
 reconnect/expiry and root-toast behavior first. Keep the installed accepted pair
@@ -104,7 +116,17 @@ This is a measurement plan, not a new benchmark result. No performance claim or
 optimization is justified by the current documentation cleanup. Host tests
 cannot establish on-phone drawing latency, heat, battery drain or crash freedom.
 
-## Scope and unresolved container discovery
+## Container navigation candidate — 2026-11-05
+
+The user requested lines and boxes to container locations for learning new
+maps, without contents values. The Android candidate adds an independent
+yellow container guide, default ON, that bypasses loose-loot enable/mode/value
+settings and uses existing scanner container flags. Native source and deployment
+pins are unchanged. See [behavior, validation and coverage limits](CONTAINER_GUIDE.md).
+This candidate has not been installed or checked in a live match; the accepted
+installed pair above remains unchanged.
+
+## Scope and unresolved container contents discovery
 
 Lines, boxes and ordinary loot markers/values are active scope. Auto-loot,
 backpack replacement and enhanced aim assist are cancelled. Historical pickup

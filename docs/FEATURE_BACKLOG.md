@@ -3,6 +3,23 @@
 Current branch, accepted build, and remaining work are recorded in
 [CURRENT_STATUS.md](CURRENT_STATUS.md).
 
+## Requested — visible enemy fill, 2026-11-04
+
+Red fill should cover only exposed enemy surfaces and work alongside boxes or
+skeleton. Offline SDK investigation found an effect/second-material-pass lead,
+but no verified visible-pixel source or working fill implementation. See
+[the investigation and coordinated test plan](ENEMY_VISIBLE_FILL.md).
+The user offered match assistance for 2026-11-05. No live diagnostics or
+deployment were performed for this request.
+
+## Implemented candidate — container navigation, 2026-11-05
+
+Independent yellow lines, boxes, names and distance to detected containers,
+including unopened containers with unknown contents. Works with ordinary loot
+OFF and value filtering ON. Android-only; uses the existing scanner feed.
+See [container guide behavior and verification limits](CONTAINER_GUIDE.md).
+Built locally; installation and unfamiliar-map coverage remain unverified.
+
 ## Dismissed — 2026-11-04
 
 - **Auto-loot / Take best loot**, including automatic backpack replacement:

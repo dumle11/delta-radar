@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "status": "offline SDK declarations only; no working fill implementation",
+  "limitations": [
+    "No device access or game execution is performed by this tool.",
+    "Native exec offsets identify dumped entry points, not verified function bodies.",
+    "Field offsets and bit indices are unverified on the running mobile build.",
+    "Visibility timestamps and line-of-sight results are not per-pixel masks."
+  ],
+  "sourceSha256": {
+    "CppSDK/SDK/DFMGameplay_classes.hpp": "0788a5011efec48e9777d2cfe5a481403ffd7aad1a650e5734dec86fcef94cfa",
+    "CppSDK/SDK/Engine_classes.hpp": "b01a7d999c5f82ea36f3d56a38dfd4fa41594ec6d83850a95d63831d4fd6b4ff",
+    "CppSDK/SDK/GPGameplay_classes.hpp": "d4ac5373246b213076fbae7584550d13f52ff5179734d2e9a5dabb0049d682ce",
+    "CppSDK/SDK/MetaDorian_classes.hpp": "10f5027f6cfaa739d99f7974d721e64f4f916f627fb2386af7adf02879b3ee9f"
+  },
+  "candidates": [
+    {
+      "owner": "DFMGameplay.DFMCharacter",
+      "member": "DFMOutLineEffectComponent",
+      "kind": "field",
+      "source": "CppSDK/SDK/DFMGameplay_classes.hpp",
+      "line": 19237,
+      "declaration": "class UDFMOutLineEffectComponent* DFMOutLineEffectComponent;",
+      "liveValidated": false,
+      "fieldOffset": "0x2508"
+    },
+    {
+      "owner": "DFMGameplay.DFMPlayerController",
+      "member": "LineOfSightToCharacter",
+      "kind": "function",
+      "source": "CppSDK/SDK/DFMGameplay_classes.hpp",
+      "line": 19072,
+      "declaration": "float LineOfSightToCharacter(const class ACHARACTER* Other, struct FVector* VisiblePoint, bool bCheckFoliage) const;",
+      "liveValidated": false,
+      "nativeExecOffset": "0x15CC1EC8"
+    },
+    {
+      "owner": "DFMGameplay.DFMPlayerController",
+      "member": "LineOfSightToLocation",
+      "kind": "function",
+      "source": "CppSDK/SDK/DFMGameplay_classes.hpp",
+      "line": 19077,
+      "declaration": "bool LineOfSightToLocation(const struct FVector& GoalLocation, bool bCheckFoliage) const;",
+      "liveValidated": false,
+      "nativeExecOffset": "0x15CC2008"
+    },
+    {
+      "owner": "Engine.Actor",
+      "member": "WasRecentlyRendered",
+      "kind": "function",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 1456,
+      "declaration": "bool WasRecentlyRendered(float Tolerance) const;",
+      "liveValidated": false,
+      "nativeExecOffset": "0x1B655F60"
+    },
+    {
+      "owner": "Engine.Material",
+      "member": "bDisableDepthTest",
+      "kind": "field",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 29797,
+      "declaration": "uint8 bDisableDepthTest : 1;",
+      "liveValidated": false,
+      "fieldOffset": "0x0284",
+      "bitIndex": 0
+    },
+    {
+      "owner": "Engine.PrimitiveComponent",
+      "member": "CustomDepthStencilValue",
+      "kind": "field",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 2577,
+      "declaration": "int32 CustomDepthStencilValue;",
+      "liveValidated": false,
+      "fieldOffset": "0x02AC"
+    },
+    {
+      "owner": "Engine.PrimitiveComponent",
+      "member": "CustomDepthStencilWriteMask",
+      "kind": "field",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 2575,
+      "declaration": "EERendererStencilMask CustomDepthStencilWriteMask;",
+      "liveValidated": false,
+      "fieldOffset": "0x02A8"
+    },
+    {
+      "owner": "Engine.PrimitiveComponent",
+      "member": "bRenderCustomDepth",
+      "kind": "field",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 2559,
+      "declaration": "uint8 bRenderCustomDepth : 1;",
+      "liveValidated": false,
+      "fieldOffset": "0x0296",
+      "bitIndex": 3
+    },
+    {
+      "owner": "Engine.SkinnedMeshComponent",
+      "member": "EfffectPassMaterial",
+      "kind": "field",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 12415,
+      "declaration": "class UMaterialInterface* EfffectPassMaterial;",
+      "liveValidated": false,
+      "fieldOffset": "0x0720"
+    },
+    {
+      "owner": "Engine.SkinnedMeshComponent",
+      "member": "SecondPassMaterials",
+      "kind": "field",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 12421,
+      "declaration": "TArray<class UMaterialInterface*> SecondPassMaterials;",
+      "liveValidated": false,
+      "fieldOffset": "0x0730"
+    },
+    {
+      "owner": "Engine.SkinnedMeshComponent",
+      "member": "SetMultiDrawEffect",
+      "kind": "function",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 12548,
+      "declaration": "void SetMultiDrawEffect(bool bDrawMultiEffect, bool bReverseCulling, bool bAllowOcclusionCull, bool bSkipBasePass);",
+      "liveValidated": false,
+      "nativeExecOffset": "0x1B793734"
+    },
+    {
+      "owner": "Engine.SkinnedMeshComponent",
+      "member": "SetSecondPassMaterial",
+      "kind": "function",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 12563,
+      "declaration": "void SetSecondPassMaterial(const TArray<class UMaterialInterface*>& InSecondPassMaterial, bool bInDrawSecondPass);",
+      "liveValidated": false,
+      "nativeExecOffset": "0x1B793A94"
+    },
+    {
+      "owner": "Engine.SkinnedMeshComponent",
+      "member": "bDrawEffectPass",
+      "kind": "field",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 12416,
+      "declaration": "uint8 bDrawEffectPass : 1;",
+      "liveValidated": false,
+      "fieldOffset": "0x0728",
+      "bitIndex": 0
+    },
+    {
+      "owner": "Engine.SkinnedMeshComponent",
+      "member": "bDrawSecondPassMaterial",
+      "kind": "field",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 12419,
+      "declaration": "uint8 bDrawSecondPassMaterial : 1;",
+      "liveValidated": false,
+      "fieldOffset": "0x0728",
+      "bitIndex": 3
+    },
+    {
+      "owner": "Engine.SkinnedMeshComponent",
+      "member": "bEffectPassNeedDepth",
+      "kind": "field",
+      "source": "CppSDK/SDK/Engine_classes.hpp",
+      "line": 12418,
+      "declaration": "uint8 bEffectPassNeedDepth : 1;",
+      "liveValidated": false,
+      "fieldOffset": "0x0728",
+      "bitIndex": 2
+    },
+    {
+      "owner": "GPGameplay.GPOutLineEffectComponent",
+      "member": "ActiveOutlineMeshList",
+      "kind": "field",
+      "source": "CppSDK/SDK/GPGameplay_classes.hpp",
+      "line": 42079,
+      "declaration": "TArray<TWeakObjectPtr<class UMeshComponent>> ActiveOutlineMeshList;",
+      "liveValidated": false,
+      "fieldOffset": "0x0280"
+    },
+    {
+      "owner": "GPGameplay.GPOutLineEffectComponent",
+      "member": "EnableOutlineHDStencilMaskIgnoreDepth",
+      "kind": "function",
+      "source": "CppSDK/SDK/GPGameplay_classes.hpp",
+      "line": 42103,
+      "declaration": "bool EnableOutlineHDStencilMaskIgnoreDepth();",
+      "liveValidated": false,
+      "nativeExecOffset": "0xC9C4ECC"
+    },
+    {
+      "owner": "GPGameplay.GPOutLineEffectComponent",
+      "member": "OutLineRed",
+      "kind": "field",
+      "source": "CppSDK/SDK/GPGameplay_classes.hpp",
+      "line": 42037,
+      "declaration": "class UMaterialInterface* OutLineRed;",
+      "liveValidated": false,
+      "fieldOffset": "0x0110"
+    },
+    {
+      "owner": "GPGameplay.GPOutLineEffectComponent",
+      "member": "PlayOutLineEffect",
+      "kind": "function",
+      "source": "CppSDK/SDK/GPGameplay_classes.hpp",
+      "line": 42123,
+      "declaration": "void PlayOutLineEffect(EEOutLineEffectType OutLineType);",
+      "liveValidated": false,
+      "nativeExecOffset": "0xC9C5068"
+    },
+    {
+      "owner": "MetaDorian.MTAPI_UPrimitiveComponent",
+      "member": "GetLastRenderTime",
+      "kind": "function",
+      "source": "CppSDK/SDK/MetaDorian_classes.hpp",
+      "line": 2553,
+      "declaration": "static float GetLastRenderTime(class UPrimitiveComponent* Self);",
+      "liveValidated": false,
+      "nativeExecOffset": "0x195B9E54"
+    },
+    {
+      "owner": "MetaDorian.MTAPI_UPrimitiveComponent",
+      "member": "GetLastRenderTimeOnScreen",
+      "kind": "function",
+      "source": "CppSDK/SDK/MetaDorian_classes.hpp",
+      "line": 2558,
+      "declaration": "static float GetLastRenderTimeOnScreen(class UPrimitiveComponent* Self);",
+      "liveValidated": false,
+      "nativeExecOffset": "0x195B9EF8"
+    }
+  ]
+}

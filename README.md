@@ -56,6 +56,11 @@ unknown. Automated game-memory diagnostics have not resumed.
 
 ## Build
 
+The local [container navigation candidate](docs/CONTAINER_GUIDE.md) adds
+**Visual → Loot → Container guide**: yellow lines, boxes, names and distance to
+detected containers, even with unknown contents or loose loot disabled. It uses
+the accepted scanner; this Android update has not been installed/live-verified.
+
 ```bash
 # Use a Java 17 JDK.
 ./android/gradlew -p android assembleDebug

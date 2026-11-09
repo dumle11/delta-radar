@@ -25,6 +25,7 @@ class LootValueDeviceTest {
     }
     @Test fun individualValuesFilterThroughActualOverlayService() {
         assumeTrue(AndroidSettings.canDrawOverlays(context))
+        val guide = Settings.containerGuide(context)
         val features = Settings.entityFeatures(context, Settings.EntityType.LOOT)
         val filter = Settings.lootValueFilter(context)
         val minimum = Settings.lootMinimumValue(context)
@@ -36,6 +37,7 @@ class LootValueDeviceTest {
         var feeder: Thread? = null
         try {
             capture.writeText("")
+            Settings.setContainerGuide(context, false)
             Settings.setEntityFeatures(context, Settings.EntityType.LOOT, Settings.ALL_FEATURES)
             Settings.setLootDrawMode(context, Settings.DRAW_MODE_BOXES)
             Settings.setLootValueFilter(context, true)
@@ -49,7 +51,8 @@ class LootValueDeviceTest {
                 {"id":"TEST-value-high","name":"TEST GOLD PRICE","kind":"loot","x":12,"y":0,"z":1,"lootUnitValue":57757,"lootValueKnown":true,"lootValueSource":"shop-dynamic-guide"},
                 {"id":"TEST-value-container","name":"TEST CONTAINER ITEM","kind":"loot","x":13,"y":0,"z":1,"lootUnitValue":25000,"lootValueKnown":true,"lootValueSource":"shop-dynamic-guide","lootContainer":true},
                 {"id":"TEST-value-unknown","name":"TEST UNKNOWN","kind":"loot","x":14,"y":0,"z":1,"lootUnitValue":90000,"lootValueKnown":false,"lootValueSource":"unknown"},
-                {"id":"TEST-value-static","name":"TEST STATIC PRICE","kind":"loot","x":15,"y":0,"z":1,"lootUnitValue":90000,"lootValueKnown":true,"lootValueSource":"initial-guide"}] }""".trimIndent()
+                {"id":"TEST-value-static","name":"TEST STATIC PRICE","kind":"loot","x":15,"y":0,"z":1,"lootUnitValue":90000,"lootValueKnown":true,"lootValueSource":"initial-guide"},
+                {"id":"TEST-value-unopened","name":"TEST UNOPENED CONTAINER","kind":"loot","x":16,"y":1,"z":1,"lootContainer":true,"lootValueKnown":false}] }""".trimIndent()
             val service = EntityFeedService.instance!!
             feeder = thread(isDaemon = true) {
                 while (keepFeeding.get()) { service.ingest(raw); SystemClock.sleep(20) }
@@ -65,10 +68,21 @@ class LootValueDeviceTest {
                 projected() == setOf("TEST-value-high", "TEST-value-container")
             }
             Settings.setLootValueFilter(context, false)
-            await("all-loot mode did not preserve unknown/cheap items") { projected()?.size == 6 }
+            await("all-loot mode did not preserve unknown/cheap items") { projected()?.size == 7 }
             Settings.setLootValueFilter(context, true)
             Settings.setLootMinimumValue(context, 50_000)
             await("50k threshold did not keep only the gold-price fixture") { projected() == setOf("TEST-value-high") }
+            Settings.setContainerGuide(context, true)
+            await("guide did not retain unopened and lower-value containers alongside valuable loot") {
+                projected() == setOf("TEST-value-high", "TEST-value-container", "TEST-value-unopened")
+            }
+            Settings.setEntityFeatures(context, Settings.EntityType.LOOT, 0)
+            await("container guide must work with loose loot OFF") {
+                projected() == setOf("TEST-value-container", "TEST-value-unopened") &&
+                    OverlayService.instance?.overlayVisible == true
+            }
+            Settings.setContainerGuide(context, false)
+            await("guide OFF and loot OFF must hide both containers") { projected() == emptySet<String>() }
         } finally {
             keepFeeding.set(false); feeder?.join(1000)
             instrumentation.runOnMainSync { OverlayService.stop(context); EntityFeedService.stop(context) }
@@ -76,11 +90,13 @@ class LootValueDeviceTest {
             Settings.setLootValueFilter(context, filter)
             Settings.setLootMinimumValue(context, minimum)
             Settings.setLootDrawMode(context, mode)
+            Settings.setContainerGuide(context, guide)
             if (!captureBefore) capture.delete()
         }
     }
     @Test fun valuableSafeBelowViewHasVisibleBodyOnlyEdgeMarker() {
         assumeTrue(AndroidSettings.canDrawOverlays(context))
+        val guide = Settings.containerGuide(context)
         val features = Settings.entityFeatures(context, Settings.EntityType.LOOT)
         val filter = Settings.lootValueFilter(context)
         val minimum = Settings.lootMinimumValue(context)
@@ -93,6 +109,7 @@ class LootValueDeviceTest {
         var feeder: Thread? = null
         try {
             capture.writeText("")
+            Settings.setContainerGuide(context, false)
             Settings.setEntityFeatures(context, Settings.EntityType.LOOT,
                 Settings.FEATURE_ENABLED or Settings.FEATURE_BODY)
             Settings.setLootDrawMode(context, Settings.DRAW_MODE_BOXES)
@@ -159,6 +176,7 @@ class LootValueDeviceTest {
             Settings.setLootMinimumValue(context, minimum)
             Settings.setLootDrawMode(context, mode)
             Settings.setLootColor(context, color)
+            Settings.setContainerGuide(context, guide)
             if (!captureBefore) capture.delete()
         }
     }
