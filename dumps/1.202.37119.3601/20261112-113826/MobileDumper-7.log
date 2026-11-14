@@ -1,0 +1,394 @@
+=== Dumper Info ===
+Dumper Name: MobileDumper-7
+Dumper Version: 1.2.1
+Dumper Repo: https://github.com/MJx0/MobileDumper-7
+==================
+=== Profile Info ===
+Game: com.proxima.dfm
+Version: 1.202.37119.3601
+Output: /data/local/tmp/MobileDumper-7-output/MobileDumper-7/com.proxima.dfm_v1.202.37119.3601_20261112-113826
+==================
+Initializing Unreal Module...
+=== Unreal Module ===
+Path: /data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so
+Start: 0x78B41D0000
+End: 0x78D6E00000
+Base: 0x78B41D0000
+Segments (51):
+[00]: 0x00000078b41d0000 - 0x00000078bca72000 | 0x00000000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[01]: 0x00000078bca72000 - 0x00000078bca73000 | 0x088a2000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[02]: 0x00000078bca73000 - 0x00000078bddb0000 | 0x088a3000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[03]: 0x00000078bddb0000 - 0x00000078bddb1000 | 0x09be0000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[04]: 0x00000078bddb1000 - 0x00000078bf45e000 | 0x09be1000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[05]: 0x00000078bf45e000 - 0x00000078bf45f000 | 0x0b28e000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[06]: 0x00000078bf45f000 - 0x00000078bf5fd000 | 0x0b28f000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[07]: 0x00000078bf5fd000 - 0x00000078bf5fe000 | 0x0b42d000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[08]: 0x00000078bf5fe000 - 0x00000078c438f000 | 0x0b42e000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[09]: 0x00000078c438f000 - 0x00000078c4390000 | 0x101bf000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[10]: 0x00000078c4390000 - 0x00000078c4849000 | 0x101c0000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[11]: 0x00000078c4849000 - 0x00000078c484a000 | 0x10679000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[12]: 0x00000078c484a000 - 0x00000078c493b000 | 0x1067a000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[13]: 0x00000078c493b000 - 0x00000078c493d000 | 0x1076b000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[14]: 0x00000078c493d000 - 0x00000078c54aa000 | 0x1076d000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[15]: 0x00000078c54aa000 - 0x00000078c54ab000 | 0x112da000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[16]: 0x00000078c54ab000 - 0x00000078c57a4000 | 0x112db000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[17]: 0x00000078c57a4000 - 0x00000078c57a5000 | 0x115d4000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[18]: 0x00000078c57a5000 - 0x00000078c5ad4000 | 0x115d5000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[19]: 0x00000078c5ad4000 - 0x00000078c5ad5000 | 0x11904000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[20]: 0x00000078c5ad5000 - 0x00000078c655a000 | 0x11905000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[21]: 0x00000078c655a000 - 0x00000078c655b000 | 0x1238a000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[22]: 0x00000078c655b000 - 0x00000078c775d000 | 0x1238b000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[23]: 0x00000078c775d000 - 0x00000078c775e000 | 0x1358d000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[24]: 0x00000078c775e000 - 0x00000078cf5c0000 | 0x1358e000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[25]: 0x00000078cf5c0000 - 0x00000078cf5c1000 | 0x1b3f0000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[26]: 0x00000078cf5c1000 - 0x00000078cf828000 | 0x1b3f1000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[27]: 0x00000078cf828000 - 0x00000078cf829000 | 0x1b658000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[28]: 0x00000078cf829000 - 0x00000078cf82c000 | 0x1b659000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[29]: 0x00000078cf82c000 - 0x00000078cf82e000 | 0x1b65c000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[30]: 0x00000078cf82e000 - 0x00000078cf82f000 | 0x1b65e000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[31]: 0x00000078cf82f000 - 0x00000078cf830000 | 0x1b65f000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[32]: 0x00000078cf830000 - 0x00000078cfb5c000 | 0x1b660000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[33]: 0x00000078cfb5c000 - 0x00000078cfb5d000 | 0x1b98c000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[34]: 0x00000078cfb5d000 - 0x00000078cfc25000 | 0x1b98d000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[35]: 0x00000078cfc25000 - 0x00000078cfc26000 | 0x1ba55000 | RWX | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[36]: 0x00000078cfc26000 - 0x00000078d018b000 | 0x1ba56000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[37]: 0x00000078d018b000 - 0x00000078d018e000 | 0x00000000 | ---
+[38]: 0x00000078d018e000 - 0x00000078d3736000 | 0x1bfba000 | RW- | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[39]: 0x00000078d3736000 - 0x00000078d3738000 | 0x00000000 | RW- | [[anon:.bss]]
+[40]: 0x00000078d3738000 - 0x00000078d3739000 | 0x00000000 | ---
+[41]: 0x00000078d3739000 - 0x00000078d3d47000 | 0x1f561000 | RW- | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[42]: 0x00000078d3d47000 - 0x00000078d452a000 | 0x00000000 | RW- | [[anon:.bss]]
+[43]: 0x00000078d452a000 - 0x00000078d4bc0000 | 0x00000000 | -W- | [[anon:.bss]]
+[44]: 0x00000078d4bc0000 - 0x00000078d4c23000 | 0x00000000 | RW- | [[anon:.bss]]
+[45]: 0x00000078d4c23000 - 0x00000078d4c24000 | 0x00000000 | ---
+[46]: 0x00000078d4c24000 - 0x00000078d4c28000 | 0x1fb70000 | R-X | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[47]: 0x00000078d4c28000 - 0x00000078d4c2c000 | 0x1fb70000 | RW- | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[48]: 0x00000078d4c2c000 - 0x00000078d4c31000 | 0x1fb70000 | RW- | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+[49]: 0x00000078d4c31000 - 0x00000078d4c34000 | 0x00000000 | ---
+[50]: 0x00000078d4c34000 - 0x00000078d6e00000 | 0x1fb74000 | RW- | [/data/app/com.proxima.dfm-cpdW-BphxxNHxvHTZ7wolQ==/lib/arm64/libUE4.so]
+==================
+Initializing UEAnalyzerKitty...
+=== UEAnalyzerKitty ===
+UE Engine TChar: UTF16
+UE Engine Version: <FAILED_TO_DETECT>
+==================
+Initializing Decrypt Callbacks...
+==================
+Initializing Objects...
+=== Objects ===
+InitObjects: Resolving GObjects...
+GetGObjects: Delta Force signature resolved module offset 0x206AEF48
+InitObjects: Trying candidate 0x78D487EF48 from IProfile::GetGObjects (100.0% confidence)
+ResolveGObjectsLayout: Delta Force 45/50 sampled slots held a valid object (90.0%)
+InitObjects: [Direct] Verified: 45/50 sampled slots held a valid object (90.0%)
+InitObjects: GObjects at 0x78D487EF48, module offset 0x206AEF48
+InitObjects: Layout FChunkedFixedUObjectArray
+InitObjects:   Objects +0x020 -> 0x78E7AF9DC0
+InitObjects:   NumElements +0x014 -> 184800
+InitObjects:   ElementsPerChunk = 0x10000
+InitObjects:   FUObjectItem::Object +0x000
+InitObjects:   FUObjectItem::Size = 0x18
+==================
+Initializing Names...
+=== Names ===
+InitNames: Resolving GNames...
+InitNames: IProfile::GetGNames() returned unreadable address 0x0 - falling back to UEAnalyzerKitty
+InitNames: UEAnalyzerKitty offered 1 candidate(s)
+InitNames: Trying candidate 0x78D4858100 from UEAnalyzerKitty (82.5% confidence)
+ResolveGNamesLayout: Detected FNamePool at 0x78D4858100, 64/64 entries decoded (100.0% confidence, 1 candidate(s) considered)
+InitNames: [Direct] Verified: Entry 0 reads "None", 50/50 sampled names decoded, 8 matched known engine names
+InitNames: GNames at 0x78D4858100, module offset 0x20688100
+InitNames: Layout FNamePool
+InitNames:   Blocks +0x038 -> 0x78B2AD0000
+InitNames:   BlocksBit = 0x12
+InitNames:   FNameEntry::Header +0x000
+InitNames:   FNameEntry::String +0x002
+InitNames:   FNameEntry::Stride = 0x2
+InitNames:   FNameEntry::LengthShift = 0x6 (optional)
+InitNames:   FNameEntry::WideMask = 0x1 (optional)
+InitNames: Testing IProfile::GetNameEntryByIndex and GetNameEntryString...
+InitNames: Printing first 10 name entries...
+[00] None
+[03] N0ne
+[06] Nome
+[09] 30949b77fd7e7042
+[18] SHVector
+[23] 992e7de5ca74c4d4
+[32] Color
+[36] e80c4d39f32503c7
+[45] Plane
+[49] f325031e27a4a292
+==================
+Initializing Settings...
+=== Settings ===
+General::MaxFNameLen: 512
+Generator::ZipCompressionLevel: 6
+EngineCore::bEnableEncryptedObjectPropertySupport: false
+CppGenerator::UseMemberCustomSpacing: false
+CppGenerator::SDKNamespaceName: SDK
+CppGenerator::XORString: (none)
+CppGenerator::bForceNoGWorldInSDK: false
+CppGenerator::bAddManualOverrideOptions: true
+CppGenerator::bAddFinalSpecifier: true
+MappingGenerator::bShouldCheckForDuplicatedNames: true
+MappingGenerator::bExcludeEditorOnlyProperties: true
+Debug::bGenerateAssertionFile: true
+==================
+Initializing Offsets...
+=== Offsets ===
+InitOffsets: Initializing FInGenOffsets...
+Finding UObject.Index...
+UObject.Index = 0x24
+Initializing UObject.Flags...
+UObject.Flags = 0x18
+Initializing UObject.Class...
+UObject.Class = 0x8
+Initializing UObject.Outer...
+UObject.Outer = 0x10
+Initializing UObject.Name...
+UObject.Name = 0x1C
+(Early) Initializing FName...
+(Early) FName.CompIdx = 0x0
+(Early) FName.Number = 0x4
+(Early) FName.SizeOf = 0x8
+(Early) initializing UClass.CastFlags for UStruct.Children...
+(Early) UClass.CastFlags = 0xD8
+Initializing UStruct.Children...
+UStruct.Children = 0x50
+Initializing UField.Next...
+UField.Next = 0x28
+Initializing UStruct.SuperStruct...
+UStruct.SuperStruct = 0x40
+Initializing UStruct.Size...
+UStruct.Size = 0x3C
+Initializing UStruct.MinAlignment...
+UStruct.MinAlignment = 0x48
+Initializing UClass.CastFlags...
+UClass.CastFlags = 0xD8
+Initializing UStruct.StructBaseChain...
+UStruct.StructBaseChain = 0x30
+Game uses FProperty system
+Initializing UStruct.ChildProperties...
+UStruct.ChildProperties = 0x68
+Initializing FField.Class...
+FField.Class = 0x20
+Initializing FField.Owner...
+FField.Owner = 0x8
+Initializing FField.Next...
+FField.Next = 0x18
+Initializing FField.Name...
+FField.Name = 0x28
+Initializing FField.EditorOnlyMetadata...
+Couldn't find "FField.EditorOnlyMetadata" but it's not required.
+Initializing FFieldClass.CastFlags...
+FFieldClass.CastFlags = 0x10
+Initializing FFieldClass.Name...
+FFieldClass.Name = 0x0
+Initializing UClass.ClassDefaultObject...
+UClass.ClassDefaultObject = 0x138
+Initializing UClass.ImplementedInterfaces...
+UClass.ImplementedInterfaces = 0x228
+Initializing UEnum.Names...
+UEnum.Names = 0x40
+Initializing UEnum.UnderlyingType...
+Couldn't find "UEnum.UnderlyingType" but it's not required.
+Initializing UFunction.FunctionFlags...
+UFunction.FunctionFlags = 0xB8
+Initializing UFunction.NumParams...
+UFunction.NumParams = 0xB0
+Initializing UFunction.ParamSize...
+UFunction.ParamSize = 0xB2
+Initializing UFunction.ExecFunction...
+UFunction.ExecFunction = 0xD8
+Initializing Property.ElementSize...
+Property.ElementSize = 0x3C
+Initializing Property.ArrayDim...
+Property.ArrayDim = 0x34
+Initializing Property.Offset_Internal...
+Property.Offset_Internal = 0x4C
+Initializing Property.PropertyFlags...
+Property.PropertyFlags = 0x40
+Initializing BoolProperty.Base...
+BoolProperty.Base = 0x81
+Initializing EnumProperty.Base...
+EnumProperty.Base = 0x80
+Property.SizeOf = 0x80
+Initializing ObjectProperty.PropertyClass...
+ObjectProperty.PropertyClass = 0x88
+Initializing ByteProperty.Enum...
+ByteProperty.Enum = 0x88
+Initializing StructProperty.Struct...
+StructProperty.Struct = 0x88
+Initializing DelegateProperty.SignatureFunction...
+DelegateProperty.SignatureFunction = 0x80
+Initializing ArrayProperty.Inner...
+ArrayProperty.Inner = 0x88
+Initializing SetProperty.ElementProp...
+SetProperty.ElementProp = 0x80
+Initializing MapProperty.Base...
+MapProperty.Base = 0x88
+(Late) Initializing FName...
+PostInit_FName: FName.SizeOf is already correct, nothing to do.
+FieldPathProperty.FieldClass = 0x80
+OptionalProperty.ValueProperty = 0x80
+ClassProperty.MetaClass = 0x90
+=== FInGenOffsets ===
+FField::Vft: 0x0
+FField::Class: 0x20
+FField::Owner: 0x8
+FField::Next: 0x18
+FField::Name: 0x28
+FFieldClass::Name: 0x0
+FFieldClass::CastFlags: 0x10
+FName::CompIdx: 0x0
+FName::Number: 0x4
+FName::SizeOf: 0x8
+UObject::Vft: 0x0
+UObject::Flags: 0x18
+UObject::Index: 0x24
+UObject::Class: 0x8
+UObject::Name: 0x1C
+UObject::Outer: 0x10
+UField::Next: 0x28
+UEnum::Names: 0x40
+UStruct::StructBaseChain: 0x30
+UStruct::SuperStruct: 0x40
+UStruct::Children: 0x50
+UStruct::ChildProperties: 0x68
+UStruct::Size: 0x3C
+UStruct::MinAlignment: 0x48
+UFunction::FunctionFlags: 0xB8
+UFunction::NumParams: 0xB0
+UFunction::ParamSize: 0xB2
+UFunction::ExecFunction: 0xD8
+UClass::CastFlags: 0xD8
+UClass::ClassDefaultObject: 0x138
+UClass::ImplementedInterfaces: 0x228
+Property::ArrayDim: 0x34
+Property::ElementSize: 0x3C
+Property::PropertyFlags: 0x40
+Property::Offset_Internal: 0x4C
+ByteProperty::Enum: 0x88
+BoolProperty::Base: 0x81
+ObjectProperty::PropertyClass: 0x88
+ClassProperty::MetaClass: 0x90
+StructProperty::Struct: 0x88
+ArrayProperty::Inner: 0x88
+DelegateProperty::SignatureFunction: 0x80
+MapProperty::Base: 0x88
+SetProperty::ElementProp: 0x80
+EnumProperty::Base: 0x80
+FieldPathProperty::FieldClass: 0x80
+OptionalProperty::ValueProperty: 0x80
+FInstancedStruct::ScriptStruct: 0x0
+FInstancedStruct::StructMemory: 0x8
+Property::SizeOf: 0x80
+==================
+InitOffsets: Initializing FInSKOffsets...
+Finding ULevel.Actors...
+ULevel.Actors = 0x98
+Finding UDataTable.RowMap...
+UDataTable.RowMap = 0x30
+Finding GEngine & GWorld Offsets...
+FindStaticOffsets: Found 'World' instance at 0x787bd39980.
+FindStaticOffsets: Found 'Engine' instance at 0x787be26780.
+FindStaticOffsets: Found 1 candidates for 'World'.
+FindStaticOffsets: 'World' offset at 0x201EA900.
+FindStaticOffsets: Found 0 candidates for 'Engine'.
+GEngine Offset: 0x0
+GWorld Offset: 0x201EA900
+Finding ProcessEvent...
+InitProcessEvent: Scanning UEngine vtable at 0x78D34C92B0.
+InitProcessEvent: Scanned 100 of 100 VTable slots (100 scored, 0 unreadable, 0 not code), stopped because every slot up to the cap was scanned.
+InitProcessEvent: VTable index 69 scored 10 (Objs=true Idx=true Item=true Flags1=true Size=true Parms1=true Parms2=true Children1=true Flags2=true Children2=false TestBit=false StorePairs=true MemSet=false MemCopy=false)
+ProcessEvent Index: 69
+ProcessEvent Offset: 0x107E4460
+Finding FText Offsets...
+InitFText: 284 Populated FText instance(s) from 16459 objects across 406 class(es), 63 after excluding the shared empty value (seen 221 times)
+InitFText: TextData+0x0, InTextDataString+0x48 decoded 25/63 instance(s) as UTF16.
+InitFText: Sample text "阿萨拉士兵"
+FText.SizeOf: 0x18
+FText.TextData: 0x0
+FText.InTextDataString: 0x48
+InternalSettings::bUseChar16String: true
+Finding size of WeakObjectProperty...
+WeakObjectProperty.SizeOf = 0x8
+Finding size of DelegateProperty...
+DelegateProperty.SizeOf = 0x10
+Finding size of FieldPathProperty...
+FieldPathProperty.SizeOf = 0x8
+Finding size of MulticastInlineDelegateProperty...
+MulticastInlineDelegateProperty.SizeOf = 0x10
+=== FInSKOffsets ===
+GEngine: 0x0
+GWorld: 0x201EA900
+GObjects: 0x206AEF48
+GNames: 0x20688100
+PEIndex: 69
+PEOffset: 0x107E4460
+FText::TextData: 0x0
+FText::SizeOf: 0x18
+FText::InTextDataString: 0x48
+ULevel::Actors: 0x98
+UDataTable::RowMap: 0x30
+WeakObjectProperty::SizeOf: 0x8
+DelegateProperty::SizeOf: 0x10
+FieldPathProperty::SizeOf: 0x8
+MulticastInlineDelegateProperty::SizeOf: 0x10
+==================
+InitOffsets: Printing first 10 objects entries...
+[00] CoreUObject
+[01] Object
+[02] Engine
+[03] BlueprintFunctionLibrary
+[04] UE4Singletons
+[05] ComponentBookKeeper
+[06] ComponentRegistryLib
+[07] ObjectRegistrys
+[08] E4Singletons
+[09] AnimNotify
+==================
+Initializing Internal Settings...
+=== Internal Settings ===
+GameName: com.proxima.dfm
+GameVersion: 1.202.37119.3601
+EngineVersion: 0.0.0
+EngineVersionString: 
+UnrealModuleFileName: libUE4.so
+bIsEnumNameOnly: false
+bIsSmallEnumValue: false
+bHasUnderlayingTypeInUEnum: false
+bIsNewUE5EnumNamesContainer: false
+bIsWeakObjectPtrWithoutTag: false
+bUseFProperty: true
+bUseNamePool: true
+bIsObjectNameBeforeClass: false
+bUseCasePreservingName: false
+bUseOutlineNumberName: false
+bIsObjPtrInsteadOfFieldPathProperty: true
+bUseMaskForFieldOwner: false
+bUseLargeWorldCoordinates: false
+bUseUint8ArrayDim: true
+bUseChar16String: true
+bIsGObjectsPointer: false
+bIsGNamesPointer: false
+==================
+Initializing Managers...
+=== Managers ===
+(Early) Initializing PackageManager...
+Initializing StructManager...
+Initializing EnumManager...
+Initializing MemberManager...
+(Late) Initializing PackageManager...
+Managers Initialized.
+==================
+=== Generating Dumps ===
+Generating GObjects Dump...
+Generated in 8.27 sec
+Generating GObjects With Props Dump...
+Generated in 20.83 sec
+Generating C++ SDK Dump...
+Generated in 1.16 min
+Generating Mappings Dump...
+Generated in 17.99 sec
+Generating IDA Mappings Dump...

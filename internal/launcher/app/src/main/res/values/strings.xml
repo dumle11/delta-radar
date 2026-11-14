@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">dMe Launch3r</string>
+    <string name="unverified_players_hidden">Player markers hidden: %1$d (unverified)</string>
+</resources>

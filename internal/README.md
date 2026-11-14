@@ -1,15 +1,19 @@
 # Cooperative internal integration
 
+The existing Launch3r project is now in `launcher/`, and the existing native
+library experiments are in `native/`. The review below predates those experiments;
+it describes a cooperative design, not the behavior of the current payload.
+Repository paths below have been updated for the workspace reorganization.
+
 This folder records the implementation review and a design for integrating
-telemetry into an Android application whose source we control. It does not
-contain an injector, a game payload, or anti-cheat evasion mechanisms.
+telemetry into an Android application whose source we control.
 
 ## Current implementation review
 
-- `android/app/build.gradle.kts` bundles `scanner/memscan-legacy` as an APK
+- `external/android/app/build.gradle.kts` bundles `external/scanner/memscan-legacy` as an APK
   asset. `RootUtils.startScanner` deploys and launches it as a separate root
   process. Installing a library elsewhere would not switch this launch path.
-- `scanner/memscan.c` already has an `IN_PROCESS` constructor. That constructor
+- `external/scanner/memscan.c` already has an `IN_PROCESS` constructor. That constructor
   starts the existing scanner entry point on a detached worker thread with
   `run vmreadv`. It is not a cooperative engine integration: the scanner still
   discovers structures and reads process memory. Moving that worker into the

@@ -1,0 +1,66 @@
+[
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/layout_overlay_menu.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/layout/overlay_menu.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/layout_activity_main.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_btn_primary.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/btn_primary.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_ic_launcher_background.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "com.dme.launcher.app-debug-35:/layout_overlay_bubble.xml.flat",
+        "source": "com.dme.launcher.app-main-37:/layout/overlay_bubble.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_bg_card.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/bg_card.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_ic_bubble.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/ic_bubble.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/xml_file_paths.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/xml/file_paths.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_bg_spinner.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/bg_spinner.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_btn_danger.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/btn_danger.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_btn_secondary.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/btn_secondary.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/layout_overlay_bubble.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/layout/overlay_bubble.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_bg_log.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/bg_log.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-debug-35:/drawable_bg_overlay_menu.xml.flat",
+        "source": "/Users/dme/.gradle/daemon/8.9/com.dme.launcher.app-main-37:/drawable/bg_overlay_menu.xml"
+    }
+]

@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0a0e12"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="dMe Launch3r"
+            android:textColor="#4fd08a"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:layout_marginTop="20dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Android .so library injector"
+            android:textColor="#5c6b78"
+            android:textSize="14sp"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Status card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Status"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/txtRoot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Root: checking..."
+                android:textColor="#5c6b78"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/txtInjector"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Injector: not deployed"
+                android:textColor="#5c6b78"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/txtSELinux"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SELinux: checking..."
+                android:textColor="#5c6b78"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Target process card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Target Process"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <AutoCompleteTextView
+                android:id="@+id/autoProcess"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_spinner"
+                android:popupBackground="#1a2233"
+                android:textColor="#c0c8d0"
+                android:textSize="13sp"
+                android:fontFamily="monospace"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:hint="Type to filter processes..."
+                android:textColorHint="#5c6b78"
+                android:completionThreshold="1"
+                android:dropDownVerticalOffset="4dp"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/btnRefreshProcesses"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/btn_secondary"
+                android:gravity="center"
+                android:text="Refresh Processes"
+                android:textColor="#4fd08a"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Library selection card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Library to Inject"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <EditText
+                android:id="@+id/editLibPath"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_spinner"
+                android:text="/data/local/tmp/libue4patch.so"
+                android:textColor="#c0c8d0"
+                android:textSize="13sp"
+                android:fontFamily="monospace"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:inputType="text"
+                android:imeOptions="actionDone"
+                android:hint="Enter .so path on device"
+                android:textColorHint="#5c6b78"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/btnPickLib"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/btn_secondary"
+                android:gravity="center"
+                android:text="Browse .so Library"
+                android:textColor="#4fd08a"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Injection options card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Options"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <CheckBox
+                android:id="@+id/chkMemfd"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Use memfd (bypass SELinux path restrictions)"
+                android:textColor="#c0c8d0"
+                android:textSize="13sp"
+                android:buttonTint="#4fd08a"
+                android:checked="true" />
+
+            <CheckBox
+                android:id="@+id/chkHide"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Hide library from linker solist"
+                android:textColor="#c0c8d0"
+                android:textSize="13sp"
+                android:buttonTint="#4fd08a"
+                android:checked="true" />
+
+            <CheckBox
+                android:id="@+id/chkWatch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Watch mode (wait for process to start)"
+                android:textColor="#c0c8d0"
+                android:textSize="13sp"
+                android:buttonTint="#4fd08a"
+                android:checked="false" />
+        </LinearLayout>
+
+        <!-- Inject button -->
+        <TextView
+            android:id="@+id/btnInject"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@drawable/btn_primary"
+            android:gravity="center"
+            android:text="Inject"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- Stop Scanner button -->
+        <TextView
+            android:id="@+id/btnStop"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="@drawable/btn_secondary"
+            android:gravity="center"
+            android:text="Stop Scanner"
+            android:textColor="#e5534b"
+            android:textSize="14sp"
+            android:layout_marginTop="8dp"
+            android:visibility="gone" />
+
+        <!-- Log output card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="24dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Log"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnClearLog"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Clear"
+                    android:textColor="#5c6b78"
+                    android:textSize="12sp"
+                    android:padding="4dp" />
+            </LinearLayout>
+
+            <ScrollView
+                android:id="@+id/scrollLog"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:background="@drawable/bg_log"
+                android:padding="8dp">
+
+                <TextView
+                    android:id="@+id/txtLog"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#8b949e"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="2dp" />
+            </ScrollView>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,6 @@
+id=delta_zygisk
+name=Delta Zygisk Loader
+version=v1.0
+versionCode=1
+author=dme
+description=Loads library into target process via Zygisk
