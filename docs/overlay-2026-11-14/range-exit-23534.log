@@ -1,0 +1,4 @@
+11-14 15:05:28.596  1566  2494 I InputDispatcher: Application is not responding: Window{f53888e u0 com.proxima.dfm/com.epicgames.ue4.GameActivity}.  It has been 5002.8ms since event, 5002.0ms since wait started.  Reason: Waiting to send non-key event because the touched window has not finished processing certain input events that were delivered to it over 500.0ms ago.  Wait queue length: 38.  Wait queue head age: 5596.7ms.
+11-14 15:05:32.240   755   755 I Zygote  : Process 23534 exited due to signal 7 (Bus error)
+11-14 15:05:44.424  1566 24439 E ActivityManager: ANR in com.proxima.dfm (com.proxima.dfm/com.epicgames.ue4.GameActivity)
+11-14 15:05:44.424  1566 24439 E ActivityManager: Reason: Input dispatching timed out (Waiting to send non-key event because the touched window has not finished processing certain input events that were delivered to it over 500.0ms ago.  Wait queue length: 38.  Wait queue head age: 5596.7ms.)

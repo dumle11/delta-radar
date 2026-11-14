@@ -1,0 +1,3 @@
+11-14 18:08:12.922  1600  4358 I ActivityManager: Process com.proxima.dfm (pid 7446) has died: fore TOP 
+11-14 18:08:12.924  1600  4358 I am_proc_died: [0,7446,com.proxima.dfm,0,2]
+[ 2871.375556] [20261114_18:08:12.965673]@7 process 7446:MainThread-UE4, 7602:MemoryUsageThre send sig:17 to process 756:main

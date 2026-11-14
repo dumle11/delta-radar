@@ -1,0 +1,2 @@
+Game PID 28435; no debugger or signal observer attached.
+11-14 15:41:55.925   756   756 I Zygote  : Process 28435 exited due to signal 7 (Bus error)

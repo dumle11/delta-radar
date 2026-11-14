@@ -1,0 +1,2 @@
+Game PID 12518; no debugger or signal observer attached.
+11-14 16:43:10.571   751   751 I Zygote  : Process 12518 exited due to signal 11 (Segmentation fault)

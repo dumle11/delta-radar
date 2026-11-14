@@ -8,8 +8,8 @@
  * that collect per-actor diagnostics. */
 static int camera_stream_read(uint64_t address, void *out, size_t size) {
 #ifdef BUILD_AS_LIBRARY
-    memcpy(out, (const void *)(uintptr_t)address, size);
-    return 1;
+    if (checked_reader.read_fd < 0 && self_memory_open(&checked_reader) < 0) return 0;
+    return self_memory_read(&checked_reader, address, out, size) == (ssize_t)size;
 #else
     struct iovec local={.iov_base=out,.iov_len=size},remote={.iov_base=(void*)address,.iov_len=size};
     return syscall(__NR_process_vm_readv,game_pid,&local,1,&remote,1,0)==(ssize_t)size;
@@ -45,7 +45,11 @@ static void *camera_stream_worker(void *unused) {
         }
         usleep(3000 + (unsigned)(now % 2000));
     }
-    if(fd>=0)close(fd);return NULL;
+    if(fd>=0)close(fd);
+#ifdef BUILD_AS_LIBRARY
+    self_memory_close(&checked_reader);
+#endif
+    return NULL;
 }
 static void camera_stream_start(void) {
     pthread_t thread;if(!pthread_create(&thread,NULL,camera_stream_worker,NULL))pthread_detach(thread);

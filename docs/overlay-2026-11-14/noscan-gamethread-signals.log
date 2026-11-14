@@ -1,0 +1,19 @@
+observing pid=26792 threads=151 seconds=95; original signals will be forwarded
+SIGNAL tid=27271 name=GameThread signal=7 code=1 sender_pid=4866 sender_uid=0 address=0x1302 pc=0x1302 lr=0x1302
+SIGNAL tid=27271 name=GameThread signal=11 code=128 sender_pid=0 sender_uid=0 address=0x0 pc=0x1302 lr=0x1302
+SIGNAL tid=27271 name=GameThread signal=7 code=1 sender_pid=-1142622354 sender_uid=122 address=0x7abbe4f76e pc=0x7abbe4f76e lr=0x56147e4da4
+MAP address=0x7abbe4f76e 7abbdd5000-7abbe74000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+MAP address=0x56147e4da4 56147e3000-56147e7000 --xp 00003000 fd:00 622                            /system/bin/app_process64
+FRAME depth=0 fp=0x7a26f76d90 return=0x7abdcc3690
+MAP address=0x7abdcc3690 7abdcc3000-7abdcc4000 r-xp 00000000 00:00 0                              [vdso]
+FRAME depth=1 fp=0x7a26f77ff0 return=0x1302
+SIGNAL tid=27271 name=GameThread signal=7 code=1 sender_pid=-1142623537 sender_uid=122 address=0x7abbe4f2cf pc=0x7abbe4f2cf lr=0x7abdcc3690
+MAP address=0x7abbe4f2cf 7abbdd5000-7abbe74000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+MAP address=0x7abdcc3690 7abdcc3000-7abdcc4000 r-xp 00000000 00:00 0                              [vdso]
+FRAME depth=0 fp=0x7a26f76d00 return=0x56147e4da4
+MAP address=0x56147e4da4 56147e3000-56147e7000 --xp 00003000 fd:00 622                            /system/bin/app_process64
+FRAME depth=1 fp=0x7a26f76d90 return=0x7abdcc3690
+MAP address=0x7abdcc3690 7abdcc3000-7abdcc4000 r-xp 00000000 00:00 0                              [vdso]
+FRAME depth=2 fp=0x7a26f77ff0 return=0x1302
+target exit: exited=0 code=0 signal=7
+cleanup: interrupted=0 detached=0; target not killed

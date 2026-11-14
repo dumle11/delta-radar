@@ -1,0 +1,38 @@
+
+/tmp/delta-apk-audit/libanogs.so:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+00000000001df4ac <JNI_OnLoad>:
+  47e678: a9be7bfd     	stp	x29, x30, [sp, #-0x20]!
+  47e67c: f9000bf3     	str	x19, [sp, #0x10]
+  47e680: 910003fd     	mov	x29, sp
+  47e684: aa0003f3     	mov	x19, x0
+  47e688: 97f6ec47     	bl	0x2397a4 <JNI_OnLoad+0x5a2f8>
+  47e68c: 90ffe0a1     	adrp	x1, 0x92000
+  47e690: 9130cc21     	add	x1, x1, #0xc33
+  47e694: 52800022     	mov	w2, #0x1                // =1
+  47e698: 52800023     	mov	w3, #0x1                // =1
+  47e69c: 97f6ece7     	bl	0x239a38 <JNI_OnLoad+0x5a58c>
+  47e6a0: 36000060     	tbz	w0, #0x0, 0x47e6ac <JNI_OnLoad+0x29f200>
+  47e6a4: 94000603     	bl	0x47feb0 <JNI_OnLoad+0x2a0a04>
+  47e6a8: 34000080     	cbz	w0, 0x47e6b8 <JNI_OnLoad+0x29f20c>
+  47e6ac: f9400bf3     	ldr	x19, [sp, #0x10]
+  47e6b0: a8c27bfd     	ldp	x29, x30, [sp], #0x20
+  47e6b4: d65f03c0     	ret
+  47e6b8: aa1303e0     	mov	x0, x19
+  47e6bc: 94000754     	bl	0x48040c <JNI_OnLoad+0x2a0f60>
+  47e6c0: 52800140     	mov	w0, #0xa                // =10
+  47e6c4: 94027beb     	bl	0x51d670 <sleep@plt>
+  47e6c8: 94027c8a     	bl	0x51d8f0 <random@plt>
+  47e6cc: eb0003e8     	negs	x8, x0
+  47e6d0: 92402c09     	and	x9, x0, #0xfff
+  47e6d4: 92402d08     	and	x8, x8, #0xfff
+  47e6d8: da884528     	csneg	x8, x9, x8, mi
+  47e6dc: 91400508     	add	x8, x8, #0x1, lsl #12   // =0x1000
+  47e6e0: aa0803e0     	mov	x0, x8
+  47e6e4: aa0003fd     	mov	x29, x0
+  47e6e8: aa0003fe     	mov	x30, x0
+  47e6ec: 9100001f     	mov	sp, x0
+  47e6f0: aa0003f1     	mov	x17, x0
+  47e6f4: d61f0000     	br	x0

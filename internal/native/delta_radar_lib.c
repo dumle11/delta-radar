@@ -53,15 +53,6 @@ static _Atomic int _rcam_ok;
 static _Atomic int lib_running_flag = 0;
 static pthread_t lib_scanner_thread;
 
-static void *_handler_watchdog(void *arg) {
-    (void)arg;
-    while (atomic_load(&lib_running_flag)) {
-        _reinstall_handlers();
-        usleep(100000);
-    }
-    return NULL;
-}
-
 static void _diag(const char *msg) {
     static char p[40];
     if (!p[0]) {
@@ -814,7 +805,6 @@ static int try_dl_iterate(void) {
     return (ue4_base != 0 && ue4_end > ue4_base) ? 0 : -1;
 }
 
-#include "esp_render.h"
 #include "esp_overlay.h"
 
 static void *injected_scanner_thread(void *arg) {
@@ -825,22 +815,18 @@ static void *injected_scanner_thread(void *arg) {
     use_vm_readv = 0;
     _diag("thread started");
 
-    _install_segv_handler();
-    _diag("segv handler ok");
-
-    if (sigsetjmp(_thread_exit_jmp, 1) != 0) {
-        _diag("fault exit — thread stopped");
-        running = 0;
-        close_radar_sock();
-        if (read_buf) { free(read_buf); read_buf = NULL; }
+    if (self_memory_open(&checked_reader) < 0) {
+        char dbuf[128];
+        snprintf(dbuf, sizeof(dbuf), "reader unavailable: checked copy open: %s", strerror(errno));
+        _diag(dbuf);
         return NULL;
     }
-    _thread_exit_armed = 1;
+    _diag("reader: checked kernel copy; host signals unchanged");
 
     read_buf = malloc(READ_BUF_SIZE);
     if (!read_buf) {
         _diag("malloc fail");
-        return NULL;
+        goto cleanup;
     }
 
     LOGI("Locating engine library...");
@@ -855,8 +841,7 @@ static void *injected_scanner_thread(void *arg) {
     }
     if (found != 0) {
         _diag("UE4 not found");
-        free(read_buf); read_buf = NULL;
-        return NULL;
+        goto cleanup;
     }
     if (num_regions == 0) parse_maps();
     {
@@ -866,12 +851,12 @@ static void *injected_scanner_thread(void *arg) {
         _diag(dbuf);
     }
 
-    _install_esp_hook();
-
     if (_ov_start())
         _diag("ov: ok");
     else
         _diag("ov: fail");
+
+    pthread_setname_np(pthread_self(), "overlay-reader");
 
     /* Skip patching CrashSight — ACE checks its own code integrity. */
     _diag("ps: ok");
@@ -961,12 +946,9 @@ static void *injected_scanner_thread(void *arg) {
                  (unsigned long)fname_pool_addr, fname_blocks_off, fname_entry_hdr_size);
         _diag(dbuf);
     }
-    /* Debug: verify GObject indices for Character/Pawn classes */
-    LOGI("CHECKPOINT: FNamePool done, starting camera stream");
-    /* Wire running flag so camera_stream.h's thread also stops. */
+    /* Internal rendering consumes this thread's camera sample directly. No
+     * external camera socket worker or unprotected pointer reads are needed. */
     running = 1;
-    camera_stream_start();
-    LOGI("CHECKPOINT: Camera stream started");
 
     uint64_t use_gworld = 0;
     int use_actor_src = 0;
@@ -1038,25 +1020,36 @@ static void *injected_scanner_thread(void *arg) {
     int zero_entity_frames = 0;
 
     int sentinel_check_counter = 0;
-    int handler_check_counter = 0;
     int diag_counter = 0;
     while (atomic_load(&lib_running_flag)) {
-        if (++handler_check_counter >= 300) {
-            handler_check_counter = 0;
-            _reinstall_handlers();
-        }
         if (++sentinel_check_counter >= 300) {
             sentinel_check_counter = 0;
             if (access(STOP_SENTINEL, F_OK) == 0) {
-                LOGI("Stop sentinel detected, shutting down");
-                unlink(STOP_SENTINEL);
+                _diag("stop sentinel detected: scanner stopping");
+                if (unlink(STOP_SENTINEL) != 0) {
+                    char dbuf[96];
+                    snprintf(dbuf, sizeof(dbuf), "stop sentinel unlink failed: %s", strerror(errno));
+                    _diag(dbuf);
+                }
                 break;
             }
         }
         long long t0 = sample_time_ms();
 
+        static unsigned frame_sequence = 0;
+        unsigned seq = ++frame_sequence;
+        if (seq <= 5 || seq % 100 == 0) {
+            char dbuf[64];
+            snprintf(dbuf, sizeof(dbuf), "frame %u: read begin", seq);
+            _diag(dbuf);
+        }
         int n = read_entities_sdk(
             use_gworld, use_actor_src, use_root_off, use_pos_off, use_ctw);
+        if (seq <= 5 || seq % 100 == 0) {
+            char dbuf[80];
+            snprintf(dbuf, sizeof(dbuf), "frame %u: read end n=%d camera=%d", seq, n, camera_frame_valid);
+            _diag(dbuf);
+        }
 
         {
             static int pd_logged = 0;
@@ -1069,9 +1062,15 @@ static void *injected_scanner_thread(void *arg) {
             }
         }
 
-        if (n > 0) {
+        /* Camera validity belongs to this frame, never a previous world. */
+        int had_camera = atomic_exchange(&_rcam_ok, 0);
+        if (n > 0 && camera_frame_valid && self_entity_id[0]) {
             for (int ci = 0; ci < n; ci++) {
-                if (entities[ci].id[0] == 's' && entities[ci].id[1] == 'e') {
+                if (strcmp(entities[ci].id, self_entity_id) == 0) {
+                    if (!isfinite(entities[ci].x) || !isfinite(entities[ci].y) ||
+                        !isfinite(entities[ci].z) || !isfinite(entities[ci].yaw) ||
+                        !isfinite(entities[ci].pitch) || !isfinite(entities[ci].fov) ||
+                        entities[ci].fov < 5 || entities[ci].fov >= 180) break;
                     if (entities[ci].x == 0 && entities[ci].y == 0 && entities[ci].z == 0)
                         break;
                     _rcam[0] = entities[ci].x; _rcam[1] = entities[ci].y;
@@ -1080,7 +1079,7 @@ static void *injected_scanner_thread(void *arg) {
                     {
                         static float last_log_x = 0, last_log_y = 0;
                         static int cam_log_count = 0;
-                        int first = !atomic_load(&_rcam_ok);
+                        int first = !had_camera;
                         float dx = entities[ci].x - last_log_x;
                         float dy = entities[ci].y - last_log_y;
                         int moved = (dx*dx + dy*dy) > 4.0f;
@@ -1103,13 +1102,21 @@ static void *injected_scanner_thread(void *arg) {
         if (!_ov_ready) _ov_check_ready();
         if (_ov_ready && n > 0) {
             _ov_draw_esp();
-        } else if (_ov_ready && zero_entity_frames == 3) {
+        } else if (_ov_ready &&
+                   ((n == 0 && zero_entity_frames >= 2) ||
+                    (n < 0 && consecutive_failures >= 2))) {
+            /* Debounce isolated empty/failed samples instead of flashing clear. */
             JNIEnv *clr_env = _ov_env();
             if (clr_env) {
                 jboolean clr_ok = (*clr_env)->CallStaticBooleanMethod(clr_env, _ov_cls, _ov_b);
                 if (clr_ok) (*clr_env)->CallStaticVoidMethod(clr_env, _ov_cls, _ov_e);
             }
             atomic_store(&_rcam_ok, 0);
+        }
+        if (seq <= 5 || seq % 100 == 0) {
+            char dbuf[64];
+            snprintf(dbuf, sizeof(dbuf), "frame %u: render end", seq);
+            _diag(dbuf);
         }
         if (_ov_ready && (diag_counter < 5 || diag_counter % 50 == 0)) {
             char fn_buf[64];
@@ -1256,10 +1263,13 @@ static void *injected_scanner_thread(void *arg) {
     }
 
 cleanup:
+    _diag("scanner stopped");
+    atomic_store(&_rcam_ok, 0);
     LOGI("Scanner thread stopping");
     running = 0;
     close_radar_sock();
     if (read_buf) { free(read_buf); read_buf = NULL; }
+    self_memory_close(&checked_reader);
     return NULL;
 }
 
@@ -1317,26 +1327,9 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     }
 
     atomic_store(&lib_running_flag, 1);
-    signal(SIGPIPE, SIG_IGN);
-
-    {
-        JNIEnv *env = NULL;
-        int attached = 0;
-        if ((*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6) != JNI_OK) {
-            if ((*vm)->AttachCurrentThread(vm, &env, NULL) == JNI_OK)
-                attached = 1;
-        }
-        if (env) _spoof_build_fields(env);
-        if (attached) (*vm)->DetachCurrentThread(vm);
-    }
-
-    _install_segv_handler();
-    _mask_memory();
-    _apply_cfg();
-
-    pthread_t wd;
-    pthread_create(&wd, NULL, _handler_watchdog, NULL);
-    pthread_detach(wd);
+    /* Startup must not rewrite the host's code, mappings, identity or crash
+     * handlers. The reader uses checked kernel copies instead of signal interception. */
+    _diag("init: read-only reader and overlay; legacy process mutations disabled");
 
     {
         static char nos[40];

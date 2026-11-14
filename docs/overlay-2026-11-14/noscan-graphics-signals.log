@@ -1,0 +1,5 @@
+observing pid=25891 threads=177 seconds=110; original signals will be forwarded
+SIGNAL tid=26167 name=AuxiliaryRHI signal=11 code=1 sender_pid=240 sender_uid=0 address=0xf0 pc=0x7a1a5befd4 lr=0x7a1a6f768c
+SIGNAL tid=26167 name=AuxiliaryRHI signal=11 code=1 sender_pid=59 sender_uid=0 address=0x3b pc=0x7abbe4f2c4 lr=0x56147e4da4
+target exit: exited=0 code=0 signal=11
+cleanup: interrupted=0 detached=0; target not killed

@@ -31,13 +31,17 @@ int main(void) {
     read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);
     assert(e.has_bones&&e.bone_count==17);assert(e.bone_parent[2]==1);
     near(e.bone_pos[1][0],9.30f);near(e.bone_pos[1][1],19.80f);near(e.bone_pos[1][2],30.04f);
+    /* The current build moved this identical validated getter. */
+    ue4_base=(uintptr_t)getter-0x1b040308;
+    read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);
+    assert(e.has_bones&&e.bone_count==17);
     i32(mesh+0x794,1);read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);
     assert(e.has_bones);near(e.bone_pos[1][0],9.20f);
     int sockets[2];assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);
     entities[0]=e;num_entities=1;persistent_sock=sockets[0];assert(post_to_radar()==0);
     char payload[8192];ssize_t got=read(sockets[1],payload,sizeof(payload)-1);assert(got>0);payload[got]=0;
-    assert(strstr(payload,"\"bonesVerified\":true,\"boneCount\":17"));
-    assert(strstr(payload,"\"boneParents\":[-1,0,1,2,3,1,5,6"));close_radar_sock();close(sockets[1]);
+    assert(strstr(payload,"\"bv\":true,\"bc\":17"));
+    assert(strstr(payload,"\"bp\":[-1,0,1,2,3,1,5,6"));close_radar_sock();close(sockets[1]);
     i32(mesh+0x794,2);read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);assert(!e.has_bones&&!e.bone_count);
     i32(mesh+0x794,1);mesh[0x174]=0;read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);assert(!e.has_bones);
     mesh[0x174]=255;i32(mesh+0x748,1);read_entity_bones(&e,(uintptr_t)actor,(uintptr_t)root);assert(!e.has_bones);

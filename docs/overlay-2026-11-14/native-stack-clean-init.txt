@@ -1,0 +1,1564 @@
+
+
+----- pid 23534 at 2026-11-14 15:04:25 -----
+Cmd line: com.proxima.dfm
+ABI: 'arm64'
+
+"MainThread-UE4" sysTid=23534
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"Jit thread pool" sysTid=23541
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b1f4  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::WaitHoldingLocks(art::Thread*)+148) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000514508  /apex/com.android.runtime/lib64/libart.so (art::ThreadPool::GetTask(art::Thread*)+256) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 0000000000513894  /apex/com.android.runtime/lib64/libart.so (art::ThreadPoolWorker::Run()+144) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 0000000000513354  /apex/com.android.runtime/lib64/libart.so (art::ThreadPoolWorker::Callback(void*)+148) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Signal Catcher" sysTid=23546
+    #00 pc 00000000000d11c8  /apex/com.android.runtime/lib64/bionic/libc.so (__rt_sigtimedwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000008fc20  /apex/com.android.runtime/lib64/bionic/libc.so (sigwait+68) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000004da018  /apex/com.android.runtime/lib64/libart.so (art::SignalCatcher::WaitForSignal(art::Thread*, art::SignalSet&)+392) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000004d8d98  /apex/com.android.runtime/lib64/libart.so (art::SignalCatcher::Run(void*)+268) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"HeapTaskDaemon" sysTid=23550
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b1f4  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::WaitHoldingLocks(art::Thread*)+148) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000028f2f4  /apex/com.android.runtime/lib64/libart.so (art::gc::TaskProcessor::GetTask(art::Thread*)+444) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000028fb80  /apex/com.android.runtime/lib64/libart.so (art::gc::TaskProcessor::RunAllTasks(art::Thread*)+92) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 000000000004b4ec  /data/dalvik-cache/arm64/system@framework@boot-core-libart.oat
+
+"ReferenceQueueD" sysTid=23554
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b1f4  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::WaitHoldingLocks(art::Thread*)+148) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf2c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+620) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000b93dc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"FinalizerDaemon" sysTid=23555
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b1f4  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::WaitHoldingLocks(art::Thread*)+148) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf2c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+620) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000b93dc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"FinalizerWatchd" sysTid=23556
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b62c  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::TimedWait(art::Thread*, long, int)+168) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf40  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+640) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000c10bc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Binder:23534_1" sysTid=23557
+    #00 pc 00000000000d1084  /apex/com.android.runtime/lib64/bionic/libc.so (__ioctl+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000008b6b0  /apex/com.android.runtime/lib64/bionic/libc.so (ioctl+132) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000590a4  /system/lib64/libbinder.so (android::IPCThreadState::talkWithDriver(bool)+244) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #03 pc 0000000000059280  /system/lib64/libbinder.so (android::IPCThreadState::getAndExecuteCommand()+24) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #04 pc 0000000000059a58  /system/lib64/libbinder.so (android::IPCThreadState::joinThreadPool(bool)+64) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #05 pc 000000000007fd3c  /system/lib64/libbinder.so (android::PoolThread::threadLoop()+24) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #06 pc 00000000000135f0  /system/lib64/libutils.so (android::Thread::_threadLoop(void*)+328) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #07 pc 00000000000c3c5c  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::javaThreadShell(void*)+140) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #08 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #09 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Binder:23534_2" sysTid=23558
+    #00 pc 00000000000d1084  /apex/com.android.runtime/lib64/bionic/libc.so (__ioctl+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000008b6b0  /apex/com.android.runtime/lib64/bionic/libc.so (ioctl+132) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000590a4  /system/lib64/libbinder.so (android::IPCThreadState::talkWithDriver(bool)+244) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #03 pc 0000000000059280  /system/lib64/libbinder.so (android::IPCThreadState::getAndExecuteCommand()+24) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #04 pc 0000000000059a84  /system/lib64/libbinder.so (android::IPCThreadState::joinThreadPool(bool)+108) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #05 pc 000000000007fd3c  /system/lib64/libbinder.so (android::PoolThread::threadLoop()+24) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #06 pc 00000000000135f0  /system/lib64/libutils.so (android::Thread::_threadLoop(void*)+328) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #07 pc 00000000000c3c5c  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::javaThreadShell(void*)+140) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #08 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #09 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Profile Saver" sysTid=23563
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b1f4  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::WaitHoldingLocks(art::Thread*)+148) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000346d48  /apex/com.android.runtime/lib64/libart.so (art::ProfileSaver::Run()+412) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000034ac20  /apex/com.android.runtime/lib64/libart.so (art::ProfileSaver::RunProfileSaverThread(void*)+88) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-10" sysTid=23565
+    #00 pc 000000000000001c  <anonymous:7ab853c000>
+    #01 pc 000000000011b024  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #02 pc 000000000011b0d4  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #03 pc 00000000000984e8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #04 pc 00000000000f46c4  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #05 pc 0000000000115860  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TcmReceiver" sysTid=23566
+    #00 pc 00000000000d1ee4  /apex/com.android.runtime/lib64/bionic/libc.so (recvmsg+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000000870c  /system/lib64/libbase.so (android::base::ReceiveFileDescriptorVector(int, void*, unsigned long, unsigned long, std::__1::vector<android::base::unique_fd_impl<android::base::DefaultCloser>, std::__1::allocator<android::base::unique_fd_impl<android::base::DefaultCloser>>>*)+340) (BuildId: b2d191935e92ad8ead18aacc334b7a7e)
+    #02 pc 00000000001444a4  /system/lib64/libandroid_runtime.so (android::socket_read_all(_JNIEnv*, _jobject*, int, void*, unsigned long)+88) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #03 pc 0000000000144128  /system/lib64/libandroid_runtime.so (android::socket_readba(_JNIEnv*, _jobject*, _jbyteArray*, int, int, _jobject*)+256) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 000000000029c824  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"Thread-131" sysTid=23569
+    #00 pc 000000000000001c  <anonymous:7ab853c000>
+    #01 pc 000000000011af90  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #02 pc 0000000000130dc4  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #03 pc 0000000000130c10  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #04 pc 0000000000130b08  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #05 pc 0000000000131098  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #06 pc 0000000000115860  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanort.so (BuildId: f785d14d2a72f7436b32efbff69ec1011b55e1ef)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"OkHttp Connecti" sysTid=23570
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b62c  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::TimedWait(art::Thread*, long, int)+168) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf40  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+640) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000b93dc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"overlay-reader" sysTid=23572
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa230  /apex/com.android.runtime/lib64/bionic/libc.so (usleep+76) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 0000000000001580  /data/data/com.proxima.dfm/libue4patch.so
+
+"Okio Watchdog" sysTid=23574
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b62c  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::TimedWait(art::Thread*, long, int)+168) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf40  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+640) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000b93dc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Thread-198" sysTid=23578
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000001e0f84  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #02 pc 00000000001e0e10  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #03 pc 00000000001e260c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #04 pc 0000000000217590  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #05 pc 0000000000217bb4  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #06 pc 00000000004dda8c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"ScionFrontendAp" sysTid=23580
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Crashlytics Exc" sysTid=23581
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"lytics.startup1" sysTid=23582
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Firebase Backgr" sysTid=23583
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"GmsDynamite" sysTid=23584
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b1f4  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::WaitHoldingLocks(art::Thread*)+148) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf2c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+620) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000b93dc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"awaitEvenIfOnMa" sysTid=23585
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Firebase Blocki" sysTid=23586
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"pool-7-thread-1" sysTid=23587
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Firebase-Messag" sysTid=23588
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Firebase-Messag" sysTid=23589
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Firebase Backgr" sysTid=23592
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Firebase Backgr" sysTid=23593
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"DefaultDispatch" sysTid=23595
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"DefaultDispatch" sysTid=23596
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"DefaultDispatch" sysTid=23598
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"MessengerIpcCli" sysTid=23599
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"GoogleApiHandle" sysTid=23602
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"AsyncTask #3" sysTid=23609
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"pool-17-thread-" sysTid=23615
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"pool-18-thread-" sysTid=23616
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"GoogleApiHandle" sysTid=23617
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"ConnectivityThr" sysTid=23618
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"RenderThread" sysTid=23619
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 00000000002dffa8  /system/lib64/libhwui.so (android::uirenderer::ThreadBase::waitForWork()+132) (BuildId: 89872b4824183d6b36a5314bd0e7f303)
+    #04 pc 00000000002dfdb4  /system/lib64/libhwui.so (android::uirenderer::renderthread::RenderThread::threadLoop()+576) (BuildId: 89872b4824183d6b36a5314bd0e7f303)
+    #05 pc 00000000000135f0  /system/lib64/libutils.so (android::Thread::_threadLoop(void*)+328) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"pool-15-thread-" sysTid=23622
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Measurement Wor" sysTid=23625
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b62c  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::TimedWait(art::Thread*, long, int)+168) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf40  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+640) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000b93dc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"FirebaseSession" sysTid=23628
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"Firebase Backgr" sysTid=23629
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Binder:23534_3" sysTid=23630
+    #00 pc 00000000000d1084  /apex/com.android.runtime/lib64/bionic/libc.so (__ioctl+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000008b6b0  /apex/com.android.runtime/lib64/bionic/libc.so (ioctl+132) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000590a4  /system/lib64/libbinder.so (android::IPCThreadState::talkWithDriver(bool)+244) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #03 pc 0000000000059280  /system/lib64/libbinder.so (android::IPCThreadState::getAndExecuteCommand()+24) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #04 pc 0000000000059a84  /system/lib64/libbinder.so (android::IPCThreadState::joinThreadPool(bool)+108) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #05 pc 000000000007fd3c  /system/lib64/libbinder.so (android::PoolThread::threadLoop()+24) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #06 pc 00000000000135f0  /system/lib64/libutils.so (android::Thread::_threadLoop(void*)+328) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #07 pc 00000000000c3c5c  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::javaThreadShell(void*)+140) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #08 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #09 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"ProcessStablePh" sysTid=23631
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"queued-work-loo" sysTid=23636
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"Thread-14" sysTid=23659
+    #00 pc 000000000000001c  <anonymous:7ab83f2000>
+    #01 pc 00000000004c4918  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #02 pc 0000000000270e70  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #03 pc 00000000004dda8c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"GameThread" sysTid=23665
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa230  /apex/com.android.runtime/lib64/bionic/libc.so (usleep+76) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000001100bb94  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #03 pc 0000000010c2191c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000012489da8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000124891d4  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000088adeb0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x88a3000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"EventThread" sysTid=23666
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 00000000000188d8  /system/lib64/libutils.so (android::Looper::pollAll(int, int*, int*, void**)+392) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000001371c  /system/lib64/libandroid.so (ALooper_pollAll+96) (BuildId: 65c93b708f7902f4a198f27e8b1993dd)
+    #04 pc 000000000889ffb8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"MemoryUsageThre" sysTid=23671
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"AssetPackBackgr" sysTid=23672
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"magnifier pixel" sysTid=23673
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"Thread-20" sysTid=23676
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b62c  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::TimedWait(art::Thread*, long, int)+168) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf40  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+640) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000c10bc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Thread-21" sysTid=23678
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa124  /apex/com.android.runtime/lib64/bionic/libc.so (sleep+52) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000000004d30c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libTDataMaster.so (BuildId: 927b014542db45665a9a5e5429c9b0cb4c97f789)
+    #03 pc 000000000004d034  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libTDataMaster.so (BuildId: 927b014542db45665a9a5e5429c9b0cb4c97f789)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-46" sysTid=23680
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 00000000000cffa8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #04 pc 0000000000055174  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #05 pc 00000000000dde8c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-27" sysTid=23681
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 00000000000cffa8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #04 pc 0000000000055174  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #05 pc 00000000000dde8c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"GThreadPool-2" sysTid=23682
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 00000000000cffa8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #04 pc 0000000000055174  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #05 pc 00000000000dde8c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"CThreadBase" sysTid=23685
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 0000000000062c78  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (ABase::CThreadBase::Sleep(int)+76) (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #02 pc 0000000000059808  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #03 pc 00000000000637c4  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloudcore.so (ABase::CThreadBase::onThreadProc(void*)+768) (BuildId: 6ef76085904271eed5295218b9ed0dadec50cfc2)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-45" sysTid=23687
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b62c  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::TimedWait(art::Thread*, long, int)+168) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf40  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+640) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000c10bc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"INTLwork1" sysTid=23688
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000259630  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"process reaper" sysTid=23691
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"INTLwork10" sysTid=23693
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000259630  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"INTLwork17" sysTid=23694
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000259630  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"INTLwork12" sysTid=23695
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000259630  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"pool-19-thread-" sysTid=23697
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Timer-0" sysTid=23699
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b62c  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::TimedWait(art::Thread*, long, int)+168) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf40  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+640) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000b93dc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"pool-21-thread-" sysTid=23700
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"pool-20-thread-" sysTid=23701
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"pool-21-thread-" sysTid=23702
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"queue-1-1" sysTid=23704
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"queue-1-2" sysTid=23705
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"internal" sysTid=23706
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"queue-1-3" sysTid=23707
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"queue-1-4" sysTid=23708
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"INTLwork11" sysTid=23709
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000259630  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"pool-22-thread-" sysTid=23710
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"INTLwork13" sysTid=23711
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000259630  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"pool-23-thread-" sysTid=23712
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"INTLwork15" sysTid=23714
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000259630  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"INTLwork14" sysTid=23715
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000259630  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"INTLwork18" sysTid=23716
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000259630  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"MainThread-UE4" sysTid=23720
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000008b644  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLDiscord.so (BuildId: 35dc873ecf5186d09fd2745e9718b1ebfa4bd322)
+
+"INTLParentalGui" sysTid=23723
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"process reaper" sysTid=23727
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"process reaper" sysTid=23728
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"process reaper" sysTid=23729
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"process reaper" sysTid=23730
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"process reaper" sysTid=23731
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"hwuiTask0" sysTid=23768
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000072d50  /system/lib64/libc++.so (std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)+20) (BuildId: 9587884aecc7c8f3f7f86956ad516fed)
+    #04 pc 0000000000361330  /system/lib64/libhwui.so (android::uirenderer::CommonPool::workerLoop()+104) (BuildId: 89872b4824183d6b36a5314bd0e7f303)
+    #05 pc 00000000003611d0  /system/lib64/libhwui.so (_ZNSt3__114__thread_proxyINS_5tupleIJNS_10unique_ptrINS_15__thread_structENS_14default_deleteIS3_EEEEZN7android10uirenderer10CommonPoolC1EvE3$_0EEEEEPvSC_+132) (BuildId: 89872b4824183d6b36a5314bd0e7f303)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"hwuiTask1" sysTid=23769
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000072d50  /system/lib64/libc++.so (std::__1::condition_variable::wait(std::__1::unique_lock<std::__1::mutex>&)+20) (BuildId: 9587884aecc7c8f3f7f86956ad516fed)
+    #04 pc 0000000000361330  /system/lib64/libhwui.so (android::uirenderer::CommonPool::workerLoop()+104) (BuildId: 89872b4824183d6b36a5314bd0e7f303)
+    #05 pc 00000000003611d0  /system/lib64/libhwui.so (_ZNSt3__114__thread_proxyINS_5tupleIJNS_10unique_ptrINS_15__thread_structENS_14default_deleteIS3_EEEEZN7android10uirenderer10CommonPoolC1EvE3$_0EEEEEPvSC_+132) (BuildId: 89872b4824183d6b36a5314bd0e7f303)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"pool-24-thread-" sysTid=23774
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"TaskGraphNP 0" sysTid=23777
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphNP 1" sysTid=23778
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphNP 2" sysTid=23779
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphNP 3" sysTid=23780
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphNP 4" sysTid=23781
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphNP 5" sysTid=23782
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphHP 6" sysTid=23783
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphHP 7" sysTid=23784
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphHP 8" sysTid=23785
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphHP 9" sysTid=23786
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphHP 10" sysTid=23787
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphHP 11" sysTid=23788
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphBP 12" sysTid=23789
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphBP 13" sysTid=23790
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphBP 14" sysTid=23791
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphBP 15" sysTid=23792
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphBP 16" sysTid=23793
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"TaskGraphBP 17" sysTid=23794
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000010c15408  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000012532614  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 0000000019a17c5c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_5 0" sysTid=23801
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_5 1" sysTid=23802
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_5 2" sysTid=23803
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_5 3" sysTid=23804
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_5 4" sysTid=23805
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_5 5" sysTid=23806
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_4 6" sysTid=23807
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_4 7" sysTid=23808
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"FAsyncW-taForce" sysTid=23809
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa230  /apex/com.android.runtime/lib64/bionic/libc.so (usleep+76) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 0000000019ac171c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #03 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"INTLreport-k16" sysTid=23810
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000527ffc  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLCore.so (BuildId: bc692491a951b727152733c11ec5110d7e490855)
+
+"INTLwork1" sysTid=23811
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000025a154  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libINTLFoundation.so (BuildId: 0a9ef44eddefbdb80395860e814b50ecf7bf7d27)
+
+"HttpManager" sysTid=23826
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa230  /apex/com.android.runtime/lib64/bionic/libc.so (usleep+76) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000112f76a0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x112db000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #03 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_1 8" sysTid=23827
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_1 9" sysTid=23828
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_1 10" sysTid=23829
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_1 11" sysTid=23830
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"FAsyncFreeToOS" sysTid=23831
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa230  /apex/com.android.runtime/lib64/bionic/libc.so (usleep+76) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 0000000010b235d0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #03 pc 0000000019a3c798  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"AuxiliaryRHI" sysTid=23847
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000137c9008  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000019f29068  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #09 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"GameThread" sysTid=23850
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000007fed3c0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+
+"GameThread" sysTid=23851
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000007fed3c0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+
+"GameThread" sysTid=23852
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000007fed3c0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+
+"GameThread" sysTid=23853
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000007fed3c0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+
+"GameThread" sysTid=23854
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000007fed3c0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+
+"Binder:23534_4" sysTid=23876
+    #00 pc 00000000000d1084  /apex/com.android.runtime/lib64/bionic/libc.so (__ioctl+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000008b6b0  /apex/com.android.runtime/lib64/bionic/libc.so (ioctl+132) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000590a4  /system/lib64/libbinder.so (android::IPCThreadState::talkWithDriver(bool)+244) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #03 pc 0000000000059280  /system/lib64/libbinder.so (android::IPCThreadState::getAndExecuteCommand()+24) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #04 pc 0000000000059a84  /system/lib64/libbinder.so (android::IPCThreadState::joinThreadPool(bool)+108) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #05 pc 000000000007fd3c  /system/lib64/libbinder.so (android::PoolThread::threadLoop()+24) (BuildId: e1b8ba59be43a12dadaec2e7b8a9cc0e)
+    #06 pc 00000000000135f0  /system/lib64/libutils.so (android::Thread::_threadLoop(void*)+328) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #07 pc 00000000000c3c5c  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::javaThreadShell(void*)+140) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #08 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #09 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"GameThread" sysTid=23878
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 00000000084146dc  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"NativeThread" sysTid=23879
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000000008ec08  /apex/com.android.runtime/lib64/bionic/libc.so (sem_wait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 00000000083e01b8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"GameThread" sysTid=23880
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000000008ec08  /apex/com.android.runtime/lib64/bionic/libc.so (sem_wait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 00000000083a1ad0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"NativeThread" sysTid=23881
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000000008ec08  /apex/com.android.runtime/lib64/bionic/libc.so (sem_wait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 00000000083e4ef8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"FMessag-.Router" sysTid=23886
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf26ec  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 000000001ad92ce0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Electra-ecAsync" sysTid=23887
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 0000000008fd7c18  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x88a3000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 0000000008fd7dc0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x88a3000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #09 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"FMediaTicker" sysTid=23888
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 000000001ae7b2bc  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"AssetPackServic" sysTid=23889
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"FAsyncLoading" sysTid=23893
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf26ec  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000107d1dd8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a0c24  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #09 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_0 12" sysTid=23894
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_0 13" sysTid=23895
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_0 14" sysTid=23896
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_0 15" sysTid=23897
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_0 16" sysTid=23898
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"PoolThread_0 17" sysTid=23899
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a0f6c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"CrashSightThrea" sysTid=23939
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"CrashSightThrea" sysTid=23940
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004f0224  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+1308) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"CrashSightThrea" sysTid=23941
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"Thread-138" sysTid=23944
+    #00 pc 000000000000001c  <anonymous:7ab83f2000>
+    #01 pc 00000000004c487c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #02 pc 0000000000219490  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #03 pc 000000000021902c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #04 pc 00000000004dda8c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-191" sysTid=23945
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa124  /apex/com.android.runtime/lib64/bionic/libc.so (sleep+52) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000002efd7c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #03 pc 00000000004618b4  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #04 pc 0000000000434130  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-137" sysTid=23946
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa124  /apex/com.android.runtime/lib64/bionic/libc.so (sleep+52) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000002efd7c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #03 pc 000000000036be34  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #04 pc 0000000000434130  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"tgpa_MainHandle" sysTid=23954
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"APM-Routine" sysTid=23958
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000004efed8  /apex/com.android.runtime/lib64/libart.so (art::Thread::Park(bool, long)+464) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 0000000000442eac  /apex/com.android.runtime/lib64/libart.so (art::Unsafe_park(_JNIEnv*, _jobject*, unsigned char, long)+612) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 00000000000bc96c  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"APM-AuditThread" sysTid=23959
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000000008ec08  /apex/com.android.runtime/lib64/bionic/libc.so (sem_wait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 00000000000ac55c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libGPM.so (BuildId: b4c959d58aee6b8509806f6f2065abf4c755122e)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"APM-NetWork" sysTid=23960
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000000008ec08  /apex/com.android.runtime/lib64/bionic/libc.so (sem_wait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000125e84  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libGPM.so (BuildId: b4c959d58aee6b8509806f6f2065abf4c755122e)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"APM-TickThread" sysTid=23961
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000000008ec08  /apex/com.android.runtime/lib64/bionic/libc.so (sem_wait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000123948  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libGPM.so (BuildId: b4c959d58aee6b8509806f6f2065abf4c755122e)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"gem-work" sysTid=23962
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"Thread-179" sysTid=23964
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000dcfc8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #02 pc 00000000000de418  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #03 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #04 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-183" sysTid=23965
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000dcfc8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #02 pc 00000000000de418  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #03 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #04 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"GThreadManager" sysTid=23966
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000dcfc8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #02 pc 00000000000de110  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #03 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #04 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Electra-taCache" sysTid=23967
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000010cf2810  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 000000001383bb30  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 000000001383b9e0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #09 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"AudioTrack" sysTid=23968
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 0000000000084cc4  /system/lib64/libaudioclient.so (android::ClientProxy::obtainBuffer(android::Proxy::Buffer*, timespec const*, timespec*)+688) (BuildId: ea162cabb14e2053f0d5918b08761742)
+    #02 pc 000000000007d280  /system/lib64/libaudioclient.so (android::AudioTrack::obtainBuffer(android::AudioTrack::Buffer*, timespec const*, timespec*, unsigned long*)+576) (BuildId: ea162cabb14e2053f0d5918b08761742)
+    #03 pc 000000000007c7c8  /system/lib64/libaudioclient.so (android::AudioTrack::processAudioBuffer()+2876) (BuildId: ea162cabb14e2053f0d5918b08761742)
+    #04 pc 000000000007ba5c  /system/lib64/libaudioclient.so (android::AudioTrack::AudioTrackThread::threadLoop()+540) (BuildId: ea162cabb14e2053f0d5918b08761742)
+    #05 pc 0000000000013588  /system/lib64/libutils.so (android::Thread::_threadLoop(void*)+224) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #06 pc 00000000000c3c5c  /system/lib64/libandroid_runtime.so (android::AndroidRuntime::javaThreadShell(void*)+140) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"RenderThread" sysTid=23971
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000019f1f718  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000088ab788  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x88a3000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000137c8e68  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1358e000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000122a2c84  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #07 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #08 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #09 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #10 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"RTHeartBeat 1" sysTid=23972
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa230  /apex/com.android.runtime/lib64/bionic/libc.so (usleep+76) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 0000000010b235d0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #03 pc 000000001221aae8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-170" sysTid=23974
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b1f4  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::WaitHoldingLocks(art::Thread*)+148) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf2c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+620) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000b93dc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"tgpa_SubHandler" sysTid=23976
+    #00 pc 00000000000d0f48  /apex/com.android.runtime/lib64/bionic/libc.so (__epoll_pwait+8) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000180bc  /system/lib64/libutils.so (android::Looper::pollInner(int)+144) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #02 pc 0000000000017f8c  /system/lib64/libutils.so (android::Looper::pollOnce(int, int*, int*, void**)+56) (BuildId: fd6cd7b199f704af2f5fadc967b57199)
+    #03 pc 000000000013d058  /system/lib64/libandroid_runtime.so (android::android_os_MessageQueue_nativePollOnce(_JNIEnv*, _jobject*, long, int)+44) (BuildId: 008e892b19a4d4f93cc81ae123349a31)
+    #04 pc 00000000002a7afc  /data/dalvik-cache/arm64/system@framework@boot-framework.oat
+
+"Thread-173" sysTid=23978
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000014b1f4  /apex/com.android.runtime/lib64/libart.so (art::ConditionVariable::WaitHoldingLocks(art::Thread*)+148) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #02 pc 000000000040bf2c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, long, int, bool, art::ThreadState)+620) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #03 pc 000000000040d98c  /apex/com.android.runtime/lib64/libart.so (art::Monitor::Wait(art::Thread*, art::ObjPtr<art::mirror::Object>, long, int, bool, art::ThreadState)+284) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #04 pc 00000000000b93dc  /data/dalvik-cache/arm64/system@framework@boot.oat
+
+"GameThread" sysTid=23979
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa230  /apex/com.android.runtime/lib64/bionic/libc.so (usleep+76) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000000040cee4  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #03 pc 0000000000215130  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"GameThread" sysTid=23980
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5e78  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_timedwait+120) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000217f98  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #04 pc 0000000000218068  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #05 pc 00000000006a06e0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #06 pc 0000000000215130  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-200" sysTid=23981
+    #00 pc 00000000000d1e24  /apex/com.android.runtime/lib64/bionic/libc.so (read+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000de224  /apex/com.android.runtime/lib64/bionic/libc.so (__sread+40) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000de120  /apex/com.android.runtime/lib64/bionic/libc.so (__srefill+256) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 00000000000e2270  /apex/com.android.runtime/lib64/bionic/libc.so (fread_unlocked+204) (BuildId: e55e6e4c631509598633769798683023)
+    #04 pc 00000000000e2160  /apex/com.android.runtime/lib64/bionic/libc.so (fread+72) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 000000000009a4ec  /apex/com.android.runtime/lib64/bionic/libc.so (android_getaddrinfofornetcontext+2448) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000099b34  /apex/com.android.runtime/lib64/bionic/libc.so (android_getaddrinfofornet+56) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 000000000020423c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #08 pc 0000000000204a98  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #09 pc 0000000000204c44  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #10 pc 00000000006964dc  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #11 pc 0000000000696be0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #12 pc 00000000006713f8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #13 pc 0000000000671ee8  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #14 pc 000000000068dd54  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #15 pc 000000000068e6bc  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #16 pc 0000000000690e30  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #17 pc 000000000069114c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #18 pc 000000000069d694  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #19 pc 000000000069deb0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #20 pc 0000000000215130  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #21 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #22 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"GameThread" sysTid=23982
+    #00 pc 000000000008033c  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+28) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000838a8  /apex/com.android.runtime/lib64/bionic/libc.so (__futex_wait_ex(void volatile*, bool, int, bool, timespec const*)+140) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000000e5dd4  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_cond_wait+60) (BuildId: e55e6e4c631509598633769798683023)
+    #03 pc 0000000000217fa0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #04 pc 0000000000218068  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #05 pc 000000000066dc38  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #06 pc 0000000000215130  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libgcloud.so (BuildId: e0a428a3b0da031c202275a1b8401f1915bcb8e6)
+    #07 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #08 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-180" sysTid=23992
+    #00 pc 000000000000001c  <anonymous:7ab83f2000>
+    #01 pc 00000000004c487c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #02 pc 0000000000217560  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #03 pc 0000000000217b18  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #04 pc 00000000004dda8c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-181" sysTid=23994
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa124  /apex/com.android.runtime/lib64/bionic/libc.so (sleep+52) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 00000000002efd7c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #03 pc 000000000042fe14  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #04 pc 0000000000434130  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-180" sysTid=23995
+    #00 pc 00000000003b6f74  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #01 pc 00000000003b6ecc  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #02 pc 00000000003e1444  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #03 pc 00000000003b700c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"Thread-181" sysTid=23996
+    #00 pc 00000000000211dc  [anon:objects_external_alloc]
+
+"Thread-180" sysTid=23997
+    #00 pc 00000000003b6f74  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #01 pc 00000000003b6ecc  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #02 pc 00000000003b5a88  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #03 pc 00000000003b700c  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so (BuildId: c148dbfd911763d2eea13c54869ecab84b1fa4a4)
+    #04 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #05 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"FLuaDea-opCheck" sysTid=23998
+    #00 pc 00000000000d1ca4  /apex/com.android.runtime/lib64/bionic/libc.so (nanosleep+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 00000000000aa230  /apex/com.android.runtime/lib64/bionic/libc.so (usleep+76) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 0000000010b235d0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1067a000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #03 pc 000000001bf331f4  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x1ba56000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #04 pc 00000000122a1030  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #05 pc 00000000122a10f0  /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libUE4.so!libUE4.so (offset 0x115d5000) (BuildId: ae90803e4f8aaaf8cc172ffc65a09e0ce9dcc2a3)
+    #06 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+    #07 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+"APM-QccFetcherT" sysTid=24002
+    #00 pc 00000000000d10c4  /apex/com.android.runtime/lib64/bionic/libc.so (__ppoll+4) (BuildId: e55e6e4c631509598633769798683023)
+    #01 pc 000000000008d6c4  /apex/com.android.runtime/lib64/bionic/libc.so (poll+88) (BuildId: e55e6e4c631509598633769798683023)
+    #02 pc 000000000003d148  /apex/com.android.conscrypt/lib64/libjavacrypto.so (sslSelect(_JNIEnv*, int, _jobject*, conscrypt::AppData*, int)+584) (BuildId: f1ebd96564b717e7b82c121a4943694f)
+    #03 pc 0000000000032520  /apex/com.android.conscrypt/lib64/libjavacrypto.so (NativeCrypto_SSL_do_handshake(_JNIEnv*, _jclass*, long, _jobject*, _jobject*, _jobject*, int)+1164) (BuildId: f1ebd96564b717e7b82c121a4943694f)
+    #04 pc 000000000013f350  /apex/com.android.runtime/lib64/libart.so (art_quick_generic_jni_trampoline+144) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #05 pc 00000000001365b8  /apex/com.android.runtime/lib64/libart.so (art_quick_invoke_static_stub+568) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #06 pc 000000000014500c  /apex/com.android.runtime/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+276) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #07 pc 00000000002e2928  /apex/com.android.runtime/lib64/libart.so (art::interpreter::ArtInterpreterToCompiledCodeBridge(art::Thread*, art::ArtMethod*, art::ShadowFrame*, unsigned short, art::JValue*)+384) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #08 pc 00000000002dec38  /apex/com.android.runtime/lib64/libart.so (bool art::interpreter::DoCall<true, false>(art::ArtMethod*, art::Thread*, art::ShadowFrame&, art::Instruction const*, unsigned short, art::JValue*)+692) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #09 pc 00000000005a5720  /apex/com.android.runtime/lib64/libart.so (MterpInvokeStaticRange+236) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #10 pc 0000000000130c94  /apex/com.android.runtime/lib64/libart.so (mterp_op_invoke_static_range+20) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #11 pc 0000000000022b60  /apex/com.android.conscrypt/javalib/conscrypt.jar (com.android.org.conscrypt.NativeSsl.doHandshake+60)
+    #12 pc 00000000005a0098  /apex/com.android.runtime/lib64/libart.so (MterpInvokeVirtual+1352) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #13 pc 0000000000130814  /apex/com.android.runtime/lib64/libart.so (mterp_op_invoke_virtual+20) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #14 pc 000000000001b5b8  /apex/com.android.conscrypt/javalib/conscrypt.jar (com.android.org.conscrypt.ConscryptFileDescriptorSocket.startHandshake+272)
+    #15 pc 00000000002b3c3c  /apex/com.android.runtime/lib64/libart.so (_ZN3art11interpreterL7ExecuteEPNS_6ThreadERKNS_20CodeItemDataAccessorERNS_11ShadowFrameENS_6JValueEbb.llvm.18044833378915231953+240) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #16 pc 0000000000591340  /apex/com.android.runtime/lib64/libart.so (artQuickToInterpreterBridge+1032) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #17 pc 000000000013f468  /apex/com.android.runtime/lib64/libart.so (art_quick_to_interpreter_bridge+88) (BuildId: d700c52998d7d76cb39e2001d670e654)
+    #18 pc 0000000000030e9c  /data/dalvik-cache/arm64/system@framework@boot-okhttp.oat
+
+----- end 23534 -----

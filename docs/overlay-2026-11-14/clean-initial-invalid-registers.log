@@ -1,0 +1,120 @@
+observing pid=25662 threads=193 seconds=95; original signals will be forwarded
+SIGNAL tid=26152 name=GameThread signal=11 code=1 sender_pid=5044 sender_uid=0 address=0x13b4 pc=0x13b4 lr=0x13b4
+REG x0=0x13b4
+REG x1=0x7b4efc2570
+REG x2=0x8
+REG x3=0x1c
+REG x4=0x0
+REG x5=0x0
+REG x6=0x0
+REG x7=0x3737383938353330
+REG x8=0x13b4
+REG x9=0x3b4
+REG x10=0x1
+REG x11=0x0
+REG x12=0x7c5e8603e4
+REG x13=0x7c5e8603e8
+REG x14=0x7c5e86036c
+REG x15=0x7c5e860000
+REG x16=0x7c5e867890
+REG x17=0x13b4
+REG x18=0x7a16c5c000
+REG x19=0x7a775ca600
+REG x20=0x7b4efc25e0
+REG x21=0x2
+REG x22=0x0
+REG x23=0x30f7a686
+REG x24=0xfb3f52bb
+REG x25=0xf5dcb0af
+REG x26=0xdc6e7f80
+REG x27=0xcf30944c
+REG x28=0xb9b37da4
+REG x29=0x13b4
+REG x30=0x13b4
+REG x31=0x13b4
+REG x32=0x13b4
+REG x33=0x80000000
+SIGNAL tid=26152 name=GameThread signal=7 code=1 sender_pid=1585624813 sender_uid=124 address=0x7c5e82b6ed pc=0x7c5e82b6ed lr=0x5dfbfd4da4
+REG x0=0xb
+REG x1=0x7b6c2e4cd0
+REG x2=0x0
+REG x3=0x8
+REG x4=0x0
+REG x5=0x0
+REG x6=0x0
+REG x7=0x3737383938353330
+REG x8=0x7c5e82b6ed
+REG x9=0xf16e06d09a51fc87
+REG x10=0x1
+REG x11=0x0
+REG x12=0x80001600
+REG x13=0x7c5e8603e8
+REG x14=0x7c5e86036c
+REG x15=0x7c5e860000
+REG x16=0x5dfbfd7560
+REG x17=0x7c5e8010b8
+REG x18=0x7a16c5c000
+REG x19=0xb
+REG x20=0x7b6c2e4e20
+REG x21=0x7b6c2e4da0
+REG x22=0x7b6c2e4e48
+REG x23=0x5dfbfd83e0
+REG x24=0x40
+REG x25=0x7b4efc3020
+REG x26=0x5dfbfd96b0
+REG x27=0x5dfbfd83c8
+REG x28=0x0
+REG x29=0x7b6c2e4d90
+REG x30=0x5dfbfd4da4
+REG x31=0x7b6c2e4d10
+REG x32=0x7c5e82b6ed
+REG x33=0x20000000
+MAP address=0x7c5e82b6ed 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+MAP address=0x5dfbfd4da4 5dfbfd3000-5dfbfd7000 --xp 00003000 fd:00 622                            /system/bin/app_process64
+FRAME depth=0 fp=0x7b6c2e4d90 return=0x7c61fc1690
+MAP address=0x7c61fc1690 7c61fc1000-7c61fc2000 r-xp 00000000 00:00 0                              [vdso]
+FRAME depth=1 fp=0x7b6c2e5ff0 return=0x13b4
+SIGNAL tid=26152 name=GameThread signal=7 code=1 sender_pid=1585630590 sender_uid=124 address=0x7c5e82cd7e pc=0x7c5e82cd7e lr=0x7c61fc1690
+REG x0=0x7
+REG x1=0x7b6c2e4cd0
+REG x2=0x0
+REG x3=0x8
+REG x4=0x0
+REG x5=0x0
+REG x6=0x0
+REG x7=0x3737383938353330
+REG x8=0x7c5e82b6ed
+REG x9=0xf16e06d09a51fc87
+REG x10=0x1
+REG x11=0x0
+REG x12=0x80001600
+REG x13=0x7c5e8603e8
+REG x14=0x7c5e86036c
+REG x15=0x7c5e860000
+REG x16=0x5dfbfd7560
+REG x17=0x7c5e8010b8
+REG x18=0x7a16c5c000
+REG x19=0xb
+REG x20=0x7b6c2e4e20
+REG x21=0x7b6c2e4da0
+REG x22=0x7b6c2e4e48
+REG x23=0x5dfbfd83e0
+REG x24=0x40
+REG x25=0x7b4efc3020
+REG x26=0x5dfbfd96b0
+REG x27=0x5dfbfd83c8
+REG x28=0x0
+REG x29=0x7b6c2e4d00
+REG x30=0x7c61fc1690
+REG x31=0x7b6c2e3ab0
+REG x32=0x7c5e82cd7e
+REG x33=0x20000000
+MAP address=0x7c5e82cd7e 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+MAP address=0x7c61fc1690 7c61fc1000-7c61fc2000 r-xp 00000000 00:00 0                              [vdso]
+FRAME depth=0 fp=0x7b6c2e4d00 return=0x5dfbfd4da4
+MAP address=0x5dfbfd4da4 5dfbfd3000-5dfbfd7000 --xp 00003000 fd:00 622                            /system/bin/app_process64
+FRAME depth=1 fp=0x7b6c2e4d90 return=0x7c61fc1690
+MAP address=0x7c61fc1690 7c61fc1000-7c61fc2000 r-xp 00000000 00:00 0                              [vdso]
+FRAME depth=2 fp=0x7b6c2e5ff0 return=0x13b4
+target exit: exited=0 code=0 signal=7
+cleanup: interrupted=0 detached=0; target not killed

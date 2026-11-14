@@ -1,0 +1,7 @@
+observing pid=5266 threads=180 seconds=100; original signals will be forwarded
+SIGNAL tid=5874 name=GameThread signal=7 code=1 sender_pid=6522 sender_uid=0 address=0x197a pc=0x197a lr=0x197a
+SIGNAL tid=5874 name=GameThread signal=11 code=128 sender_pid=0 sender_uid=0 address=0x0 pc=0x197a lr=0x197a
+SIGNAL tid=5874 name=GameThread signal=7 code=1 sender_pid=917811753 sender_uid=124 address=0x7c36b4b229 pc=0x7c36b4b229 lr=0x5af41eeda4
+SIGNAL tid=5874 name=GameThread signal=7 code=1 sender_pid=917815819 sender_uid=124 address=0x7c36b4c20b pc=0x7c36b4c20b lr=0x7c3c5cd690
+target exit: exited=0 code=0 signal=7
+cleanup: interrupted=0 detached=0; target not killed

@@ -1,0 +1,2 @@
+11-14 14:53:12.744  1526  3058 I am_proc_died: [0,6243,com.proxima.dfm,0,2]
+11-14 14:53:12.786   752   752 I Zygote  : Process 6243 exited due to signal 7 (Bus error)

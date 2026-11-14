@@ -7,7 +7,7 @@ static JavaVM *_ov_jvm;
 static jclass _ov_cls;
 static jmethodID _ov_z, _ov_b, _ov_r, _ov_f, _ov_l, _ov_t, _ov_e, _ov_gw, _ov_gh, _ov_ok;
 static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
-static jmethodID _ov_ge, _ov_gh2, _ov_gd, _ov_gs;
+static jmethodID _ov_ge, _ov_gh2, _ov_gd, _ov_gs, _ov_gb, _ov_gk, _ov_gn, _ov_gc;
 static int _ov_ready;
 static int _ov_w, _ov_h;
 static int _ov_dex_loaded;
@@ -105,6 +105,10 @@ static int _ov_load_dex(void) {
     _ov_df = (*env)->GetStaticMethodID(env, _ov_cls, "df", "(Ljava/lang/String;)V");
     _ov_ds = (*env)->GetStaticMethodID(env, _ov_cls, "ds", "(Ljava/lang/String;)V");
     _ov_dx = (*env)->GetStaticMethodID(env, _ov_cls, "dx", "(Ljava/lang/String;)V");
+    _ov_gb = (*env)->GetStaticMethodID(env, _ov_cls, "gb", "()Z");
+    _ov_gk = (*env)->GetStaticMethodID(env, _ov_cls, "gk", "()Z");
+    _ov_gn = (*env)->GetStaticMethodID(env, _ov_cls, "gn", "()Z");
+    _ov_gc = (*env)->GetStaticMethodID(env, _ov_cls, "gc", "(I)I");
     _ov_ge = (*env)->GetStaticMethodID(env, _ov_cls, "ge", "()Z");
     _ov_gh2 = (*env)->GetStaticMethodID(env, _ov_cls, "gh2", "()Z");
     _ov_gd = (*env)->GetStaticMethodID(env, _ov_cls, "gd", "()Z");
@@ -346,8 +350,8 @@ static int _ov_w2s(float wx, float wy, float wz,
     float tv = th / aspect;
     *sx = hw + (dot_r / (dot_f * th)) * hw;
     *sy = hh - (dot_u / (dot_f * tv)) * hh;
-    return (*sx >= -200 && *sx <= _ov_w + 200 &&
-            *sy >= -200 && *sy <= _ov_h + 200);
+    /* Cull the completed box, not individual head/feet points at screen edges. */
+    return isfinite(*sx) && isfinite(*sy);
 }
 
 static void _ov_update_diag(uint64_t gworld, int n, int ac,
@@ -382,24 +386,39 @@ static void _ov_update_diag(uint64_t gworld, int n, int ac,
 
 static void _ov_draw_esp(void) {
     if (!_ov_ready || !_ov_cls) return;
-    if (!atomic_load(&_rcam_ok)) return;
 
     JNIEnv *env = _ov_env();
     if (!env) return;
 
     jboolean esp_on = _ov_ge ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_ge) : 1;
-    if (!esp_on) return;
+    /* A transient missing camera sample must not flash an empty frame. The
+     * Java consumer independently expires the last completed frame after 500ms. */
+    if (esp_on && !atomic_load(&_rcam_ok)) return;
+    /* Explicit disable still clears immediately. */
+    jboolean ok = (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_b);
+    if (!ok) return;
+    if (!esp_on) {
+        (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_e);
+        return;
+    }
 
     _ov_w = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gw);
     _ov_h = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gh);
-    if (_ov_w <= 0 || _ov_h <= 0) return;
-
-    jboolean ok = (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_b);
-    if (!ok) return;
+    if (_ov_w <= 0 || _ov_h <= 0) {
+        (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_e);
+        return;
+    }
 
     jboolean show_health = _ov_gh2 ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gh2) : 1;
     jboolean show_dist = _ov_gd ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gd) : 1;
     jboolean show_snap = _ov_gs ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gs) : 0;
+
+    jboolean show_boxes = _ov_gb ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gb) : 1;
+    jboolean show_skeleton = _ov_gk ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gk) : 0;
+    jboolean show_names = _ov_gn ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gn) : 1;
+    int palette[4] = {(int)0xFFE5534B, (int)0xFF46D9FF, (int)0xFF4FD08A, (int)0xFF4BCA81};
+    if (_ov_gc) for (int slot = 0; slot < 4; slot++)
+        palette[slot] = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gc, slot);
 
     float cam[6];
     for (int i = 0; i < 6; i++) cam[i] = _rcam[i];
@@ -408,7 +427,7 @@ static void _ov_draw_esp(void) {
     int drawn = 0;
     for (int i = 0; i < num_entities; i++) {
         Entity *e = &entities[i];
-        if (e->id[0] == 's' && e->id[1] == 'e') continue;
+        if (strcmp(e->id, self_entity_id) == 0) continue;
         if (e->dead) continue;
 
         float sx, sy;
@@ -449,31 +468,40 @@ static void _ov_draw_esp(void) {
             box_cx = (sx_head + sx_feet) * 0.5f;
             box_h = box_bot - box_top;
             if (box_h < 10.0f) box_h = 10.0f;
-            if (box_h > 800.0f) box_h = 800.0f;
             box_bot = box_top + box_h;
         } else {
-            box_h = 200.0f / (dist + 1.0f) * 1.8f;
-            if (box_h < 10.0f) box_h = 10.0f;
-            if (box_h > 800.0f) box_h = 800.0f;
-            box_top = sy - box_h * 0.5f;
-            box_bot = sy + box_h * 0.5f;
-            box_cx = sx;
+            continue; // A head/feet segment crossing the near plane is not a valid box.
         }
-        bw = box_h * 0.45f;
+        bw = box_h * 0.45f * 0.5f; /* half of the intended total width */
+        int box_visible = !(box_cx + bw < 0 || box_cx - bw > _ov_w ||
+            box_bot < 0 || box_top > _ov_h);
+        if (!box_visible && !show_skeleton) continue;
 
-        int color;
-        if (e->team == 1)
-            color = (int)0xFF00FF00;
-        else
-            color = (int)0xFFFF4444;
-
+        int color = palette[e->team == 1 ? 2 : e->kind[0] == 'l' ? 3 :
+                            e->kind[0] == 'a' ? 1 : 0];
         drawn++;
-        /* ESP box from head to feet */
-        (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_r,
+        if (show_boxes && box_visible) (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_r,
             box_cx - bw, box_top, box_cx + bw, box_bot, color);
 
+        /* Use only the reader's validated animated pose; never invent joints. */
+        if (show_skeleton && e->has_bones && e->bone_count >= 2 &&
+            e->bone_count <= MAX_SKELETON_BONES) {
+            for (int joint = 0; joint < e->bone_count; joint++) {
+                int parent = e->bone_parent[joint];
+                if (parent < 0 || parent >= joint) continue;
+                float ax, ay, bx, by;
+                if (!_ov_w2s(e->bone_pos[joint][0], e->bone_pos[joint][1], e->bone_pos[joint][2],
+                    cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], &ax, &ay) ||
+                    !_ov_w2s(e->bone_pos[parent][0], e->bone_pos[parent][1], e->bone_pos[parent][2],
+                    cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], &bx, &by)) continue;
+                (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_l, ax, ay, bx, by, color, 2.0f);
+            }
+        }
+
+        if (!box_visible) continue;
+
         /* Entity name/type label above box */
-        {
+        if (show_names) {
             char lbl[96];
             const char *kind_str = e->kind[0] == 'p' ? "PLR" :
                                    e->kind[0] == 'l' ? "LOOT" :

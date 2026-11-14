@@ -139,96 +139,8 @@ static uint64_t diagnostic_failure_address = 0;
 static int diagnostic_failure_errno = 0;
 
 #ifdef BUILD_AS_LIBRARY
-#include <setjmp.h>
-static __thread sigjmp_buf _safe_jmp;
-static __thread volatile sig_atomic_t _safe_active = 0;
-static __thread sigjmp_buf _thread_exit_jmp;
-static __thread volatile sig_atomic_t _thread_exit_armed = 0;
-static struct sigaction _prev_segv;
-static struct sigaction _prev_bus;
-static void _reinstall_handlers(void);
-
-static void _fault_handler(int sig, siginfo_t *info, void *ctx) {
-    if (_safe_active) {
-        _safe_active = 0;
-        siglongjmp(_safe_jmp, 1);
-    }
-    /* Externally-sent kill signals (SI_TKILL, SI_USER) — absorb silently. */
-    if (info && (info->si_code == SI_TKILL || info->si_code == SI_USER
-                 || info->si_code <= 0)) {
-        _reinstall_handlers();
-        return;
-    }
-    /* Real hardware fault on scanner thread — exit thread, don't kill process. */
-    if (_thread_exit_armed) {
-        _thread_exit_armed = 0;
-        siglongjmp(_thread_exit_jmp, 1);
-    }
-    /* Not our thread — chain to previous handler. */
-    struct sigaction *prev = (sig == SIGBUS) ? &_prev_bus : &_prev_segv;
-    if (prev->sa_flags & SA_SIGINFO) {
-        if (prev->sa_sigaction) prev->sa_sigaction(sig, info, ctx);
-    } else if (prev->sa_handler != SIG_DFL && prev->sa_handler != SIG_IGN) {
-        prev->sa_handler(sig);
-    } else {
-        signal(sig, SIG_DFL);
-        raise(sig);
-    }
-}
-
-static struct sigaction _prev_abrt;
-
-static void _kill_absorber(int sig, siginfo_t *info, void *ctx) {
-    if (info && (info->si_code == SI_TKILL || info->si_code == SI_USER
-                 || info->si_code <= 0))
-        return;
-    struct sigaction *prev = &_prev_abrt;
-    if (prev->sa_flags & SA_SIGINFO) {
-        if (prev->sa_sigaction) prev->sa_sigaction(sig, info, ctx);
-    } else if (prev->sa_handler != SIG_DFL && prev->sa_handler != SIG_IGN) {
-        prev->sa_handler(sig);
-    } else {
-        signal(sig, SIG_DFL);
-        raise(sig);
-    }
-}
-
-static void _install_segv_handler(void) {
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_sigaction = _fault_handler;
-    sa.sa_flags = SA_SIGINFO | SA_NODEFER;
-    sigemptyset(&sa.sa_mask);
-    sigaction(SIGSEGV, &sa, &_prev_segv);
-    sigaction(SIGBUS, &sa, &_prev_bus);
-
-    struct sigaction sa2;
-    memset(&sa2, 0, sizeof(sa2));
-    sa2.sa_sigaction = _kill_absorber;
-    sa2.sa_flags = SA_SIGINFO | SA_NODEFER;
-    sigemptyset(&sa2.sa_mask);
-    sigaction(SIGABRT, &sa2, &_prev_abrt);
-}
-
-static void _reinstall_handlers(void) {
-    struct sigaction cur;
-    sigaction(SIGSEGV, NULL, &cur);
-    if (cur.sa_sigaction != _fault_handler) {
-        struct sigaction sa;
-        memset(&sa, 0, sizeof(sa));
-        sa.sa_sigaction = _fault_handler;
-        sa.sa_flags = SA_SIGINFO | SA_NODEFER;
-        sigemptyset(&sa.sa_mask);
-        sigaction(SIGSEGV, &sa, &_prev_segv);
-        sigaction(SIGBUS, &sa, &_prev_bus);
-        struct sigaction sa2;
-        memset(&sa2, 0, sizeof(sa2));
-        sa2.sa_sigaction = _kill_absorber;
-        sa2.sa_flags = SA_SIGINFO | SA_NODEFER;
-        sigemptyset(&sa2.sa_mask);
-        sigaction(SIGABRT, &sa2, &_prev_abrt);
-    }
-}
+#include "self-memory.h"
+static __thread SelfMemoryReader checked_reader = {-1, -1};
 #endif
 
 #ifndef BUILD_AS_LIBRARY
@@ -333,20 +245,12 @@ static int _addr_readable(uint64_t addr, size_t len) {
 
 #ifdef BUILD_AS_LIBRARY
 static ssize_t safe_read_mem(uint64_t addr, void *buf, size_t len) {
-    _safe_active = 1;
-    if (sigsetjmp(_safe_jmp, 0) != 0) return -1;
-    memcpy(buf, (const void *)(uintptr_t)addr, len);
-    _safe_active = 0;
-    return (ssize_t)len;
+    return self_memory_read(&checked_reader, addr, buf, len);
 }
 
 static uint64_t safe_read_ptr(uint64_t addr) {
-    uint64_t val = 0;
-    _safe_active = 1;
-    if (sigsetjmp(_safe_jmp, 0) != 0) return 0;
-    memcpy(&val, (const void *)(uintptr_t)addr, 8);
-    _safe_active = 0;
-    return val;
+    uint64_t value = 0;
+    return self_memory_read(&checked_reader, addr, &value, sizeof(value)) == sizeof(value) ? value : 0;
 }
 #endif
 
@@ -369,16 +273,7 @@ static int _addr_known_bad(uint64_t addr, size_t len) {
 static ssize_t read_mem(uint64_t addr, void *buf, size_t len) {
     ssize_t result;
 #ifdef BUILD_AS_LIBRARY
-    _safe_active = 1;
-    if (sigsetjmp(_safe_jmp, 0) != 0) {
-        diagnostic_read_failures++;
-        diagnostic_failure_address = addr;
-        diagnostic_failure_errno = EFAULT;
-        return -1;
-    }
-    memcpy(buf, (const void *)(uintptr_t)addr, len);
-    _safe_active = 0;
-    result = (ssize_t)len;
+    result = self_memory_read(&checked_reader, addr, buf, len);
 #else
     if (use_vm_readv) {
         struct iovec local = { .iov_base = buf, .iov_len = len };
@@ -1224,6 +1119,9 @@ static float last_camera_timestamp = -1.0f;
 static int camera_position_plaintext = 0;
 static int local_player_controlled = 0;
 static long long camera_sampled_at_ms = 0;
+static int camera_frame_valid = 0;
+static uint64_t resolved_camera_owner = 0;
+static unsigned invalid_camera_frames = 0;
 static unsigned stale_camera_frames = 0;
 static int resolved_camera_manager_off = -1;
 static int resolved_camera_cache_off = -1;
@@ -1979,6 +1877,7 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
     diagnostic_actor_count = 0;
     diagnostic_status = "2";
     local_player_controlled = 0;
+    camera_frame_valid = 0;
     uint64_t uworld = read_ptr(gworld_addr);
     if (!is_any_ptr(uworld)) return -1;
     diagnostic_world = uworld;
@@ -1991,6 +1890,8 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         resolved_camera_manager_off = -1;
         resolved_camera_cache_off = -1;
         camera_candidate_count = 0;
+        resolved_camera_owner = 0;
+        invalid_camera_frames = 0;
     }
 
     diagnostic_status = "3";
@@ -2094,6 +1995,13 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             camera_diag_logged = 1;
         }
         if (is_telemetry_ptr(camera_manager)) {
+            if (resolved_camera_owner != camera_manager) {
+                resolved_camera_owner = camera_manager;
+                resolved_camera_cache_off = -1;
+                camera_candidate_count = 0;
+                last_camera_timestamp = -1.0f;
+                stale_camera_frames = invalid_camera_frames = 0;
+            }
             if (resolved_camera_cache_off < 0) {
                 if (camera_candidate_count == 0)
                     discover_camera_caches(camera_manager, cached_self_pos);
@@ -2158,6 +2066,16 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         }
     }
 camera_done:
+    camera_frame_valid = camera_valid;
+    if (camera_valid) invalid_camera_frames = 0;
+    else if (++invalid_camera_frames >= 45) {
+        /* Preview and gameplay cameras can change within the same UWorld.
+         * A frozen/invalid cache must not remain selected for the whole session. */
+        resolved_camera_cache_off = -1;
+        camera_candidate_count = 0;
+        last_camera_timestamp = -1.0f;
+        stale_camera_frames = invalid_camera_frames = 0;
+    }
 
     local_player_controlled = pawn_is_controlled(local_pawn, local_pc);
 

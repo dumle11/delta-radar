@@ -61,6 +61,4 @@ $CC \
 echo "[+] Built: $OUT"
 echo "    Size: $(du -h "$OUT" | cut -f1)"
 echo ""
-echo "To deploy (Zygisk):"
-echo "  adb push $OUT /data/local/tmp/"
-echo "  adb shell \"su -c 'cp /data/local/tmp/libue4patch.so /data/data/com.proxima.dfm/libue4patch.so && chown u0_a142:u0_a142 /data/data/com.proxima.dfm/libue4patch.so && chmod 755 /data/data/com.proxima.dfm/libue4patch.so && chcon u:object_r:app_data_file:s0:c142,c256,c512,c768 /data/data/com.proxima.dfm/libue4patch.so'\""
+echo "Deploy using handoff.md after verifying the current app UID and SELinux context."

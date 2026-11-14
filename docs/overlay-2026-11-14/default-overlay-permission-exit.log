@@ -1,0 +1,2 @@
+Game PID 26945; no debugger or signal observer attached.
+11-14 15:36:56.725   756   756 I Zygote  : Process 26945 exited due to signal 11 (Segmentation fault)

@@ -34,9 +34,17 @@ static int skeleton_profile_supported(void) {
     if (checked_base == ue4_base && supported) return 1;
     const uint32_t expected[] = {0xf9438c08, 0xb4000068, 0xb941d100, 0xd65f03c0};
     uint32_t actual[4];
-    if (!ue4_base || read_mem(ue4_base + 0x1acda0fc, actual, sizeof(actual)) != sizeof(actual) ||
-        memcmp(actual, expected, sizeof(expected))) return 0;
-    checked_base = ue4_base; supported = 1; return 1;
+    /* Exact getter signatures from the November 2 and November 14 builds.
+     * The latter moved, but still loads mesh+0x718 and asset+0x1d0. */
+    const uint64_t getter_offsets[] = {0x1acda0fc, 0x1b040308};
+    if (!ue4_base) return 0;
+    for (unsigned i = 0; i < sizeof(getter_offsets) / sizeof(*getter_offsets); i++) {
+        if (read_mem(ue4_base + getter_offsets[i], actual, sizeof(actual)) == sizeof(actual) &&
+            !memcmp(actual, expected, sizeof(expected))) {
+            checked_base = ue4_base; supported = 1; return 1;
+        }
+    }
+    return 0;
 }
 static int skeleton_array_valid(const SkeletonArray *a) {
     return is_any_ptr(a->data) && a->count >= 2 && a->count <= MAX_SKELETON_BONES &&

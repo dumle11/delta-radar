@@ -1,0 +1,2 @@
+11-14 14:44:54.543  1526  5108 I ActivityManager: Process com.proxima.dfm (pid 32457) has died: fore TOP 
+11-14 14:44:54.543  1526  5108 I am_proc_died: [0,32457,com.proxima.dfm,0,2]

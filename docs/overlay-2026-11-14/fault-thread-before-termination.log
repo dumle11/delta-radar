@@ -1,0 +1,132 @@
+Subset of bounded observer output: actual fault TID 27438.
+SIGNAL signal=0 records are diagnostic interrupt samples, not crash signals.
+
+SAMPLE time=874 tid=27438
+SIGNAL tid=27438 name=GameThread signal=0 code=-32763 sender_pid=27438 sender_uid=10555 address=0x293b00006b2e pc=0x7c5e7f1f6c lr=0x7c5e7f6cf8
+MAP address=0x7c5e7f1f6c 7c5e7b3000-7c5e85f000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+MAP address=0x7c5e7f6cf8 7c5e7b3000-7c5e85f000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=0 fp=0x7b4ea4b880 return=0x7c5e8585d0
+MAP address=0x7c5e8585d0 7c5e7b3000-7c5e85f000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=1 fp=0x7b4ea4b970 return=0x7b6d022e78
+MAP address=0x7b6d022e78 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=2 fp=0x7b4ea4b9c0 return=0x7b6d02292c
+MAP address=0x7b6d02292c 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=3 fp=0x7b4ea4b9f0 return=0x7b6cd470cc
+MAP address=0x7b6cd470cc 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=4 fp=0x7b4ea4ba80 return=0x7b6cd42c38
+MAP address=0x7b6cd42c38 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=5 fp=0x7b4ea4bb10 return=0x7b6cd428c8
+MAP address=0x7b6cd428c8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=6 fp=0x7b4ea4bbf0 return=0x7b6d022a90
+MAP address=0x7b6d022a90 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=7 fp=0x7b4ea4bcc0 return=0x7c5e858894
+MAP address=0x7c5e858894 7c5e7b3000-7c5e85f000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=8 fp=0x7b4ea4bd10 return=0x7c5e7f6b70
+MAP address=0x7c5e7f6b70 7c5e7b3000-7c5e85f000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=9 fp=0x7b4ea4bd40 return=0x0
+
+SAMPLE time=877 tid=27438
+SIGNAL tid=27438 name=GameThread signal=0 code=-32763 sender_pid=27438 sender_uid=10555 address=0x293b00006b2e pc=0x7bda9ff01c lr=0x7b6d00991c
+MAP address=0x7bda9ff01c 7bda9ff000-7bdaa00000 r-xp 00000000 00:00 0 
+MAP address=0x7b6d00991c 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=0 fp=0x7b55b9fb00 return=0x7b6cd467a8
+MAP address=0x7b6cd467a8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=1 fp=0x7b55b9fbf0 return=0x7b6d022a90
+MAP address=0x7b6d022a90 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=2 fp=0x7b55b9fcc0 return=0x7c5e858894
+MAP address=0x7c5e858894 7c5e7b3000-7c5e85f000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=3 fp=0x7b55b9fd10 return=0x7c5e7f6b70
+MAP address=0x7c5e7f6b70 7c5e7b3000-7c5e85f000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=4 fp=0x7b55b9fd40 return=0x0
+
+SAMPLE time=882 tid=27438
+SIGNAL tid=27438 name=GameThread signal=0 code=-32763 sender_pid=27438 sender_uid=10555 address=0x293b00006b2e pc=0x7bda9ff01c lr=0x7b6d00991c
+MAP address=0x7bda9ff01c 7bda9ff000-7bdaa00000 r-xp 00000000 00:00 0 
+MAP address=0x7b6d00991c 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=0 fp=0x7b55b9fb00 return=0x7b6cd467a8
+MAP address=0x7b6cd467a8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=1 fp=0x7b55b9fbf0 return=0x7b6d022a90
+MAP address=0x7b6d022a90 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=2 fp=0x7b55b9fcc0 return=0x7c5e858894
+MAP address=0x7c5e858894 7c5e853000-7c5e85f000 --xp 000e1000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=3 fp=0x7b55b9fd10 return=0x7c5e7f6b70
+MAP address=0x7c5e7f6b70 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=4 fp=0x7b55b9fd40 return=0x0
+
+SAMPLE time=887 tid=27438
+SIGNAL tid=27438 name=GameThread signal=0 code=-32763 sender_pid=27438 sender_uid=10555 address=0x293b00006b2e pc=0x7bda9ff01c lr=0x7b6d00991c
+MAP address=0x7bda9ff01c 7bda9ff000-7bdaa00000 r-xp 00000000 00:00 0 
+MAP address=0x7b6d00991c 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=0 fp=0x7b55b9fb00 return=0x7b6cd467a8
+MAP address=0x7b6cd467a8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=1 fp=0x7b55b9fbf0 return=0x7b6d022a90
+MAP address=0x7b6d022a90 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=2 fp=0x7b55b9fcc0 return=0x7c5e858894
+MAP address=0x7c5e858894 7c5e853000-7c5e85f000 --xp 000e1000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=3 fp=0x7b55b9fd10 return=0x7c5e7f6b70
+MAP address=0x7c5e7f6b70 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=4 fp=0x7b55b9fd40 return=0x0
+
+SAMPLE time=892 tid=27438
+SIGNAL tid=27438 name=GameThread signal=0 code=-32763 sender_pid=27438 sender_uid=10555 address=0x293b00006b2e pc=0x7c5e843ca4 lr=0x7c5e81c128
+MAP address=0x7c5e843ca4 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+MAP address=0x7c5e81c128 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=0 fp=0x7b55b9f5b0 return=0x7b6cfc36c8
+MAP address=0x7b6cfc36c8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=1 fp=0x7b55b9f5c0 return=0x7b6cfc3fac
+MAP address=0x7b6cfc3fac 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=2 fp=0x7b55b9f750 return=0x7b6cfc3cd8
+MAP address=0x7b6cfc3cd8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=3 fp=0x7b55b9f830 return=0x7b6cd59b98
+MAP address=0x7b6cd59b98 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=4 fp=0x7b55b9f8b0 return=0x7b6cd599a8
+MAP address=0x7b6cd599a8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=5 fp=0x7b55b9f930 return=0x7b6cd4c77c
+MAP address=0x7b6cd4c77c 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=6 fp=0x7b55b9f9a0 return=0x7b6cd4c4d4
+MAP address=0x7b6cd4c4d4 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=7 fp=0x7b55b9fa20 return=0x7b6cd4c2d0
+MAP address=0x7b6cd4c2d0 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=8 fp=0x7b55b9fa90 return=0x7b6cd46d18
+MAP address=0x7b6cd46d18 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=9 fp=0x7b55b9fb20 return=0x7b6cd468c4
+MAP address=0x7b6cd468c4 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=10 fp=0x7b55b9fbf0 return=0x7b6d022a90
+MAP address=0x7b6d022a90 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=11 fp=0x7b55b9fcc0 return=0x7c5e858894
+MAP address=0x7c5e858894 7c5e853000-7c5e85f000 --xp 000e1000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=12 fp=0x7b55b9fd10 return=0x7c5e7f6b70
+MAP address=0x7c5e7f6b70 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=13 fp=0x7b55b9fd40 return=0x0
+
+SAMPLE time=897 tid=27438
+SIGNAL tid=27438 name=GameThread signal=0 code=-32763 sender_pid=27438 sender_uid=10555 address=0x293b00006b2e pc=0x7c5e843ca4 lr=0x7c5e81c128
+MAP address=0x7c5e843ca4 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+MAP address=0x7c5e81c128 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=0 fp=0x7b55b9f5b0 return=0x7b6cfc36c8
+MAP address=0x7b6cfc36c8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=1 fp=0x7b55b9f5c0 return=0x7b6cfc3fac
+MAP address=0x7b6cfc3fac 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=2 fp=0x7b55b9f750 return=0x7b6cfc3cd8
+MAP address=0x7b6cfc3cd8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=3 fp=0x7b55b9f830 return=0x7b6cd59b98
+MAP address=0x7b6cd59b98 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=4 fp=0x7b55b9f8b0 return=0x7b6cd599a8
+MAP address=0x7b6cd599a8 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=5 fp=0x7b55b9f930 return=0x7b6cd4c77c
+MAP address=0x7b6cd4c77c 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=6 fp=0x7b55b9f9a0 return=0x7b6cd4c4d4
+MAP address=0x7b6cd4c4d4 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=7 fp=0x7b55b9fa20 return=0x7b6cd4c2d0
+MAP address=0x7b6cd4c2d0 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=8 fp=0x7b55b9fa90 return=0x7b6cd46d18
+MAP address=0x7b6cd46d18 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=9 fp=0x7b55b9fb20 return=0x7b6cd468c4
+MAP address=0x7b6cd468c4 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=10 fp=0x7b55b9fbf0 return=0x7b6d022a90
+MAP address=0x7b6d022a90 7b6cb45000-7b6d064000 r-xp 00000000 08:0d 4555012                        /data/app/com.proxima.dfm-3xoC-c9ah8sNruVi2QfaJA==/lib/arm64/libanogs.so
+FRAME depth=11 fp=0x7b55b9fcc0 return=0x7c5e858894
+MAP address=0x7c5e858894 7c5e853000-7c5e85f000 --xp 000e1000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=12 fp=0x7b55b9fd10 return=0x7c5e7f6b70
+MAP address=0x7c5e7f6b70 7c5e7b3000-7c5e852000 --xp 00041000 fd:00 399                            /apex/com.android.runtime/lib64/bionic/libc.so
+FRAME depth=13 fp=0x7b55b9fd40 return=0x0
