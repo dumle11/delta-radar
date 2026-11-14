@@ -12,6 +12,7 @@ typedef struct {
 } PositionDecoder;
 static PositionDecoder position_decoder;
 static int position_decoder_fail_step = 0;
+static int position_decode_calls = 0;
 
 static int position_read(uint64_t a, void *p, size_t n) {
     return a >= UINT64_C(0x100000000) && a < UINT64_C(0x8000000000) &&
@@ -187,12 +188,15 @@ static int position_decode_component(uint64_t component, float out[3]) {
     return out[0] != 0 || out[1] != 0 || out[2] != 0;
 }
 static int position_decode_actor(uint64_t actor, uint64_t root, float out[3]) {
+    position_decode_calls++;
     uint64_t mesh, root_after, mesh_after;
     float a[3], b[3];
-    if (!position_pointer(actor + 0x3d0, &mesh) || mesh == root ||
-        !position_decode_component(root, a) || !position_decode_component(mesh, b) ||
-        !position_pointer(actor + 0x180, &root_after) || root_after != root ||
-        !position_pointer(actor + 0x3d0, &mesh_after) || mesh_after != mesh) return 0;
+    if (!position_pointer(actor + 0x3d0, &mesh)) { position_decoder_fail_step = 10; return 0; }
+    if (mesh == root) { position_decoder_fail_step = 11; return 0; }
+    if (!position_decode_component(root, a)) { if (!position_decoder_fail_step) position_decoder_fail_step = 12; return 0; }
+    if (!position_decode_component(mesh, b)) { if (!position_decoder_fail_step) position_decoder_fail_step = 13; return 0; }
+    if (!position_pointer(actor + 0x180, &root_after) || root_after != root ||
+        !position_pointer(actor + 0x3d0, &mesh_after) || mesh_after != mesh) { position_decoder_fail_step = 14; return 0; }
     float dx = a[0] - b[0], dy = a[1] - b[1];
     if (dx * dx + dy * dy > 100 * 100 || fabsf(a[2] - b[2]) > 300) return 0;
     memcpy(out, a, sizeof(a)); return 1;

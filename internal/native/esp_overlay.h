@@ -335,17 +335,17 @@ static int _ov_w2s(float wx, float wy, float wz,
     float dot_r = dx * rt_x + dy * rt_y + dz * rt_z;
     float dot_u = dx * up_x + dy * up_y + dz * up_z;
 
-    float half_fov = fov * 0.5f * (float)(M_PI / 180.0);
-    float tf = tanf(half_fov);
-    if (tf < 0.001f) tf = 0.001f;
+    float half_hfov = fov * 0.5f * (float)(M_PI / 180.0);
+    float th = tanf(half_hfov);
+    if (th < 0.001f) th = 0.001f;
 
     float hw = (float)_ov_w * 0.5f;
     float hh = (float)_ov_h * 0.5f;
-    /* FoV is vertical — use hh/tf as the uniform pixel scale for both axes
-     * so that the projection preserves square pixels (no aspect distortion). */
-    float scale = hh / (dot_f * tf);
-    *sx = hw + dot_r * scale;
-    *sy = hh - dot_u * scale;
+    /* FoV from camera is horizontal. Derive vertical from aspect ratio. */
+    float aspect = hw / hh;
+    float tv = th / aspect;
+    *sx = hw + (dot_r / (dot_f * th)) * hw;
+    *sy = hh - (dot_u / (dot_f * tv)) * hh;
     return (*sx >= -200 && *sx <= _ov_w + 200 &&
             *sy >= -200 && *sy <= _ov_h + 200);
 }
@@ -414,7 +414,7 @@ static void _ov_draw_esp(void) {
         float sx, sy;
         if (!_ov_w2s(e->x, e->y, e->z, cam[0], cam[1], cam[2],
                      cam[3], cam[4], cam[5], &sx, &sy)) {
-            if (_esp_dbg < 10) {
+            if (_esp_dbg < 3) {
                 char dbuf[160];
                 snprintf(dbuf, sizeof(dbuf), "w2s fail e=(%.0f,%.0f,%.0f) c=(%.0f,%.0f,%.0f) y=%.1f p=%.1f f=%.1f",
                     e->x, e->y, e->z, cam[0], cam[1], cam[2], cam[3], cam[4], cam[5]);
@@ -427,18 +427,39 @@ static void _ov_draw_esp(void) {
         float dist = sqrtf((e->x - cam[0]) * (e->x - cam[0]) +
                            (e->y - cam[1]) * (e->y - cam[1]) +
                            (e->z - cam[2]) * (e->z - cam[2]));
-        if (_esp_dbg < 10) {
+        if (_esp_dbg < 3) {
             char dbuf[200];
             snprintf(dbuf, sizeof(dbuf), "w2s ok %s e=(%.0f,%.0f,%.0f) c=(%.0f,%.0f,%.0f) y=%.1f p=%.1f f=%.1f sx=%.0f sy=%.0f d=%.0f",
                 e->name, e->x, e->y, e->z, cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], sx, sy, dist);
             _diag(dbuf);
             _esp_dbg++;
         }
-        float scale = 200.0f / (dist + 1.0f);
-        if (scale > 60.0f) scale = 60.0f;
-        if (scale < 5.0f) scale = 5.0f;
-        float bw = scale * 0.6f;
-        float bh = scale * 1.8f;
+        float hh_m = e->half_height > 0.1f ? e->half_height : 1.05f;
+        float sx_head, sy_head, sx_feet, sy_feet;
+        int head_ok = _ov_w2s(e->x, e->y, e->z + hh_m,
+                              cam[0], cam[1], cam[2],
+                              cam[3], cam[4], cam[5], &sx_head, &sy_head);
+        int feet_ok = _ov_w2s(e->x, e->y, e->z - hh_m,
+                              cam[0], cam[1], cam[2],
+                              cam[3], cam[4], cam[5], &sx_feet, &sy_feet);
+        float box_top, box_bot, box_cx, box_h, bw;
+        if (head_ok && feet_ok) {
+            box_top = sy_head < sy_feet ? sy_head : sy_feet;
+            box_bot = sy_head < sy_feet ? sy_feet : sy_head;
+            box_cx = (sx_head + sx_feet) * 0.5f;
+            box_h = box_bot - box_top;
+            if (box_h < 10.0f) box_h = 10.0f;
+            if (box_h > 800.0f) box_h = 800.0f;
+            box_bot = box_top + box_h;
+        } else {
+            box_h = 200.0f / (dist + 1.0f) * 1.8f;
+            if (box_h < 10.0f) box_h = 10.0f;
+            if (box_h > 800.0f) box_h = 800.0f;
+            box_top = sy - box_h * 0.5f;
+            box_bot = sy + box_h * 0.5f;
+            box_cx = sx;
+        }
+        bw = box_h * 0.45f;
 
         int color;
         if (e->team == 1)
@@ -447,9 +468,9 @@ static void _ov_draw_esp(void) {
             color = (int)0xFFFF4444;
 
         drawn++;
-        /* ESP box */
+        /* ESP box from head to feet */
         (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_r,
-            sx - bw, sy - bh, sx + bw, sy + bh, color);
+            box_cx - bw, box_top, box_cx + bw, box_bot, color);
 
         /* Entity name/type label above box */
         {
@@ -463,14 +484,14 @@ static void _ov_draw_esp(void) {
                 snprintf(lbl, sizeof(lbl), "[%s]", kind_str);
             jstring jlbl = (*env)->NewStringUTF(env, lbl);
             (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t,
-                jlbl, sx - bw, sy - bh - 4, (int)0xFFFFCC00);
+                jlbl, box_cx - bw, box_top - 4, (int)0xFFFFCC00);
             (*env)->DeleteLocalRef(env, jlbl);
         }
 
         /* Snap line from bottom center to entity */
         if (show_snap) {
             (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_l,
-                (float)(_ov_w / 2), (float)_ov_h, sx, sy + bh,
+                (float)(_ov_w / 2), (float)_ov_h, box_cx, box_bot,
                 color, 1.5f);
         }
 
@@ -479,13 +500,13 @@ static void _ov_draw_esp(void) {
             float hp = (float)e->health / (float)e->max_health;
             if (hp < 0) hp = 0;
             if (hp > 1) hp = 1;
-            float bar_h = bh * 2 * hp;
+            float bar_h = box_h * hp;
             int bar_r = (int)((1.0f - hp) * 255);
             int bar_g = (int)(hp * 255);
             int bar_color = (int)(0xFF000000 | (bar_r << 16) | (bar_g << 8));
 
             (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_f,
-                sx - bw - 6, sy + bh - bar_h, sx - bw - 2, sy + bh, bar_color);
+                box_cx - bw - 6, box_bot - bar_h, box_cx - bw - 2, box_bot, bar_color);
         }
 
         /* Distance text */
@@ -494,7 +515,7 @@ static void _ov_draw_esp(void) {
             snprintf(dbuf, sizeof(dbuf), "%.0fm", dist);
             jstring js = (*env)->NewStringUTF(env, dbuf);
             (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t,
-                js, sx - 10, sy + bh + 16, (int)0xFFFFFFFF);
+                js, box_cx - 10, box_bot + 16, (int)0xFFFFFFFF);
             (*env)->DeleteLocalRef(env, js);
         }
     }

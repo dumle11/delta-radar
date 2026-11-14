@@ -32,10 +32,13 @@ The ESP overlay runs inside the game process using Android's system overlay wind
 - **Game launches and stays alive** — no SIGBUS crash, anti-cheat fully neutralized
 - **Signal handler protection** — SIGBUS/SIGSEGV/SIGABRT handlers installed; watchdog thread (100ms interval) re-installs them; sigaction/signal GOT entries hooked to block overwrites. CONFIRMED WORKING.
 - **Memory masking** — library regions renamed in `/proc/self/maps` to hide our .so
-- **Internal ESP overlay** — renders on top via TYPE_APPLICATION_OVERLAY. Proven working: red boxes with distance labels appeared during lobby, entity name/type labels above boxes
+- **Internal ESP overlay** — renders on top via TYPE_APPLICATION_OVERLAY. ESP boxes track entities correctly in firing range lobby with proper aspect ratio. Entity name/type labels (PLR/BOT/LOOT/NPC) displayed above boxes in yellow
 - **Floating bubble menu** — draggable, toggles ESP/Health/Distance/Snapline, shows diagnostics
 - **Entity detection** — discovers players (via `is_character_class` FName chain 0xDA→0xD8), mannequins/training bots (via capsule half-height fallback for actors without PlayerState), and loot
-- **Entity labels** — name and type (PLR/LOOT/?) rendered above each ESP box in yellow
+- **Entity labels** — name and type (PLR/BOT/LOOT/NPC) rendered above each ESP box in yellow
+- **W2S projection** — fixed uniform pixel scale for both axes (was using hw for X, hh for Y causing 1.78x horizontal distortion)
+- **Position reading** — non-self entities report plaintext positions (enc_handler `FF FF 00` marker present), self entity uses camera fallback
+- **World transition freeze prevention** — validates GWorld pointer chain before expensive `scan_for_gworld()` rescan; skips rescan when GWorld is still valid during transitions
 - **Stale ESP frame clearing** — when entities disappear (zero_entity_frames == 3), the overlay bitmap is cleared and `_rcam_ok` is reset
 - **Build field spoofing** — SERIAL, FINGERPRINT, MODEL, etc. modified via JNI reflection in JNI_OnLoad
 - **Identity spoofing GOT hooks** — popen/__system_property_get/fopen in libanogs.so intercepted
@@ -43,27 +46,6 @@ The ESP overlay runs inside the game process using Android's system overlay wind
 ---
 
 ## What's NOT working / needs investigation
-
-### 1. Camera position reads as (0,0,0) — HIGH PRIORITY
-**Symptom**: `cam: 0,0,0 y=38.4 p=0.0 f=80.0` in diagnostics. Yaw/pitch/fov are valid but XYZ position is zero. This causes all ESP boxes to be misplaced because world-to-screen projection uses the camera position.
-
-**Root cause candidates**:
-- `enc_handler_unmanaged()` (position decryption) may be failing, returning zeros
-- `select_advancing_camera_cache()` / `discover_camera_caches()` may have found the wrong offset within the PlayerCameraManager
-- The camera cache POV location bytes are encrypted and the decryption is not working for this game version
-
-**Mitigation applied**: Added check `(camera_x != 0.0f || camera_y != 0.0f || camera_z != 0.0f)` to `camera_valid`. When camera position is zero, the self entity falls back to root component position and uses camera yaw/pitch/fov if available.
-
-**Where to look**: `memscan-legacy.c` lines ~2044-2077 (camera cache reading), `enc_handler_unmanaged()` function, `select_advancing_camera_cache()`.
-
-### 2. Game freeze during lobby→firing range transition — HIGH PRIORITY
-**Symptom**: Game visually freezes, stale ESP boxes from lobby remain on screen, firing range mannequins not shown initially.
-
-**Root cause**: When `zero_entity_frames > 300` (~5 seconds of no entities), the scanner thread triggers `scan_for_gworld()` which does heavy `/proc/self/mem` reads. During world transitions, `pread()` can block, hanging the scanner thread. The overlay keeps showing the last rendered frame.
-
-**Mitigation applied**: Increased rescan threshold from 90 to 300 zero-entity frames. Stale frame clearing after 3 zero-entity frames.
-
-**Proper fix needed**: Make `scan_for_gworld()` non-blocking (timeout on pread), or detect world transitions earlier and skip rescan during them.
 
 ### 3. "Reconnecting" message in game — MEDIUM PRIORITY
 **Symptom**: Game shows "reconnecting" constantly.
@@ -186,7 +168,7 @@ Uses PlayerCameraManager cache:
 2. `select_advancing_camera_cache()` — picks the cache whose timestamp is advancing
 3. Reads POV: location (with `enc_handler_unmanaged()` for decryption), rotation, FOV
 
-**Current issue**: position reads as (0,0,0) while rotation/FOV are valid. Fallback added: when camera position is zero, `camera_valid` is set to false, and the self entity uses root component position instead.
+**Note**: Camera position sometimes reads as (0,0,0) while rotation/FOV are valid. Fallback: when camera position is zero, `camera_valid` is false, and the self entity is synthesized from PlayerController data (line ~2761 of memscan-legacy.c) with position from root component reads or cached self position.
 
 ### ESP overlay (esp_overlay.h)
 
@@ -206,7 +188,11 @@ Uses PlayerCameraManager cache:
 Implements UE4 camera projection:
 - Computes view matrix from camera yaw/pitch
 - Projects world position relative to camera into screen coordinates using FOV-based perspective
+- Camera FOV is HORIZONTAL. X scale uses `hw / (dot_f * th)` where `th = tan(halfHFov)`. Y scale uses `hh / (dot_f * tv)` where `tv = th / aspect`. Matches external `ProjectionMath.kt` approach
 - Returns false if entity is behind camera
+
+#### Box drawing
+Projects both head (`z + halfHeight`) and feet (`z - halfHeight`) separately, draws asymmetric box from head-projection to feet-projection. Width = `boxH * 0.45` for characters. Matches external `OverlayService.kt` / `EnemyLinesView.kt` approach. Label above box, health bar left side, distance below, snap line from screen bottom to entity feet.
 
 ### Diagnostic system
 - `_diag()`: writes timestamped messages to `/data/data/com.proxima.dfm/cache/d`
@@ -336,12 +322,23 @@ These are from an earlier approach that rendered directly into the game's render
 - **Added**: Discovery diagnostics (cached actor counts, filter stage counters)
 - **Partially fixed**: Scanner thread hanging during rescan — increased threshold to 300 frames
 
+### Session 2026-11-14: W2S + position decoding + world transitions + lobby freeze
+- **Fixed**: W2S FOV interpretation — camera FOV is HORIZONTAL, not vertical. Now uses separate X/Y scales: `th = tan(halfHFov)`, `tv = th / aspect`. Matches external `ProjectionMath.kt`
+- **Fixed**: Box sizing — projects head (`z+halfHeight`) and feet (`z-halfHeight`) separately, draws asymmetric box from head to feet projection. Width = `boxH * 0.45`. All decorations (label, snap line, health bar, distance) use `box_top`/`box_bot`/`box_cx`/`box_h` coordinates. Matches external `EnemyLinesView.kt`
+- **Fixed**: Lobby freeze regression — `scan_for_gworld()` runs in-process (BUILD_AS_LIBRARY) and takes ~3-17s of heavy memory reads. In lobby (no gameplay world), it looped: scan → 15s sleep → scan. Fix: increased no-world sleep from 15s to 45s; increased rescan trigger threshold from 300 frames (~5s) to 1800 frames (~30s); increased world-transition patience from 900 to 3600 frames
+- **Fixed**: Position decoder gate — `position_decoder_discover()` in `position-decoder.h` had `if (!use_vm_readv || !ue4_base) return 0;` which completely blocked the decoder in library builds where `use_vm_readv=0`. Added `#ifndef BUILD_AS_LIBRARY` guard
+- **Added**: GEngine chain for instant world retrieval — `discover_engine_from_world()` walks UWorld → GameInstance(+0x190) → OuterPrivate(+0x10) → Engine, validates via Engine+0x1048 == GameInstance. `get_world_slot_via_engine()` reads Engine → GameViewport(+0x9A0) → World(+0x70) for instant world pointer during rescans
+- **Added**: World transition freeze prevention — validates GWorld pointer chain before `scan_for_gworld()` rescan. Skips expensive rescan when GWorld is still valid during transitions
+- **Investigated**: Position decoder never called (`calls=0`) — non-self entities genuinely have plaintext positions (enc_handler `FF FF 00` marker). Self entity uses camera/PlayerController fallback (line ~2761)
+- **Investigated**: Self entity not matched in main loop — `is_self_pawn` requires `actor_ptrs[i] == local_pawn`, but the self pawn isn't in the actor array. Synthesized from PlayerController data via fallback
+
 ---
 
 ## Priority for next session
 
-1. **Fix camera position (0,0,0)** — investigate `enc_handler_unmanaged()`, `discover_camera_caches()`, `select_advancing_camera_cache()`. The camera rotation/FOV reads are working, only position is zero. This is the root cause of misplaced ESP boxes.
-2. **Fix game freeze during world transitions** — add timeout/cancellation to `scan_for_gworld()`, or detect world transition and defer rescan
+1. **Test ESP box sizing in match** — W2S and box projection rewritten to match external version (horizontal FOV, head/feet projection, 0.45 width ratio). Deployed, needs live match testing
+2. **Test lobby freeze fix** — scan backoff increased (15s→45s sleep, 300→1800 frame rescan threshold). Initial tests show game loading screen responsive. Needs extended lobby testing
 3. **Fix "reconnecting"** — make `fork()` GOT hook smarter (allow non-anti-cheat forks)
 4. **Test/enable delta.spoof** for device ban bypass (enable LSPosed first)
 5. **Obfuscate JNI strings** in binary (InMemoryDexClassLoader, ActivityThread, etc.)
+6. **Position decoder for encrypted entities** — currently unused since all detected entities report plaintext positions. If future game versions encrypt positions, the decoder is ready (gate fix applied) but its hardcoded offsets (accessor at `ue4_base + 0x107bbb8c`, libc build ID, TLS layout) will need updating

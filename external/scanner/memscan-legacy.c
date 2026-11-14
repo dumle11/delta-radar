@@ -105,6 +105,9 @@ static const char *_s_ash(void) {
 #define OFF_UOBJECT_OUTER             0x10
 #define OFF_GNAMES_FROM_UE4_BASE      0x20688100
 #define OFF_GUOBJECTARRAY_FROM_BASE   0x206AEF48
+#define OFF_UENGINE_GAME_VIEWPORT     0x9A0
+#define OFF_UENGINE_GAME_INSTANCE     0x1048
+#define OFF_VIEWPORT_WORLD            0x70
 #define OFF_FNAME_POOL_BLOCKS         0x38
 
 /* Standard UE4 ULevel::Actors offsets (hidden in pad area) */
@@ -672,6 +675,52 @@ static int try_validate_uworld(uint64_t uworld_ptr, GWorldCandidate *out) {
         out->score = best_score;
     }
     return best_score;
+}
+
+/* GEngine chain: Engine → GameViewport → World.
+ * Discovered from UWorld→GameInstance→OuterPrivate after first successful scan.
+ * Survives world transitions since the Engine object is stable. */
+static uint64_t cached_engine = 0;
+
+static int discover_engine_from_world(uint64_t uworld) {
+    if (!is_any_ptr(uworld)) return 0;
+    uint64_t gi = read_ptr(uworld + 0x190);
+    if (!is_any_ptr(gi)) return 0;
+    uint64_t engine = read_ptr(gi + OFF_UOBJECT_OUTER);
+    if (!is_any_ptr(engine)) return 0;
+    uint64_t check_gi = read_ptr(engine + OFF_UENGINE_GAME_INSTANCE);
+    if (check_gi != gi) return 0;
+    uint64_t vp = read_ptr(engine + OFF_UENGINE_GAME_VIEWPORT);
+    if (!is_any_ptr(vp)) return 0;
+    uint64_t w = read_ptr(vp + OFF_VIEWPORT_WORLD);
+    if (!is_any_ptr(w)) return 0;
+    cached_engine = engine;
+    return 1;
+}
+
+static int get_world_slot_via_engine(uint64_t *slot_out, int *actor_source_out) {
+    if (!cached_engine) return 0;
+    uint64_t vp = read_ptr(cached_engine + OFF_UENGINE_GAME_VIEWPORT);
+    if (!is_any_ptr(vp)) return 0;
+    uint64_t world = read_ptr(vp + OFF_VIEWPORT_WORLD);
+    if (!is_any_ptr(world)) return 0;
+    uint64_t level = read_ptr(world + OFF_UWORLD_PERSISTENT_LEVEL);
+    if (!is_any_ptr(level)) return 0;
+    int32_t ac = 0;
+    uint64_t cluster = read_ptr(level + OFF_ULEVEL_ACTOR_CLUSTER);
+    if (is_any_ptr(cluster))
+        ac = read_i32(cluster + OFF_ACTOR_CONTAINER_ACTORS + 8);
+    int source = 0;
+    if (ac < 1 || ac > 50000) {
+        for (int s = 0; s < (int)NUM_ULEVEL_ACTOR_OFFSETS; s++) {
+            int32_t c = read_i32(level + ULEVEL_ACTOR_OFFSETS[s] + 8);
+            if (c > 0 && c < 50000) { ac = c; source = s + 1; break; }
+        }
+    }
+    if (ac < 1) return 0;
+    *slot_out = vp + OFF_VIEWPORT_WORLD;
+    *actor_source_out = source;
+    return 1;
 }
 
 /* The matching SDK provides this slot. Do not depend on a pawn happening to
@@ -2453,8 +2502,6 @@ camera_done:
         int raw_position_read = read_actor_position(root, pos_off, position, &position_plaintext, &position_observation);
         if (!position_plaintext && pos_off == OFF_PROXIMA_ROOT_WORLD_LOCATION &&
             position_decode_actor(actor_ptrs[i], root, position)) {
-            /* The legacy wire flag describes the emitted coordinates. The raw
-             * source remains tagged/encrypted in positionTrace. */
             position_plaintext = 1;
             position_observation.decoded = 1;
         } else if (!raw_position_read) continue;

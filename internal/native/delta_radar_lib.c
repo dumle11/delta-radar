@@ -1007,12 +1007,21 @@ static void *injected_scanner_thread(void *arg) {
             LOGI("No gameplay world yet, waiting...");
             diagnostic_status = "0";
             post_diagnostics();
-            for (int w = 0; w < 150 && atomic_load(&lib_running_flag); w++)
+            for (int w = 0; w < 450 && atomic_load(&lib_running_flag); w++)
                 usleep(100000);
         }
     }
 
     if (!atomic_load(&lib_running_flag)) goto cleanup;
+
+    {
+        uint64_t uw = read_ptr(use_gworld);
+        if (discover_engine_from_world(uw)) {
+            _diag("engine: ok");
+        } else {
+            _diag("engine: not found");
+        }
+    }
 
     LOGI("s7: w=%lx s=%d r=+0x%x p=+0x%x",
          (unsigned long)use_gworld, use_actor_src, use_root_off, use_pos_off);
@@ -1048,6 +1057,17 @@ static void *injected_scanner_thread(void *arg) {
 
         int n = read_entities_sdk(
             use_gworld, use_actor_src, use_root_off, use_pos_off, use_ctw);
+
+        {
+            static int pd_logged = 0;
+            if (pd_logged < 3 && n > 0) {
+                char dbuf[80];
+                snprintf(dbuf, sizeof(dbuf), "pd s=%d c=%d n=%d",
+                    position_decoder_fail_step, position_decode_calls, n);
+                _diag(dbuf);
+                pd_logged++;
+            }
+        }
 
         if (n > 0) {
             for (int ci = 0; ci < n; ci++) {
@@ -1133,7 +1153,7 @@ static void *injected_scanner_thread(void *arg) {
                 post_diagnostics();
         }
 
-        int need_rescan = consecutive_failures > 5 || zero_entity_frames > 300;
+        int need_rescan = consecutive_failures > 5 || zero_entity_frames > 1800;
         if (need_rescan) {
             /* Before doing an expensive full scan, check if the GWorld
              * pointer still resolves to a valid UWorld with actors.
@@ -1157,7 +1177,7 @@ static void *injected_scanner_thread(void *arg) {
                     }
                 }
             }
-            if (gworld_still_valid && zero_entity_frames <= 900) {
+            if (gworld_still_valid && zero_entity_frames <= 3600) {
                 static int transition_logged = 0;
                 if (!transition_logged) {
                     char dbuf[80];
@@ -1165,14 +1185,14 @@ static void *injected_scanner_thread(void *arg) {
                     _diag(dbuf);
                     transition_logged = 1;
                 }
-                if (zero_entity_frames > 600) transition_logged = 0;
+                if (zero_entity_frames > 2400) transition_logged = 0;
             } else {
             {
                 char dbuf[80];
                 snprintf(dbuf, sizeof(dbuf), "rescan f=%d z=%d gw=%d", consecutive_failures, zero_entity_frames, gworld_still_valid);
                 _diag(dbuf);
             }
-            /* Clear stale ESP before starting heavy rescan */
+            /* Clear stale ESP before starting rescan */
             if (_ov_ready) {
                 JNIEnv *clr_env = _ov_env();
                 if (clr_env) {
@@ -1181,27 +1201,46 @@ static void *injected_scanner_thread(void *arg) {
                 }
             }
             atomic_store(&_rcam_ok, 0);
-            LOGI("Re-scanning (failures=%d zero=%d)", consecutive_failures, zero_entity_frames);
             _icc_diag_done = 0;
-            parse_maps();
-            scan_for_gworld();
-            keep_gameplay_candidates_only();
-            if (num_candidates > 0) {
-                int best_idx = 0;
-                for (int i = 1; i < num_candidates; i++)
-                    if (candidates[i].score > candidates[best_idx].score ||
-                        (candidates[i].score == candidates[best_idx].score &&
-                         candidates[i].plausible_players > candidates[best_idx].plausible_players))
-                        best_idx = i;
-                use_gworld = candidates[best_idx].gworld_addr;
-                use_actor_src = candidates[best_idx].actor_source;
-                save_world_cache(game_pid, use_gworld, use_actor_src);
-                LOGI("Re-selected GWorld@0x%lx actorsrc=%d",
-                     (unsigned long)use_gworld, use_actor_src);
+
+            /* Try GEngine chain first — instant, no memory scan */
+            uint64_t engine_slot = 0;
+            int engine_src = 0;
+            int engine_ok = get_world_slot_via_engine(&engine_slot, &engine_src);
+            if (engine_ok) {
+                use_gworld = engine_slot;
+                use_actor_src = engine_src;
+                {
+                    char dbuf[80];
+                    uint64_t ew = read_ptr(engine_slot);
+                    snprintf(dbuf, sizeof(dbuf), "engine-world slot=%lx w=%lx s=%d",
+                        (unsigned long)engine_slot, (unsigned long)ew, use_actor_src);
+                    _diag(dbuf);
+                }
             } else {
-                LOGW("No world found, sleeping...");
-                for (int w = 0; w < 150 && atomic_load(&lib_running_flag); w++)
-                    usleep(100000);
+                LOGI("Re-scanning (failures=%d zero=%d)", consecutive_failures, zero_entity_frames);
+                parse_maps();
+                scan_for_gworld();
+                keep_gameplay_candidates_only();
+                if (num_candidates > 0) {
+                    int best_idx = 0;
+                    for (int i = 1; i < num_candidates; i++)
+                        if (candidates[i].score > candidates[best_idx].score ||
+                            (candidates[i].score == candidates[best_idx].score &&
+                             candidates[i].plausible_players > candidates[best_idx].plausible_players))
+                            best_idx = i;
+                    use_gworld = candidates[best_idx].gworld_addr;
+                    use_actor_src = candidates[best_idx].actor_source;
+                    save_world_cache(game_pid, use_gworld, use_actor_src);
+                    LOGI("Re-selected GWorld@0x%lx actorsrc=%d",
+                         (unsigned long)use_gworld, use_actor_src);
+                    uint64_t uw = read_ptr(use_gworld);
+                    discover_engine_from_world(uw);
+                } else {
+                    LOGW("No world found, sleeping...");
+                    for (int w = 0; w < 450 && atomic_load(&lib_running_flag); w++)
+                        usleep(100000);
+                }
             }
             consecutive_failures = 0;
             zero_entity_frames = 0;
