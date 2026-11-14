@@ -7,7 +7,9 @@ static JavaVM *_ov_jvm;
 static jclass _ov_cls;
 static jmethodID _ov_z, _ov_b, _ov_r, _ov_f, _ov_l, _ov_t, _ov_e, _ov_gw, _ov_gh, _ov_ok;
 static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
-static jmethodID _ov_ge, _ov_gh2, _ov_gd, _ov_gs, _ov_gb, _ov_gk, _ov_gn, _ov_gc;
+static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
+static jmethodID _ov_gvc;
+static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam;
 static int _ov_ready;
 static int _ov_w, _ov_h;
 static int _ov_dex_loaded;
@@ -105,18 +107,22 @@ static int _ov_load_dex(void) {
     _ov_df = (*env)->GetStaticMethodID(env, _ov_cls, "df", "(Ljava/lang/String;)V");
     _ov_ds = (*env)->GetStaticMethodID(env, _ov_cls, "ds", "(Ljava/lang/String;)V");
     _ov_dx = (*env)->GetStaticMethodID(env, _ov_cls, "dx", "(Ljava/lang/String;)V");
-    _ov_gb = (*env)->GetStaticMethodID(env, _ov_cls, "gb", "()Z");
-    _ov_gk = (*env)->GetStaticMethodID(env, _ov_cls, "gk", "()Z");
-    _ov_gn = (*env)->GetStaticMethodID(env, _ov_cls, "gn", "()Z");
     _ov_gc = (*env)->GetStaticMethodID(env, _ov_cls, "gc", "(I)I");
+    _ov_gvc = (*env)->GetStaticMethodID(env, _ov_cls, "gvc", "(IZ)I");
     _ov_ge = (*env)->GetStaticMethodID(env, _ov_cls, "ge", "()Z");
-    _ov_gh2 = (*env)->GetStaticMethodID(env, _ov_cls, "gh2", "()Z");
-    _ov_gd = (*env)->GetStaticMethodID(env, _ov_cls, "gd", "()Z");
-    _ov_gs = (*env)->GetStaticMethodID(env, _ov_cls, "gs", "()Z");
+    _ov_gf = (*env)->GetStaticMethodID(env, _ov_cls, "gf", "(I)I");
+    _ov_gr = (*env)->GetStaticMethodID(env, _ov_cls, "gr", "(I)I");
+    _ov_gso = (*env)->GetStaticMethodID(env, _ov_cls, "gso", "()I");
+    _ov_ga = (*env)->GetStaticMethodID(env, _ov_cls, "ga", "()Z");
+    _ov_gaf = (*env)->GetStaticMethodID(env, _ov_cls, "gaf", "()I");
+    _ov_gas = (*env)->GetStaticMethodID(env, _ov_cls, "gas", "()I");
+    _ov_gab = (*env)->GetStaticMethodID(env, _ov_cls, "gab", "()I");
+    _ov_gaa = (*env)->GetStaticMethodID(env, _ov_cls, "gaa", "()Z");
+    _ov_gam = (*env)->GetStaticMethodID(env, _ov_cls, "gam", "()I");
 
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     if (!_ov_z || !_ov_b || !_ov_r || !_ov_f || !_ov_l || !_ov_t ||
-        !_ov_e || !_ov_gw || !_ov_gh || !_ov_ok) {
+        !_ov_e || !_ov_gw || !_ov_gh || !_ov_ok || !_ov_gvc) {
         _diag("ov: mid fail"); return 0;
     }
 
@@ -381,7 +387,37 @@ static void _ov_update_diag(uint64_t gworld, int n, int ac,
         (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_ds, jst);
         (*env)->DeleteLocalRef(env, jst);
     }
+    if (_ov_dx) {
+        snprintf(buf, sizeof(buf), "Collision bounds: %d%s; amber = unknown", num_occluders,
+            occlusion_incomplete ? " (incomplete)" : "");
+        jstring extra = (*env)->NewStringUTF(env, buf);
+        (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_dx, extra);
+        (*env)->DeleteLocalRef(env, extra);
+    }
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+}
+
+/* Entity type indices matching O.java */
+#define ET_ENEMY     0
+#define ET_TEAMMATE  1
+#define ET_BOT_ENEMY 2
+#define ET_BOT_TEAM  3
+#define ET_LOOT      4
+#define ET_COUNT     5
+
+/* Feature flags matching O.java */
+#define EF_ENABLED   1
+#define EF_BOXES     2
+#define EF_SKELETON  4
+#define EF_NAMES     8
+#define EF_HEALTH    16
+#define EF_DISTANCE  32
+#define EF_SNAPLINES 64
+
+static int _ov_entity_type(Entity *e) {
+    if (e->kind[0] == 'l') return ET_LOOT;
+    if (e->kind[0] == 'a') return e->team == 1 ? ET_BOT_TEAM : ET_BOT_ENEMY;
+    return e->team == 1 ? ET_TEAMMATE : ET_ENEMY;
 }
 
 static void _ov_draw_esp(void) {
@@ -391,10 +427,7 @@ static void _ov_draw_esp(void) {
     if (!env) return;
 
     jboolean esp_on = _ov_ge ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_ge) : 1;
-    /* A transient missing camera sample must not flash an empty frame. The
-     * Java consumer independently expires the last completed frame after 500ms. */
     if (esp_on && !atomic_load(&_rcam_ok)) return;
-    /* Explicit disable still clears immediately. */
     jboolean ok = (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_b);
     if (!ok) return;
     if (!esp_on) {
@@ -409,16 +442,15 @@ static void _ov_draw_esp(void) {
         return;
     }
 
-    jboolean show_health = _ov_gh2 ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gh2) : 1;
-    jboolean show_dist = _ov_gd ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gd) : 1;
-    jboolean show_snap = _ov_gs ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gs) : 0;
-
-    jboolean show_boxes = _ov_gb ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gb) : 1;
-    jboolean show_skeleton = _ov_gk ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gk) : 0;
-    jboolean show_names = _ov_gn ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gn) : 1;
-    int palette[4] = {(int)0xFFE5534B, (int)0xFF46D9FF, (int)0xFF4FD08A, (int)0xFF4BCA81};
-    if (_ov_gc) for (int slot = 0; slot < 4; slot++)
-        palette[slot] = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gc, slot);
+    int feat[ET_COUNT], rdist[ET_COUNT], palette[ET_COUNT][2];
+    for (int t = 0; t < ET_COUNT; t++) {
+        feat[t] = _ov_gf ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gf, t) : 0xFF;
+        rdist[t] = _ov_gr ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gr, t) : 500;
+        for (int visible = 0; visible < 2; visible++)
+            palette[t][visible] = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gvc,
+                t, (jboolean)visible);
+    }
+    int snap_origin = _ov_gso ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gso) : 0;
 
     float cam[6];
     for (int i = 0; i < 6; i++) cam[i] = _rcam[i];
@@ -429,6 +461,15 @@ static void _ov_draw_esp(void) {
         Entity *e = &entities[i];
         if (strcmp(e->id, self_entity_id) == 0) continue;
         if (e->dead) continue;
+
+        int etype = _ov_entity_type(e);
+        int ef = feat[etype];
+        if (!(ef & EF_ENABLED)) continue;
+
+        float dist = sqrtf((e->x - cam[0]) * (e->x - cam[0]) +
+                           (e->y - cam[1]) * (e->y - cam[1]) +
+                           (e->z - cam[2]) * (e->z - cam[2]));
+        if (dist > (float)rdist[etype]) continue;
 
         float sx, sy;
         if (!_ov_w2s(e->x, e->y, e->z, cam[0], cam[1], cam[2],
@@ -443,13 +484,10 @@ static void _ov_draw_esp(void) {
             continue;
         }
 
-        float dist = sqrtf((e->x - cam[0]) * (e->x - cam[0]) +
-                           (e->y - cam[1]) * (e->y - cam[1]) +
-                           (e->z - cam[2]) * (e->z - cam[2]));
         if (_esp_dbg < 3) {
             char dbuf[200];
-            snprintf(dbuf, sizeof(dbuf), "w2s ok %s e=(%.0f,%.0f,%.0f) c=(%.0f,%.0f,%.0f) y=%.1f p=%.1f f=%.1f sx=%.0f sy=%.0f d=%.0f",
-                e->name, e->x, e->y, e->z, cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], sx, sy, dist);
+            snprintf(dbuf, sizeof(dbuf), "w2s ok %s e=(%.0f,%.0f,%.0f) sx=%.0f sy=%.0f d=%.0f et=%d",
+                e->name, e->x, e->y, e->z, sx, sy, dist, etype);
             _diag(dbuf);
             _esp_dbg++;
         }
@@ -470,38 +508,36 @@ static void _ov_draw_esp(void) {
             if (box_h < 10.0f) box_h = 10.0f;
             box_bot = box_top + box_h;
         } else {
-            continue; // A head/feet segment crossing the near plane is not a valid box.
+            continue;
         }
-        bw = box_h * 0.45f * 0.5f; /* half of the intended total width */
+        bw = box_h * 0.45f * 0.5f;
         int box_visible = !(box_cx + bw < 0 || box_cx - bw > _ov_w ||
             box_bot < 0 || box_top > _ov_h);
-        if (!box_visible && !show_skeleton) continue;
+        if (!box_visible && !(ef & EF_SKELETON)) continue;
 
-        int color = palette[e->team == 1 ? 2 : e->kind[0] == 'l' ? 3 :
-                            e->kind[0] == 'a' ? 1 : 0];
+        int color = e->visibility_known ? palette[etype][e->visible_from_camera != 0] : (int)0xFFFFB300;
         drawn++;
-        if (show_boxes && box_visible) (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_r,
-            box_cx - bw, box_top, box_cx + bw, box_bot, color);
+        if ((ef & EF_BOXES) && box_visible)
+            (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_r,
+                box_cx - bw, box_top, box_cx + bw, box_bot, color);
 
-        /* Use only the reader's validated animated pose; never invent joints. */
-        if (show_skeleton && e->has_bones && e->bone_count >= 2 &&
+        if ((ef & EF_SKELETON) && e->has_bones && e->bone_count >= 2 &&
             e->bone_count <= MAX_SKELETON_BONES) {
             for (int joint = 0; joint < e->bone_count; joint++) {
                 int parent = e->bone_parent[joint];
                 if (parent < 0 || parent >= joint) continue;
-                float ax, ay, bx, by;
+                float ax, ay, bx_, by_;
                 if (!_ov_w2s(e->bone_pos[joint][0], e->bone_pos[joint][1], e->bone_pos[joint][2],
                     cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], &ax, &ay) ||
                     !_ov_w2s(e->bone_pos[parent][0], e->bone_pos[parent][1], e->bone_pos[parent][2],
-                    cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], &bx, &by)) continue;
-                (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_l, ax, ay, bx, by, color, 2.0f);
+                    cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], &bx_, &by_)) continue;
+                (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_l, ax, ay, bx_, by_, color, 2.0f);
             }
         }
 
         if (!box_visible) continue;
 
-        /* Entity name/type label above box */
-        if (show_names) {
+        if (ef & EF_NAMES) {
             char lbl[96];
             const char *kind_str = e->kind[0] == 'p' ? "PLR" :
                                    e->kind[0] == 'l' ? "LOOT" :
@@ -512,19 +548,18 @@ static void _ov_draw_esp(void) {
                 snprintf(lbl, sizeof(lbl), "[%s]", kind_str);
             jstring jlbl = (*env)->NewStringUTF(env, lbl);
             (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t,
-                jlbl, box_cx - bw, box_top - 4, (int)0xFFFFCC00);
+                jlbl, box_cx - bw, box_top - 4, color);
             (*env)->DeleteLocalRef(env, jlbl);
         }
 
-        /* Snap line from bottom center to entity */
-        if (show_snap) {
+        if (ef & EF_SNAPLINES) {
+            float snap_y = snap_origin ? 0.0f : (float)_ov_h;
             (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_l,
-                (float)(_ov_w / 2), (float)_ov_h, box_cx, box_bot,
+                (float)(_ov_w / 2), snap_y, box_cx, snap_origin ? box_top : box_bot,
                 color, 1.5f);
         }
 
-        /* Health bar */
-        if (show_health && e->health_known && e->max_health > 0) {
+        if ((ef & EF_HEALTH) && e->health_known && e->max_health > 0) {
             float hp = (float)e->health / (float)e->max_health;
             if (hp < 0) hp = 0;
             if (hp > 1) hp = 1;
@@ -537,13 +572,12 @@ static void _ov_draw_esp(void) {
                 box_cx - bw - 6, box_bot - bar_h, box_cx - bw - 2, box_bot, bar_color);
         }
 
-        /* Distance text */
-        if (show_dist && dist < 500.0f) {
+        if ((ef & EF_DISTANCE) && dist < (float)rdist[etype]) {
             char dbuf[16];
             snprintf(dbuf, sizeof(dbuf), "%.0fm", dist);
             jstring js = (*env)->NewStringUTF(env, dbuf);
             (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t,
-                js, box_cx - 10, box_bot + 16, (int)0xFFFFFFFF);
+                js, box_cx - 10, box_bot + 16, color);
             (*env)->DeleteLocalRef(env, js);
         }
     }

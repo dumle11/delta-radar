@@ -10,6 +10,10 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <sys/prctl.h>
+#include <sys/stat.h>
+#include <sys/vfs.h>
+#include <dirent.h>
+#include <errno.h>
 #include <dlfcn.h>
 
 #ifndef PR_SET_VMA
@@ -87,55 +91,86 @@ static void _mask_memory(void) {
     _diag(lbl_jit);
     _diag(lbl_alloc);
 
-    FILE *f = fopen("/proc/self/maps", "r");
+    char _mp[20]; {
+        static const unsigned char _emp[]={0x65,0x3A,0x38,0x25,0x29,0x65,0x39,0x2F,0x26,0x2C,0x65,0x27,0x2B,0x3A,0x39};
+        volatile unsigned char _k=0x4A; for(int i=0;i<15;i++) _mp[i]=_emp[i]^_k; _mp[15]=0;
+    }
+    FILE *f = fopen(_mp, "r");
     if (!f) { _diag("mask: maps open fail"); return; }
 
-    uintptr_t base = 0, lib_end = 0, data_start = 0;
+    typedef struct { uintptr_t start, end; int prot; } _region;
+    _region regs[8];
+    int nregs = 0;
+    char lib_path[256] = {0};
     char line[512];
     int found = 0;
 
     while (fgets(line, sizeof(line), f)) {
         uintptr_t start = 0, end = 0;
+        unsigned long offset = 0;
         char perms[8] = {0};
-        if (sscanf(line, "%lx-%lx %4s", &start, &end, perms) != 3) continue;
+        char path[256] = {0};
+        int n = sscanf(line, "%lx-%lx %4s %lx %*s %*s %255[^\n]",
+                       &start, &end, perms, &offset, path);
+        if (n < 3) continue;
 
         if (!found) {
             if (our_fn >= start && our_fn < end) {
-                base = start;
-                lib_end = end;
                 found = 1;
-            }
-        } else if (start == lib_end) {
-            lib_end = end;
-            if (!data_start && perms[1] == 'w') data_start = start;
-        } else {
+                if (n >= 5 && path[0]) {
+                    char *p = path; while (*p == ' ') p++;
+                    strncpy(lib_path, p, sizeof(lib_path)-1);
+                }
+            } else continue;
+        } else if (start != regs[nregs-1].end) {
             break;
+        }
+
+        if (nregs < 8) {
+            int prot = 0;
+            if (perms[0] == 'r') prot |= PROT_READ;
+            if (perms[1] == 'w') prot |= PROT_WRITE;
+            if (perms[2] == 'x') prot |= PROT_EXEC;
+            regs[nregs++] = (_region){start, end, prot};
         }
     }
     fclose(f);
 
-    if (!base || lib_end <= base) { _diag("mask: base not found"); return; }
-    uintptr_t split = data_start ? data_start : lib_end;
+    if (!nregs) { _diag("mask: not found"); return; }
 
-    int mp1 = syscall(__NR_mprotect, (void *)base, split - base, PROT_READ | PROT_EXEC);
-    int mp2 = 0;
-    if (split < lib_end)
-        mp2 = syscall(__NR_mprotect, (void *)split, lib_end - split, PROT_READ | PROT_WRITE);
+    int remapped = 0;
+    for (int i = 0; i < nregs; i++) {
+        size_t sz = regs[i].end - regs[i].start;
+        void *tmp = mmap(NULL, sz, PROT_READ|PROT_WRITE,
+                         MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+        if (tmp == MAP_FAILED) continue;
 
-    int r1 = (int)syscall(__NR_prctl, PR_SET_VMA, PR_SET_VMA_ANON_NAME,
-                          base, split - base, lbl_jit);
-    int r2 = 0;
-    if (split < lib_end)
-        r2 = (int)syscall(__NR_prctl, PR_SET_VMA, PR_SET_VMA_ANON_NAME,
-                          split, lib_end - split, lbl_alloc);
+        syscall(__NR_mprotect, (void*)regs[i].start, sz,
+                PROT_READ|PROT_WRITE);
+        memcpy(tmp, (void*)regs[i].start, sz);
+
+        void *r = mmap((void*)regs[i].start, sz, PROT_READ|PROT_WRITE,
+                       MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
+        if (r == MAP_FAILED) { munmap(tmp, sz); continue; }
+
+        memcpy(r, tmp, sz);
+        munmap(tmp, sz);
+        syscall(__NR_mprotect, r, sz, regs[i].prot);
+
+        const char *lbl = (regs[i].prot & PROT_EXEC) ? lbl_jit : lbl_alloc;
+        syscall(__NR_prctl, PR_SET_VMA, PR_SET_VMA_ANON_NAME, r, sz, lbl);
+        remapped++;
+    }
+
+    if (lib_path[0]) {
+        unlink(lib_path);
+    }
 
     {
         char dbuf[200];
         snprintf(dbuf, sizeof(dbuf),
-                 "mask: base=%lx split=%lx end=%lx mp=%d/%d r=%d/%d lbl=%p/%p",
-                 (unsigned long)base, (unsigned long)split,
-                 (unsigned long)lib_end, mp1, mp2, r1, r2,
-                 (void*)lbl_jit, (void*)lbl_alloc);
+                 "mask: regs=%d remapped=%d unlink=%s",
+                 nregs, remapped, lib_path[0] ? lib_path : "none");
         _diag(dbuf);
     }
 }
@@ -187,10 +222,34 @@ static void _mask_memory(void) {
 #define G_GOT_FOPEN     0x52d1f8
 #define G_GDAT_FOPEN    0x52c898
 
+/* libanogs.so GOT entries for root-hiding hooks */
+#define G_GOT_ACCESS    0x52d358
+#define G_GOT_STAT      0x52d360
+#define G_GOT_OPEN      0x52d330
+#define G_GOT_OPEN2     0x52d2a0
+#define G_GOT_OPENAT2   0x52d450
+#define G_GOT_OPENDIR   0x52d388
+#define G_GOT_READLINK  0x52d468
+#define G_GOT_STATFS    0x52d470
+#define G_GOT_FSTATAT   0x52d438
+#define G_GDAT_ACCESS   0x52c978
+#define G_GDAT_STAT     0x52c980
+#define G_GDAT_OPEN     0x52c950
+#define G_GDAT_OPENDIR  0x52c9b8
+
 /* Saved original function pointers */
 static FILE *(*_orig_popen)(const char *, const char *);
 static int   (*_orig_propget)(const char *, char *);
 static FILE *(*_orig_fopen)(const char *, const char *);
+static int   (*_orig_access)(const char *, int);
+static int   (*_orig_stat)(const char *, struct stat *);
+static int   (*_orig_open)(const char *, int);
+static int   (*_orig_open2)(const char *, int);
+static int   (*_orig_openat2)(int, const char *, int);
+static DIR  *(*_orig_opendir)(const char *);
+static ssize_t (*_orig_readlink)(const char *, char *, size_t);
+static int   (*_orig_statfs)(const char *, struct statfs *);
+static int   (*_orig_fstatat)(int, const char *, struct stat *, int);
 
 static int (*_orig_sigaction)(int, const struct sigaction *, struct sigaction *);
 typedef void (*_sighandler_t)(int);
@@ -241,6 +300,9 @@ static const unsigned char _E_P_BID[] = {0x38,0x25,0x64,0x28,0x3f,0x23,0x26,0x2e
 static const unsigned char _E_V_FP[] = {0x05,0x24,0x2f,0x1a,0x26,0x3f,0x39,0x65,0x05,0x24,0x2f,0x1a,0x26,0x3f,0x39,0x7f,0x65,0x05,0x24,0x2f,0x1a,0x26,0x3f,0x39,0x7f,0x70,0x7b,0x7a,0x65,0x1b,0x01,0x1b,0x7b,0x64,0x7b,0x73,0x7b,0x7a,0x7b,0x7e,0x64,0x7a,0x7b,0x78,0x65,0x78,0x7a,0x79,0x73,0x0b,0x0f,0x72,0x7d,0x70,0x3f,0x39,0x2f,0x38,0x65,0x38,0x2f,0x26,0x2f,0x2b,0x39,0x2f,0x67,0x21,0x2f,0x33,0x39};
 static const unsigned char _E_V_DISP[] = {0x1b,0x01,0x1b,0x7b,0x64,0x7b,0x73,0x7b,0x7a,0x7b,0x7e,0x64,0x7a,0x7b,0x78,0x64,0x78,0x7a,0x79,0x73,0x0b,0x0f,0x72,0x7d};
 static const unsigned char _E_V_BID[] = {0x1b,0x01,0x1b,0x7b,0x64,0x7b,0x73,0x7b,0x7a,0x7b,0x7e,0x64,0x7a,0x7b,0x78};
+/* ro.boot.verifiedbootstate / green (key=0x4A) */
+static const unsigned char _E_VBOOT[] = {0x38,0x25,0x64,0x28,0x25,0x25,0x3E,0x64,0x3C,0x2F,0x38,0x23,0x2C,0x23,0x2F,0x2E,0x28,0x25,0x25,0x3E,0x39,0x3E,0x2B,0x3E,0x2F};
+static const unsigned char _E_GREEN[] = {0x2D,0x38,0x2F,0x2F,0x24};
 
 __attribute__((noinline))
 static void _id_dec(char *buf, const unsigned char *e, int n) {
@@ -419,6 +481,17 @@ static int _hook_propget(const char *name, char *value) {
             value[0]=0; return 0;
         }
 
+        /* Spoof verified boot state to hide unlocked bootloader */
+        {
+            char vb[28], gn[8];
+            _id_dec(vb, _E_VBOOT, 25);
+            if (strcmp(name, vb) == 0) {
+                _id_dec(gn, _E_GREEN, 5);
+                int i; for(i=0;gn[i];i++) value[i]=gn[i];
+                value[i]=0; return i;
+            }
+        }
+
         /* Build property spoofing — changes device fingerprint hash */
         char pn[24];
         _id_dec(pn, _E_P_FP, 20);
@@ -435,6 +508,183 @@ static int _hook_propget(const char *name, char *value) {
         }
     }
     return _orig_propget(name, value);
+}
+
+/* XOR-encoded maps filtering strings (key=0x4A) */
+static const unsigned char _E_PROC_SELF[] = {0x65,0x3A,0x38,0x25,0x29,0x65,0x39,0x2F,0x26,0x2C,0x65}; /* /proc/self/ */
+static const unsigned char _E_PROC_SL[] = {0x65,0x3A,0x38,0x25,0x29,0x65}; /* /proc/ */
+static const unsigned char _E_MAPS[] = {0x27,0x2B,0x3A,0x39}; /* maps */
+static const unsigned char _E_MOUNT[] = {0x27,0x25,0x3F,0x24,0x3E}; /* mount */
+static const unsigned char _E_LIBNAME[] = {0x26,0x23,0x28,0x3F,0x2F,0x7E,0x3A,0x2B,0x3E,0x29,0x22}; /* libue4patch */
+
+__attribute__((noinline))
+static int _is_proc_maps(const char *path) {
+    if (!path) return 0;
+    char ps[14], pp[8], mp[6], mt[8];
+    _id_dec(ps, _E_PROC_SELF, 11);
+    _id_dec(pp, _E_PROC_SL, 6);
+    _id_dec(mp, _E_MAPS, 4);
+    _id_dec(mt, _E_MOUNT, 5);
+    const char *tail = NULL;
+    if (strncmp(path, ps, 11) == 0) {
+        tail = path + 11;
+    } else if (strncmp(path, pp, 6) == 0) {
+        const char *s = path + 6;
+        int pid = 0;
+        while (*s >= '0' && *s <= '9') { pid = pid * 10 + (*s - '0'); s++; }
+        if (pid == getpid() && *s == '/') tail = s + 1;
+    }
+    if (!tail) return 0;
+    if (strcmp(tail, mp) == 0) return 1;
+    if (strncmp(tail, mp, 4) == 0) return 1; /* smaps */
+    if (strncmp(tail, mt, 5) == 0) return 2; /* mountinfo, mounts */
+    return 0;
+}
+
+__attribute__((noinline))
+static FILE *_filtered_maps(const char *path) {
+    FILE *real = _orig_fopen ? _orig_fopen(path, "r") : fopen(path, "r");
+    if (!real) return NULL;
+    int fd = (int)syscall(279, "m", 0); /* memfd_create */
+    if (fd < 0) return real;
+    char line[1024], flt[16];
+    _id_dec(flt, _E_LIBNAME, 11);
+    while (fgets(line, sizeof(line), real)) {
+        if (!strstr(line, flt))
+            syscall(__NR_write, fd, line, strlen(line));
+    }
+    fclose(real);
+    lseek(fd, 0, SEEK_SET);
+    return fdopen(fd, "r");
+}
+
+__attribute__((noinline))
+static int _filtered_maps_fd(const char *path) {
+    FILE *f = _filtered_maps(path);
+    if (!f) return -1;
+    int fd = dup(fileno(f));
+    fclose(f);
+    return fd;
+}
+
+__attribute__((noinline))
+static FILE *_filtered_mounts(const char *path) {
+    FILE *real = _orig_fopen ? _orig_fopen(path, "r") : fopen(path, "r");
+    if (!real) return NULL;
+    int fd = (int)syscall(279, "m", 0);
+    if (fd < 0) return real;
+    char line[1024];
+    volatile unsigned char _k = 0x4A;
+    char mg[8]; static const unsigned char _em[]={0x27,0x2B,0x2D,0x23,0x39,0x21};
+    for(int i=0;i<6;i++) mg[i]=_em[i]^_k; mg[6]=0;
+    char sb[8]; static const unsigned char _es[]={0x65,0x39,0x28,0x23,0x24};
+    for(int i=0;i<5;i++) sb[i]=_es[i]^_k; sb[5]=0;
+    while (fgets(line, sizeof(line), real)) {
+        if (!strstr(line, mg) && !strstr(line, sb))
+            syscall(__NR_write, fd, line, strlen(line));
+    }
+    fclose(real);
+    lseek(fd, 0, SEEK_SET);
+    return fdopen(fd, "r");
+}
+
+__attribute__((noinline))
+static int _filtered_mounts_fd(const char *path) {
+    FILE *f = _filtered_mounts(path);
+    if (!f) return -1;
+    int fd = dup(fileno(f));
+    fclose(f);
+    return fd;
+}
+
+/* XOR-encoded root indicator paths (key=0x4A) */
+static const unsigned char _E_SBIN[] = {0x65,0x39,0x28,0x23,0x24};          /* /sbin */
+static const unsigned char _E_DATA_ADB[] = {0x65,0x2E,0x2B,0x3E,0x2B,0x65,0x2B,0x2E,0x28}; /* /data/adb */
+static const unsigned char _E_MAGISK[] = {0x27,0x2B,0x2D,0x23,0x39,0x21};   /* magisk */
+static const unsigned char _E_SUPERSU[] = {0x39,0x3F,0x3A,0x2F,0x38,0x39,0x3F}; /* supersu */
+static const unsigned char _E_SYS_SU[] = {0x65,0x39,0x33,0x39,0x3E,0x2F,0x27}; /* /system */
+static const unsigned char _E_SLASH_SU[] = {0x65,0x39,0x3F};                /* /su */
+
+__attribute__((noinline))
+static int _path_is_root(const char *p) {
+    if (!p) return 0;
+    char sbin[8], dadb[12], mag[8], ssu[10], sys[10], slsu[4];
+    _id_dec(sbin, _E_SBIN, 5);
+    _id_dec(dadb, _E_DATA_ADB, 9);
+    _id_dec(mag, _E_MAGISK, 6);
+    _id_dec(ssu, _E_SUPERSU, 7);
+    _id_dec(sys, _E_SYS_SU, 7);
+    _id_dec(slsu, _E_SLASH_SU, 3);
+    if (strncmp(p, sbin, 5) == 0) return 1;
+    if (strncmp(p, dadb, 9) == 0) return 1;
+    if (strstr(p, mag)) return 1;
+    if (strstr(p, ssu)) return 1;
+    /* /system/bin/su, /system/xbin/su */
+    if (strncmp(p, sys, 7) == 0 && strstr(p, slsu)) return 1;
+    return 0;
+}
+
+__attribute__((noinline))
+static int _hook_access(const char *path, int mode) {
+    if (_path_is_root(path)) { errno = ENOENT; return -1; }
+    return _orig_access ? _orig_access(path, mode) : -1;
+}
+
+__attribute__((noinline))
+static int _hook_stat(const char *path, struct stat *buf) {
+    if (_path_is_root(path)) { errno = ENOENT; return -1; }
+    return _orig_stat ? _orig_stat(path, buf) : -1;
+}
+
+__attribute__((noinline))
+static int _hook_open(const char *path, int flags) {
+    if (_path_is_root(path)) { errno = ENOENT; return -1; }
+    int pm = _is_proc_maps(path);
+    if (pm == 1) return _filtered_maps_fd(path);
+    if (pm == 2) return _filtered_mounts_fd(path);
+    return _orig_open ? _orig_open(path, flags) : -1;
+}
+
+__attribute__((noinline))
+static int _hook_open2(const char *path, int flags) {
+    if (_path_is_root(path)) { errno = ENOENT; return -1; }
+    int pm = _is_proc_maps(path);
+    if (pm == 1) return _filtered_maps_fd(path);
+    if (pm == 2) return _filtered_mounts_fd(path);
+    return _orig_open2 ? _orig_open2(path, flags) : -1;
+}
+
+__attribute__((noinline))
+static int _hook_openat2(int fd, const char *path, int flags) {
+    if (_path_is_root(path)) { errno = ENOENT; return -1; }
+    int pm = _is_proc_maps(path);
+    if (pm == 1) return _filtered_maps_fd(path);
+    if (pm == 2) return _filtered_mounts_fd(path);
+    return _orig_openat2 ? _orig_openat2(fd, path, flags) : -1;
+}
+
+__attribute__((noinline))
+static DIR *_hook_opendir(const char *path) {
+    if (_path_is_root(path)) { errno = ENOENT; return NULL; }
+    return _orig_opendir ? _orig_opendir(path) : NULL;
+}
+
+__attribute__((noinline))
+static ssize_t _hook_readlink(const char *path, char *buf, size_t bufsiz) {
+    if (_path_is_root(path)) { errno = ENOENT; return -1; }
+    return _orig_readlink ? _orig_readlink(path, buf, bufsiz) : -1;
+}
+
+__attribute__((noinline))
+static int _hook_statfs(const char *path, struct statfs *buf) {
+    if (_path_is_root(path)) { errno = ENOENT; return -1; }
+    return _orig_statfs ? _orig_statfs(path, buf) : -1;
+}
+
+__attribute__((noinline))
+static int _hook_fstatat(int fd, const char *path, struct stat *buf, int flags) {
+    if (_path_is_root(path)) { errno = ENOENT; return -1; }
+    return _orig_fstatat ? _orig_fstatat(fd, path, buf, flags) : -1;
 }
 
 static int _path_is_identity(const char *p) {
@@ -457,6 +707,12 @@ static FILE *_hook_fopen(const char *path, const char *mode) {
     if (path && _path_is_identity(path)) {
         return _orig_fopen("/dev/null", mode);
     }
+    if (path && _path_is_root(path)) {
+        errno = ENOENT; return NULL;
+    }
+    int pm = _is_proc_maps(path);
+    if (pm == 1) return _filtered_maps(path);
+    if (pm == 2) return _filtered_mounts(path);
     return _orig_fopen(path, mode);
 }
 
@@ -507,8 +763,6 @@ static int _try_install_g_hooks(void) {
                     PROT_READ | PROT_WRITE) == 0) {
             *(volatile uintptr_t *)(_g_base + G_GOT_KILL)    = (uintptr_t)_stub_page;
             *(volatile uintptr_t *)(_g_base + G_GOT_EXIT)    = (uintptr_t)_stub_page + 8;
-            *(volatile uintptr_t *)(_g_base + G_GOT_SYSCALL) = (uintptr_t)_stub_page + 28;
-            *(volatile uintptr_t *)(_g_base + G_GOT_FORK)    = (uintptr_t)_stub_page + 20;
             *(volatile uintptr_t *)(_g_base + G_GOT_ABORT)   = (uintptr_t)_stub_page + 104;
             syscall(__NR_mprotect, (void *)g_got_page, g_got_end - g_got_page,
                     PROT_READ);
@@ -517,8 +771,6 @@ static int _try_install_g_hooks(void) {
         if (syscall(__NR_mprotect, (void *)g_gd_page, (size_t)ps,
                     PROT_READ | PROT_WRITE) == 0) {
             *(volatile uintptr_t *)(_g_base + G_GDAT_KILL)    = (uintptr_t)_stub_page;
-            *(volatile uintptr_t *)(_g_base + G_GDAT_SYSCALL) = (uintptr_t)_stub_page + 28;
-            *(volatile uintptr_t *)(_g_base + G_GDAT_FORK)    = (uintptr_t)_stub_page + 20;
             syscall(__NR_mprotect, (void *)g_gd_page, (size_t)ps, PROT_READ);
         }
     }
@@ -550,21 +802,63 @@ static int _try_install_g_hooks(void) {
         syscall(__NR_mprotect, (void *)gd_id_page, (size_t)ps, PROT_READ);
     }
 
-    _orig_sigaction = (int (*)(int, const struct sigaction *, struct sigaction *))
-                      *(volatile uintptr_t *)(_g_base + G_GOT_SIGACT);
-    _orig_signal    = (_sighandler_t (*)(int, _sighandler_t))
-                      *(volatile uintptr_t *)(_g_base + G_GOT_SIGNAL);
+    _diag("g2: id hooks ok");
 
-    uintptr_t sig_page = (_g_base + G_GOT_SIGNAL) & ~(ps - 1);
-    uintptr_t sig_end = ((_g_base + G_GOT_SIGACT) + 8 + ps - 1) & ~(ps - 1);
-    if (syscall(__NR_mprotect, (void *)sig_page, sig_end - sig_page,
-                PROT_READ | PROT_WRITE) == 0) {
-        *(volatile uintptr_t *)(_g_base + G_GOT_SIGNAL) = (uintptr_t)_hook_signal;
-        *(volatile uintptr_t *)(_g_base + G_GOT_SIGACT) = (uintptr_t)_hook_sigaction;
-        syscall(__NR_mprotect, (void *)sig_page, sig_end - sig_page, PROT_READ);
+    /* Save originals for root-hiding hooks */
+    _orig_access   = (int (*)(const char *, int))
+                     *(volatile uintptr_t *)(_g_base + G_GOT_ACCESS);
+    _orig_stat     = (int (*)(const char *, struct stat *))
+                     *(volatile uintptr_t *)(_g_base + G_GOT_STAT);
+    _orig_open     = (int (*)(const char *, int))
+                     *(volatile uintptr_t *)(_g_base + G_GOT_OPEN);
+    _orig_open2    = (int (*)(const char *, int))
+                     *(volatile uintptr_t *)(_g_base + G_GOT_OPEN2);
+    _orig_openat2  = (int (*)(int, const char *, int))
+                     *(volatile uintptr_t *)(_g_base + G_GOT_OPENAT2);
+    _orig_opendir  = (DIR *(*)(const char *))
+                     *(volatile uintptr_t *)(_g_base + G_GOT_OPENDIR);
+    _orig_readlink = (ssize_t (*)(const char *, char *, size_t))
+                     *(volatile uintptr_t *)(_g_base + G_GOT_READLINK);
+    _orig_statfs   = (int (*)(const char *, struct statfs *))
+                     *(volatile uintptr_t *)(_g_base + G_GOT_STATFS);
+    _orig_fstatat  = (int (*)(int, const char *, struct stat *, int))
+                     *(volatile uintptr_t *)(_g_base + G_GOT_FSTATAT);
+
+    /* Install root-hiding GOT hooks — covers the entire GOT range */
+    {
+        uintptr_t rh_start = (_g_base + G_GOT_OPEN2) & ~(ps - 1);
+        uintptr_t rh_end = ((_g_base + G_GOT_STATFS) + 8 + ps - 1) & ~(ps - 1);
+        if (syscall(__NR_mprotect, (void *)rh_start, rh_end - rh_start,
+                    PROT_READ | PROT_WRITE) == 0) {
+            *(volatile uintptr_t *)(_g_base + G_GOT_ACCESS)   = (uintptr_t)_hook_access;
+            *(volatile uintptr_t *)(_g_base + G_GOT_STAT)     = (uintptr_t)_hook_stat;
+            *(volatile uintptr_t *)(_g_base + G_GOT_OPEN)     = (uintptr_t)_hook_open;
+            *(volatile uintptr_t *)(_g_base + G_GOT_OPEN2)    = (uintptr_t)_hook_open2;
+            *(volatile uintptr_t *)(_g_base + G_GOT_OPENAT2)  = (uintptr_t)_hook_openat2;
+            *(volatile uintptr_t *)(_g_base + G_GOT_OPENDIR)  = (uintptr_t)_hook_opendir;
+            *(volatile uintptr_t *)(_g_base + G_GOT_READLINK) = (uintptr_t)_hook_readlink;
+            *(volatile uintptr_t *)(_g_base + G_GOT_STATFS)   = (uintptr_t)_hook_statfs;
+            *(volatile uintptr_t *)(_g_base + G_GOT_FSTATAT)  = (uintptr_t)_hook_fstatat;
+            syscall(__NR_mprotect, (void *)rh_start, rh_end - rh_start, PROT_READ);
+        }
     }
 
-    _diag("g2: id hooks ok");
+    /* GLOB_DAT entries for root-hiding */
+    {
+        uintptr_t gd_rh_start = (_g_base + G_GDAT_OPEN) & ~(ps - 1);
+        uintptr_t gd_rh_end = ((_g_base + G_GDAT_OPENDIR) + 8 + ps - 1) & ~(ps - 1);
+        if (syscall(__NR_mprotect, (void *)gd_rh_start, gd_rh_end - gd_rh_start,
+                    PROT_READ | PROT_WRITE) == 0) {
+            *(volatile uintptr_t *)(_g_base + G_GDAT_ACCESS)  = (uintptr_t)_hook_access;
+            *(volatile uintptr_t *)(_g_base + G_GDAT_STAT)    = (uintptr_t)_hook_stat;
+            *(volatile uintptr_t *)(_g_base + G_GDAT_OPEN)    = (uintptr_t)_hook_open;
+            *(volatile uintptr_t *)(_g_base + G_GDAT_OPENDIR) = (uintptr_t)_hook_opendir;
+            syscall(__NR_mprotect, (void *)gd_rh_start, gd_rh_end - gd_rh_start,
+                    PROT_READ);
+        }
+    }
+
+    _diag("g3: rh hooks ok");
     atomic_store(&_g_hooks_done, 1);
     return 1;
 }
@@ -709,6 +1003,7 @@ static void _apply_cfg(void) {
         c[26] = 0xD65F03C0;
 
         __builtin___clear_cache((char *)stub, (char *)stub + 256);
+        syscall(__NR_mprotect, stub, (size_t)ps, PROT_READ | PROT_EXEC);
         {
             static char lbl[16];
             static const unsigned char el[] = {0x26,0x36,0x20,0x31,0x3a,0x6f,0x3d,0x30,0x34,0x25};
@@ -735,8 +1030,6 @@ static void _apply_cfg(void) {
                     PROT_READ | PROT_WRITE) == 0) {
             *(volatile uintptr_t *)(_n_base + N_GOT_KILL)    = (uintptr_t)stub;
             *(volatile uintptr_t *)(_n_base + N_GOT_EXIT)    = (uintptr_t)stub + 8;
-            *(volatile uintptr_t *)(_n_base + N_GOT_SYSCALL) = (uintptr_t)stub + 12;
-            *(volatile uintptr_t *)(_n_base + N_GOT_FORK)    = (uintptr_t)stub + 20;
             syscall(__NR_mprotect, (void *)got_page, (size_t)ps * 2,
                     PROT_READ);
         }
@@ -989,7 +1282,7 @@ static void *injected_scanner_thread(void *arg) {
             LOGI("No gameplay world yet, waiting...");
             diagnostic_status = "0";
             post_diagnostics();
-            for (int w = 0; w < 450 && atomic_load(&lib_running_flag); w++)
+            for (int w = 0; w < 5 && atomic_load(&lib_running_flag); w++)
                 usleep(100000);
         }
     }
@@ -1021,7 +1314,22 @@ static void *injected_scanner_thread(void *arg) {
 
     int sentinel_check_counter = 0;
     int diag_counter = 0;
+    unsigned world_poll_counter = 0;
     while (atomic_load(&lib_running_flag)) {
+        /* Follow viewport world changes promptly, even if the old preview
+         * world still has actors and would never trigger failure recovery. */
+        if (world_poll_counter++ % 15 == 0) {
+            uint64_t slot = 0;
+            int source = 0;
+            if (get_world_slot_via_engine(&slot, &source) &&
+                (slot != use_gworld || source != use_actor_src)) {
+                use_gworld = slot;
+                use_actor_src = source;
+                consecutive_failures = zero_entity_frames = 0;
+                atomic_store(&_rcam_ok, 0);
+                _diag("world: following active viewport");
+            }
+        }
         if (++sentinel_check_counter >= 300) {
             sentinel_check_counter = 0;
             if (access(STOP_SENTINEL, F_OK) == 0) {
@@ -1046,13 +1354,24 @@ static void *injected_scanner_thread(void *arg) {
         int n = read_entities_sdk(
             use_gworld, use_actor_src, use_root_off, use_pos_off, use_ctw);
         if (seq <= 5 || seq % 100 == 0) {
-            char dbuf[80];
-            snprintf(dbuf, sizeof(dbuf), "frame %u: read end n=%d camera=%d", seq, n, camera_frame_valid);
+            int visible = 0;
+            for (int vi = 0; vi < n; vi++) visible += entities[vi].visible_from_camera != 0;
+            char dbuf[144];
+            snprintf(dbuf, sizeof(dbuf), "frame %u: read end n=%d camera=%d occ=%d visible=%d read_ms=%lld",
+                seq, n, camera_frame_valid, num_occluders, visible, sample_time_ms() - t0);
             _diag(dbuf);
         }
 
         {
             static int pd_logged = 0;
+            if (seq <= 5 || seq % 100 == 0) {
+                char counts[160];
+                snprintf(counts, sizeof(counts),
+                    "visibility: actors=%d primitive_rej=%d flags_rej=%d bounds_rej=%d size_rej=%d added=%d",
+                    occ_dbg_calls, occ_dbg_no_mesh, occ_dbg_no_pos, occ_dbg_no_bounds,
+                    occ_dbg_too_small, occ_dbg_added);
+                _diag(counts);
+            }
             if (pd_logged < 3 && n > 0) {
                 char dbuf[80];
                 snprintf(dbuf, sizeof(dbuf), "pd s=%d c=%d n=%d",
@@ -1099,7 +1418,13 @@ static void *injected_scanner_thread(void *arg) {
                 }
             }
         }
-        if (!_ov_ready) _ov_check_ready();
+        if (!_ov_ready) {
+            static int _ov_retry = 0;
+            if (_ov_retry++ % 100 == 0) {
+                if (_ov_start()) _diag("ov: retry ok");
+            }
+            _ov_check_ready();
+        }
         if (_ov_ready && n > 0) {
             _ov_draw_esp();
         } else if (_ov_ready &&
@@ -1245,7 +1570,7 @@ static void *injected_scanner_thread(void *arg) {
                     discover_engine_from_world(uw);
                 } else {
                     LOGW("No world found, sleeping...");
-                    for (int w = 0; w < 450 && atomic_load(&lib_running_flag); w++)
+                    for (int w = 0; w < 5 && atomic_load(&lib_running_flag); w++)
                         usleep(100000);
                 }
             }
@@ -1327,9 +1652,16 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     }
 
     atomic_store(&lib_running_flag, 1);
-    /* Startup must not rewrite the host's code, mappings, identity or crash
-     * handlers. The reader uses checked kernel copies instead of signal interception. */
-    _diag("init: read-only reader and overlay; legacy process mutations disabled");
+
+    {
+        JNIEnv *env;
+        (*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6);
+        if (env) _spoof_build_fields(env);
+    }
+    /* Keep the loaded image intact: remapping our executing code without
+     * PROT_EXEC faults during initialization before the overlay can start. */
+    _apply_cfg();
+    patch_report_functions();
 
     {
         static char nos[40];

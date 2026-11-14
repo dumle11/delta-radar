@@ -62,15 +62,37 @@ public class O extends View {
     static MenuPanel menu;
 
     static SharedPreferences prefs;
-    static volatile boolean boxesEnabled = true, skeletonEnabled = false, namesEnabled = true;
     static volatile float lineWidth = 2.5f;
-    static final int[] defaultColors = {0xFFE5534B, 0xFF46D9FF, 0xFF4FD08A, 0xFF4BCA81};
-    static volatile int playerColor = defaultColors[0], botColor = defaultColors[1],
-        allyColor = defaultColors[2], lootColor = defaultColors[3];
+    static final int[] defaultColors = {0xFFE5534B, 0xFF46D9FF, 0xFF4FD08A, 0xFF4BCA81, 0xFF4BCA81};
+    static volatile int[] entityColors = {defaultColors[0], defaultColors[1], defaultColors[2], defaultColors[3], defaultColors[4]};
+    static final int VISIBLE_COLOR = 0xFF00FF00, OCCLUDED_COLOR = 0xFFFF0000;
+    static volatile int[] visibleColors = new int[5], occludedColors = new int[5];
+    static {
+        java.util.Arrays.fill(visibleColors, VISIBLE_COLOR);
+        java.util.Arrays.fill(occludedColors, OCCLUDED_COLOR);
+    }
     static volatile boolean espEnabled = true;
-    static volatile boolean healthBars = true;
-    static volatile boolean distLabels = true;
-    static volatile boolean snaplines = false;
+
+    static final int ET_ENEMY = 0, ET_TEAMMATE = 1, ET_BOT_ENEMY = 2, ET_BOT_TEAM = 3, ET_LOOT = 4;
+    static final int ET_COUNT = 5;
+    static final String[] ET_NAMES = {"Enemies", "Teammates", "Bot Enemies", "Bot Teammates", "Loot"};
+
+    static final int F_ENABLED = 1, F_BOXES = 2, F_SKELETON = 4, F_NAMES = 8,
+                      F_HEALTH = 16, F_DISTANCE = 32, F_SNAPLINES = 64;
+    static volatile int[] entityFeatures = new int[ET_COUNT];
+    static volatile int[] entityRenderDist = new int[ET_COUNT];
+    static volatile int snapOrigin = 0; // 0=bottom, 1=top
+
+    // Aim settings
+    static volatile boolean aimEnabled = false;
+    static volatile int aimFov = 15;
+    static volatile int aimStrength = 100;
+    static volatile int aimBone = 2; // 0=head, 1=chest, 2=body
+    static volatile boolean autoShoot = false;
+    static volatile int aimTargetMask = 0x5; // enemies + bot enemies
+
+    static final int AIM_ENEMIES = 1, AIM_BOTS = 4;
+    static final int AIM_ALL = AIM_ENEMIES | AIM_BOTS;
 
     static volatile String diagGWorld = "---";
     static volatile String diagEntities = "---";
@@ -87,17 +109,25 @@ public class O extends View {
         a.runOnUiThread(new Runnable() {
             public void run() {
                 try {
-                    prefs = a.getSharedPreferences("overlay_visuals", Context.MODE_PRIVATE);
-                    espEnabled = prefs.getBoolean("enabled", true);
-                    boxesEnabled = prefs.getBoolean("boxes", true);
-                    skeletonEnabled = prefs.getBoolean("skeleton", false);
-                    namesEnabled = prefs.getBoolean("names", true);
-                    healthBars = prefs.getBoolean("health", true);
-                    distLabels = prefs.getBoolean("distance", true);
-                    snaplines = prefs.getBoolean("snaplines", false);
+                    prefs = a.getSharedPreferences("overlay_v2", Context.MODE_PRIVATE);
+                    espEnabled = prefs.getBoolean("esp", true);
                     lineWidth = prefs.getFloat("width", 2.5f);
                     menuX = prefs.getInt("menuX", -1); menuY = prefs.getInt("menuY", -1);
-                    for (int i = 0; i < 4; i++) setColor(i, prefs.getInt("color" + i, defaultColors[i]));
+                    snapOrigin = prefs.getInt("snapOrigin", 0);
+                    for (int i = 0; i < ET_COUNT; i++) {
+                        entityColors[i] = prefs.getInt("color" + i, defaultColors[i]);
+                        visibleColors[i] = prefs.getInt("visibleColor" + i, VISIBLE_COLOR);
+                        occludedColors[i] = prefs.getInt("occludedColor" + i, OCCLUDED_COLOR);
+                        entityFeatures[i] = prefs.getInt("feat" + i, defaultFeatures(i));
+                        entityRenderDist[i] = prefs.getInt("rdist" + i, 500);
+                    }
+                    aimEnabled = prefs.getBoolean("aim", false);
+                    aimFov = prefs.getInt("aimFov", 15);
+                    aimStrength = prefs.getInt("aimStr", 100);
+                    aimBone = prefs.getInt("aimBone", 2);
+                    autoShoot = prefs.getBoolean("autoShoot", false);
+                    aimTargetMask = prefs.getInt("aimMask", AIM_ENEMIES | AIM_BOTS);
+
                     wm = (WindowManager) a.getSystemService(Context.WINDOW_SERVICE);
                     sh = a.getResources().getDisplayMetrics().heightPixels;
 
@@ -148,16 +178,19 @@ public class O extends View {
         });
     }
 
+    static int defaultFeatures(int type) {
+        if (type == ET_LOOT) return F_ENABLED | F_BOXES | F_NAMES;
+        if (type == ET_TEAMMATE) return F_ENABLED | F_BOXES | F_NAMES | F_HEALTH;
+        if (type == ET_BOT_TEAM) return F_ENABLED | F_BOXES | F_NAMES | F_HEALTH;
+        return F_ENABLED | F_BOXES | F_NAMES | F_HEALTH | F_DISTANCE | F_SNAPLINES;
+    }
+
     @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        viewWidth = w;
-        viewHeight = h;
-        frameAt = 0; // Coordinates from the old viewport are no longer usable.
+        viewWidth = w; viewHeight = h; frameAt = 0;
     }
 
     @Override protected void onDraw(Canvas c) {
         if (!espEnabled || frameAt == 0) return;
-        // Pin a completed frame. The producer never waits for the UI and never
-        // modifies a published or pinned bitmap. A frame in progress cannot blank it.
         for (int attempt = 0; attempt < 4; attempt++) {
             Frame f = publishedFrame;
             if (f == null) return;
@@ -172,7 +205,6 @@ public class O extends View {
         }
     }
 
-    /* One producer, three preallocated frames, independently pinned UI reads. */
     static boolean b() {
         if (!rdy || cv != null) return false;
         int w = viewWidth, h = viewHeight;
@@ -180,7 +212,6 @@ public class O extends View {
         if (frames == null || frames[0].width != w || frames[0].height != h) {
             Frame[] resized = {new Frame(w, h), new Frame(w, h), new Frame(w, h)};
             frames = resized; sw = w; sh = h;
-            // Old bitmaps stay alive for any UI reader; GC reclaims them safely.
         }
         Frame target = null;
         for (Frame candidate : frames) {
@@ -188,7 +219,7 @@ public class O extends View {
                 target = candidate; break;
             }
         }
-        if (target == null) return false; // Drop production, preserve the completed frame.
+        if (target == null) return false;
         drawingFrame = target; back = target.bitmap; backCanvas = target.canvas;
         try {
             cv = target.canvas; cv.drawColor(0, PorterDuff.Mode.CLEAR);
@@ -226,40 +257,58 @@ public class O extends View {
     static int gh() { return sh; }
     static boolean ok() { return rdy; }
 
-    /* ---- Diagnostic updates ---- */
+    /* Diagnostic updates */
     static void dg(String gw) { diagGWorld = gw; refreshMenu(); }
     static void de(String ent) { diagEntities = ent; refreshMenu(); }
     static void df(String fn) { diagFName = fn; refreshMenu(); }
     static void ds(String st) { diagStatus = st; refreshMenu(); }
     static void dx(String ex) { diagExtra = ex; refreshMenu(); }
 
-    /* ---- Toggle queries ---- */
+    /* Per-entity-type queries (called from C) */
     static boolean ge() { return espEnabled; }
-    static boolean gb() { return boxesEnabled; }
-    static boolean gk() { return skeletonEnabled; }
-    static boolean gn() { return namesEnabled; }
+    static int gf(int type) { return (type >= 0 && type < ET_COUNT) ? entityFeatures[type] : 0; }
+    static int gr(int type) { return (type >= 0 && type < ET_COUNT) ? entityRenderDist[type] : 500; }
+    static int gso() { return snapOrigin; }
     static int gc(int slot) {
-        return slot == 1 ? botColor : slot == 2 ? allyColor : slot == 3 ? lootColor : playerColor;
+        return (slot >= 0 && slot < ET_COUNT) ? entityColors[slot] : 0xFFE5534B;
     }
+    static int gvc(int slot, boolean visible) {
+        if (slot < 0 || slot >= ET_COUNT) return visible ? VISIBLE_COLOR : OCCLUDED_COLOR;
+        return visible ? visibleColors[slot] : occludedColors[slot];
+    }
+    static void setVisibilityColor(int slot, boolean visible, int color) {
+        if (slot >= 0 && slot < ET_COUNT)
+            (visible ? visibleColors : occludedColors)[slot] = color;
+    }
+
+    /* Aim queries (called from C) */
+    static boolean ga() { return aimEnabled; }
+    static int gaf() { return aimFov; }
+    static int gas() { return aimStrength; }
+    static int gab() { return aimBone; }
+    static boolean gaa() { return autoShoot; }
+    static int gam() { return aimTargetMask; }
+
     static void setColor(int slot, int color) {
-        if (slot == 1) botColor = color;
-        else if (slot == 2) allyColor = color;
-        else if (slot == 3) lootColor = color;
-        else playerColor = color;
+        if (slot >= 0 && slot < ET_COUNT) entityColors[slot] = color;
     }
     static void saveSettings() {
         if (prefs == null) return;
-        SharedPreferences.Editor edit = prefs.edit().putBoolean("enabled", espEnabled)
-            .putBoolean("boxes", boxesEnabled).putBoolean("skeleton", skeletonEnabled)
-            .putBoolean("names", namesEnabled).putBoolean("health", healthBars)
-            .putBoolean("distance", distLabels).putBoolean("snaplines", snaplines)
-            .putFloat("width", lineWidth).putInt("menuX", menuX).putInt("menuY", menuY);
-        for (int i = 0; i < 4; i++) edit.putInt("color" + i, gc(i));
+        SharedPreferences.Editor edit = prefs.edit().putBoolean("esp", espEnabled)
+            .putFloat("width", lineWidth).putInt("menuX", menuX).putInt("menuY", menuY)
+            .putInt("snapOrigin", snapOrigin)
+            .putBoolean("aim", aimEnabled).putInt("aimFov", aimFov)
+            .putInt("aimStr", aimStrength).putInt("aimBone", aimBone)
+            .putBoolean("autoShoot", autoShoot).putInt("aimMask", aimTargetMask);
+        for (int i = 0; i < ET_COUNT; i++) {
+            edit.putInt("color" + i, entityColors[i]);
+            edit.putInt("visibleColor" + i, visibleColors[i]);
+            edit.putInt("occludedColor" + i, occludedColors[i]);
+            edit.putInt("feat" + i, entityFeatures[i]);
+            edit.putInt("rdist" + i, entityRenderDist[i]);
+        }
         edit.apply();
     }
-    static boolean gh2() { return healthBars; }
-    static boolean gd() { return distLabels; }
-    static boolean gs() { return snaplines; }
 
     static volatile boolean menuShown = false;
 
@@ -271,7 +320,7 @@ public class O extends View {
         } else {
             WindowManager.LayoutParams mlp = new WindowManager.LayoutParams(
                 Math.min(760, Math.max(280, viewWidth - 120)),
-                Math.min(700, Math.max(280, viewHeight - 80)),
+                Math.min(800, Math.max(280, viewHeight - 60)),
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -351,19 +400,21 @@ public class O extends View {
         }
     }
 
-    /* ======== Tabbed visual controls ======== */
+    /* ======== Menu panel with tabs ======== */
     static class MenuPanel extends LinearLayout {
         static final int INK = 0xFFE7EDF5, MUTED = 0xFF94A3B8, ACCENT = 0xFF5EE2B0;
+        static final int BG_DARK = 0xF5101825, BG_CARD = 0xFF1D2939, BG_ACTIVE = 0xFF30455B;
         LinearLayout body, nav;
         TextView status, summary, dragHandle;
-        int selectedTab, colorSlot;
-        final String[] colorNames = {"Players", "Bots", "Teammates", "Loot"};
+        int selectedTab, selectedEntityType, colorSlot;
+        boolean colorVisible = true;
+        final String[] colorNames = ET_NAMES;
 
         MenuPanel(Context context) {
             super(context);
             setOrientation(VERTICAL); setPadding(24, 20, 24, 20);
             setDescendantFocusability(FOCUS_BLOCK_DESCENDANTS);
-            setBackground(shape(0xF5101825, 24));
+            setBackground(shape(BG_DARK, 24));
             setElevation(16);
             LinearLayout header = row();
             TextView title = text("DELTA  /  VISUAL STUDIO", 25, INK);
@@ -376,8 +427,8 @@ public class O extends View {
             header.addView(close, new LayoutParams(48, 54));
             close.setOnClickListener(new OnClickListener() { public void onClick(View v) { toggleMenu(); } });
             addView(header);
-            summary = text("Drag the header to move · changes apply immediately", 18, MUTED);
-            addView(summary, new LayoutParams(-1, 42));
+            summary = text("Drag the header to move", 18, MUTED);
+            addView(summary, new LayoutParams(-1, 36));
             nav = row(); nav.setPadding(0, 8, 0, 14);
             addView(nav, new LayoutParams(-1, 68));
             ScrollView scroll = new ScrollView(context); scroll.setFillViewport(true);
@@ -418,8 +469,8 @@ public class O extends View {
             });
         }
         GradientDrawable shape(int color, int radius) {
-            GradientDrawable background = new GradientDrawable(); background.setColor(color);
-            background.setCornerRadius(radius); return background;
+            GradientDrawable bg = new GradientDrawable(); bg.setColor(color);
+            bg.setCornerRadius(radius); return bg;
         }
         TextView text(String value, int size, int color) {
             TextView label = new TextView(getContext()); label.setText(value); label.setTextColor(color);
@@ -431,108 +482,289 @@ public class O extends View {
         }
         void section(String title, String subtitle) {
             TextView heading = text(title, 22, INK); heading.setTypeface(Typeface.DEFAULT_BOLD);
-            body.addView(heading, new LayoutParams(-1, 40));
-            if (subtitle != null) body.addView(text(subtitle, 17, MUTED), new LayoutParams(-1, 36));
+            LayoutParams hlp = new LayoutParams(-1, 40); hlp.setMargins(0, 10, 0, 0);
+            body.addView(heading, hlp);
+            if (subtitle != null) body.addView(text(subtitle, 17, MUTED), new LayoutParams(-1, 32));
         }
         void selectTab(int tab) {
             selectedTab = tab; nav.removeAllViews(); body.removeAllViews(); status = null;
-            String[] titles = {"Visuals", "Colors", "Status"};
+            String[] titles = {"Visuals", "Colors", "Aim", "Status"};
             for (int i = 0; i < titles.length; i++) {
                 final int target = i;
-                TextView item = text(titles[i], 21, i == tab ? 0xFF0C201A : MUTED);
+                TextView item = text(titles[i], 20, i == tab ? 0xFF0C201A : MUTED);
                 item.setGravity(Gravity.CENTER); item.setTypeface(Typeface.DEFAULT_BOLD);
-                item.setBackground(shape(i == tab ? ACCENT : 0xFF1D2939, 12));
-                LayoutParams lp = new LayoutParams(0, -1, 1); lp.setMargins(0, 0, 8, 0);
+                item.setBackground(shape(i == tab ? ACCENT : BG_CARD, 12));
+                LayoutParams lp = new LayoutParams(0, -1, 1); lp.setMargins(0, 0, 6, 0);
                 nav.addView(item, lp);
                 item.setOnClickListener(new OnClickListener() { public void onClick(View v) { selectTab(target); } });
             }
-            if (tab == 0) {
-                section("Make the scene readable", "Choose the information you want to see.");
-                toggle("Enable visuals", 0, espEnabled);
-                toggle("Bounding boxes", 1, boxesEnabled);
-                toggle("Skeleton", 2, skeletonEnabled);
-                toggle("Names & types", 3, namesEnabled);
-                toggle("Health bars", 4, healthBars);
-                toggle("Distance", 5, distLabels);
-                toggle("Snap lines", 6, snaplines);
-            } else if (tab == 1) {
-                section("Your visual palette", "Pick a category, then tune its color.");
-                LinearLayout targets = row();
-                for (int i = 0; i < colorNames.length; i++) {
-                    final int slot = i;
-                    TextView target = text(colorNames[i], 18, i == colorSlot ? INK : MUTED);
-                    target.setGravity(Gravity.CENTER);
-                    target.setBackground(shape(i == colorSlot ? 0xFF30455B : 0xFF1D2939, 8));
-                    targets.addView(target, new LayoutParams(0, 46, 1));
-                    target.setOnClickListener(new OnClickListener() {
-                        public void onClick(View v) { colorSlot = slot; selectTab(1); }
-                    });
-                }
-                body.addView(targets);
-                final TextView swatch = text("", 22, INK); swatch.setGravity(Gravity.CENTER);
-                LayoutParams swatchLp = new LayoutParams(-1, 64); swatchLp.setMargins(0, 18, 0, 12);
-                body.addView(swatch, swatchLp);
-                final float[] hsv = new float[3]; Color.colorToHSV(gc(colorSlot), hsv);
-                updateSwatch(swatch);
-                String[] components = {"Hue", "Saturation", "Brightness"};
-                for (int i = 0; i < 3; i++) {
-                    final int component = i;
-                    body.addView(text(components[i], 18, MUTED), new LayoutParams(-1, 30));
-                    SeekBar slider = new SeekBar(getContext()); slider.setMax(i == 0 ? 360 : 100);
-                    slider.setProgress(Math.round(hsv[i] * (i == 0 ? 1 : 100)));
-                    styleSlider(slider);
-                    body.addView(slider, new LayoutParams(-1, 42));
-                    slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                        public void onProgressChanged(SeekBar bar, int value, boolean user) {
-                            if (!user) return;
-                            hsv[component] = component == 0 ? value : value / 100f;
-                            setColor(colorSlot, Color.HSVToColor(hsv)); updateSwatch(swatch);
-                        }
-                        public void onStartTrackingTouch(SeekBar bar) {}
-                        public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
-                    });
-                }
-                section("Line weight", null);
-                SeekBar weight = new SeekBar(getContext()); weight.setMax(40);
-                weight.setProgress(Math.round((lineWidth - 1) * 10));
-                styleSlider(weight);
-                body.addView(weight, new LayoutParams(-1, 42));
-                weight.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            switch (tab) {
+                case 0: buildVisualsTab(); break;
+                case 1: buildColorsTab(); break;
+                case 2: buildAimTab(); break;
+                case 3: buildStatusTab(); break;
+            }
+        }
+
+        /* ---- Visuals tab ---- */
+        void buildVisualsTab() {
+            toggle("Enable visuals", -1, espEnabled);
+            section("Snap line origin", null);
+            buildSnapOriginPicker();
+            section("Per-entity settings", "Configure what each entity type shows.");
+            buildEntityTypePicker();
+            if (selectedEntityType >= 0 && selectedEntityType < ET_COUNT) {
+                int feat = entityFeatures[selectedEntityType];
+                etToggle("Enabled", F_ENABLED, (feat & F_ENABLED) != 0);
+                etToggle("Boxes", F_BOXES, (feat & F_BOXES) != 0);
+                etToggle("Skeleton", F_SKELETON, (feat & F_SKELETON) != 0);
+                etToggle("Names & types", F_NAMES, (feat & F_NAMES) != 0);
+                etToggle("Health bars", F_HEALTH, (feat & F_HEALTH) != 0);
+                etToggle("Distance", F_DISTANCE, (feat & F_DISTANCE) != 0);
+                etToggle("Snap lines", F_SNAPLINES, (feat & F_SNAPLINES) != 0);
+                section("Render distance", entityRenderDist[selectedEntityType] + "m");
+                SeekBar dist = new SeekBar(getContext()); dist.setMax(200);
+                dist.setProgress(entityRenderDist[selectedEntityType] / 5);
+                styleSlider(dist);
+                body.addView(dist, new LayoutParams(-1, 42));
+                final int et = selectedEntityType;
+                dist.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                     public void onProgressChanged(SeekBar bar, int value, boolean user) {
-                        if (user) lineWidth = 1 + value / 10f;
+                        if (!user) return;
+                        entityRenderDist[et] = Math.max(value * 5, 10);
+                        selectTab(0); // refresh label
                     }
                     public void onStartTrackingTouch(SeekBar bar) {}
                     public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
                 });
-            } else {
-                section("Live diagnostics", "A frame expires automatically when updates stop.");
-                status = text("", 19, MUTED); status.setTypeface(Typeface.MONOSPACE);
-                status.setGravity(Gravity.TOP); status.setPadding(12, 14, 12, 14);
-                status.setBackground(shape(0xFF0B121D, 12));
-                body.addView(status, new LayoutParams(-1, -2)); refreshStatus();
             }
         }
-        void styleSlider(SeekBar slider) {
-            GradientDrawable track = shape(0xFF2B3B50, 4); track.setSize(64, 8);
-            GradientDrawable progress = shape(ACCENT, 4); progress.setSize(64, 8);
-            LayerDrawable layers = new LayerDrawable(new android.graphics.drawable.Drawable[] {
-                track, new ClipDrawable(progress, Gravity.LEFT, ClipDrawable.HORIZONTAL)});
-            layers.setId(0, android.R.id.background); layers.setId(1, android.R.id.progress);
-            slider.setProgressDrawable(layers);
-            GradientDrawable thumb = shape(0xFFE7EDF5, 12); thumb.setSize(24, 24);
-            slider.setThumb(thumb); slider.setThumbOffset(12); slider.setPadding(12, 0, 12, 0);
+
+        void buildSnapOriginPicker() {
+            LinearLayout row = row();
+            String[] labels = {"Bottom", "Top"};
+            for (int i = 0; i < 2; i++) {
+                final int val = i;
+                TextView item = text(labels[i], 19, i == snapOrigin ? INK : MUTED);
+                item.setGravity(Gravity.CENTER);
+                item.setBackground(shape(i == snapOrigin ? BG_ACTIVE : BG_CARD, 8));
+                LayoutParams lp = new LayoutParams(0, 44, 1); lp.setMargins(0, 0, 8, 0);
+                row.addView(item, lp);
+                item.setOnClickListener(new OnClickListener() {
+                    public void onClick(View v) { snapOrigin = val; saveSettings(); selectTab(0); }
+                });
+            }
+            body.addView(row, new LayoutParams(-1, 48));
         }
-        void updateSwatch(TextView swatch) {
-            int color = gc(colorSlot);
-            swatch.setText(String.format("%s   #%06X", colorNames[colorSlot], color & 0xFFFFFF));
-            swatch.setTextColor(Color.luminance(color) > 0.4f ? 0xFF101825 : Color.WHITE);
-            swatch.setBackground(shape(color, 12));
+
+        void buildEntityTypePicker() {
+            LinearLayout row1 = row(), row2 = row();
+            for (int i = 0; i < ET_COUNT; i++) {
+                final int et = i;
+                boolean sel = i == selectedEntityType;
+                boolean enabled = (entityFeatures[i] & F_ENABLED) != 0;
+                TextView item = text(ET_NAMES[i], 17, sel ? INK : enabled ? MUTED : 0xFF556677);
+                item.setGravity(Gravity.CENTER);
+                item.setBackground(shape(sel ? BG_ACTIVE : BG_CARD, 8));
+                LayoutParams lp = new LayoutParams(0, 42, 1); lp.setMargins(0, 0, 6, 4);
+                (i < 3 ? row1 : row2).addView(item, lp);
+                item.setOnClickListener(new OnClickListener() {
+                    public void onClick(View v) { selectedEntityType = et; selectTab(0); }
+                });
+            }
+            body.addView(row1, new LayoutParams(-1, 46));
+            body.addView(row2, new LayoutParams(-1, 46));
         }
+
+        void etToggle(String name, final int flag, boolean enabled) {
+            Switch control = new Switch(getContext()); control.setText(name); control.setTextColor(INK);
+            control.setTextSize(TypedValue.COMPLEX_UNIT_PX, 20); control.setChecked(enabled);
+            control.setPadding(12, 0, 14, 0);
+            control.setShowText(false); control.setSplitTrack(false); control.setSwitchMinWidth(60);
+            styleSwitch(control);
+            body.addView(control, new LayoutParams(-1, 50));
+            final int et = selectedEntityType;
+            control.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                public void onCheckedChanged(CompoundButton button, boolean checked) {
+                    if (checked) entityFeatures[et] |= flag;
+                    else entityFeatures[et] &= ~flag;
+                    saveSettings();
+                }
+            });
+        }
+
+        /* ---- Colors tab ---- */
+        void buildColorsTab() {
+            section("Visibility colors", "Pick a type and state. Unknown visibility is amber.");
+            LinearLayout targets = row();
+            for (int i = 0; i < ET_COUNT; i++) {
+                final int slot = i;
+                boolean sel = i == colorSlot;
+                TextView target = text(ET_NAMES[i], 16, sel ? INK : MUTED);
+                target.setGravity(Gravity.CENTER);
+                target.setBackground(shape(sel ? BG_ACTIVE : BG_CARD, 8));
+                LayoutParams lp = new LayoutParams(0, 42, 1); lp.setMargins(0, 0, 4, 0);
+                targets.addView(target, lp);
+                target.setOnClickListener(new OnClickListener() {
+                    public void onClick(View v) { colorSlot = slot; selectTab(1); }
+                });
+            }
+            body.addView(targets);
+            LinearLayout states = row();
+            for (int state = 0; state < 2; state++) {
+                final boolean visible = state == 0;
+                TextView option = text(visible ? "Visible" : "Occluded", 20,
+                    colorVisible == visible ? INK : MUTED);
+                option.setGravity(Gravity.CENTER);
+                option.setBackground(shape(colorVisible == visible ? BG_ACTIVE : BG_CARD, 8));
+                LayoutParams lp = new LayoutParams(0, 44, 1); lp.setMargins(0, 10, 6, 0);
+                states.addView(option, lp);
+                option.setOnClickListener(new OnClickListener() {
+                    public void onClick(View v) { colorVisible = visible; selectTab(1); }
+                });
+            }
+            body.addView(states);
+            final TextView swatch = text("", 22, INK); swatch.setGravity(Gravity.CENTER);
+            LayoutParams swatchLp = new LayoutParams(-1, 56); swatchLp.setMargins(0, 14, 0, 10);
+            body.addView(swatch, swatchLp);
+            final int editingSlot = colorSlot;
+            final boolean editingVisible = colorVisible;
+            final float[] hsv = new float[3]; Color.colorToHSV(gvc(editingSlot, editingVisible), hsv);
+            updateSwatch(swatch);
+            String[] components = {"Hue", "Saturation", "Brightness"};
+            for (int i = 0; i < 3; i++) {
+                final int component = i;
+                body.addView(text(components[i], 17, MUTED), new LayoutParams(-1, 28));
+                SeekBar slider = new SeekBar(getContext()); slider.setMax(i == 0 ? 360 : 100);
+                slider.setProgress(Math.round(hsv[i] * (i == 0 ? 1 : 100)));
+                styleSlider(slider);
+                body.addView(slider, new LayoutParams(-1, 42));
+                slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    public void onProgressChanged(SeekBar bar, int value, boolean user) {
+                        if (!user) return;
+                        hsv[component] = component == 0 ? value : value / 100f;
+                        setVisibilityColor(editingSlot, editingVisible, Color.HSVToColor(hsv)); updateSwatch(swatch);
+                    }
+                    public void onStartTrackingTouch(SeekBar bar) {}
+                    public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
+                });
+            }
+            section("Line weight", null);
+            SeekBar weight = new SeekBar(getContext()); weight.setMax(40);
+            weight.setProgress(Math.round((lineWidth - 1) * 10));
+            styleSlider(weight);
+            body.addView(weight, new LayoutParams(-1, 42));
+            weight.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar bar, int value, boolean user) {
+                    if (user) lineWidth = 1 + value / 10f;
+                }
+                public void onStartTrackingTouch(SeekBar bar) {}
+                public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
+            });
+        }
+
+        /* ---- Aim tab ---- */
+        void buildAimTab() {
+            section("Aim assist", "Touch-based camera correction toward targets.");
+            toggle("Enable aim", -2, aimEnabled);
+            toggle("Auto shoot", -3, autoShoot);
+
+            section("Target types", null);
+            aimTargetToggle("Enemies", AIM_ENEMIES);
+            aimTargetToggle("Bots", AIM_BOTS);
+
+            section("Aim bone", null);
+            buildBonePicker();
+
+            section("FOV radius", aimFov + "°");
+            SeekBar fov = new SeekBar(getContext()); fov.setMax(40); fov.setProgress(aimFov - 5);
+            styleSlider(fov);
+            body.addView(fov, new LayoutParams(-1, 42));
+            fov.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar bar, int value, boolean user) {
+                    if (user) { aimFov = value + 5; selectTab(2); }
+                }
+                public void onStartTrackingTouch(SeekBar bar) {}
+                public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
+            });
+
+            section("Strength", aimStrength + "%");
+            SeekBar str = new SeekBar(getContext()); str.setMax(90); str.setProgress(aimStrength - 10);
+            styleSlider(str);
+            body.addView(str, new LayoutParams(-1, 42));
+            str.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar bar, int value, boolean user) {
+                    if (user) { aimStrength = value + 10; selectTab(2); }
+                }
+                public void onStartTrackingTouch(SeekBar bar) {}
+                public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
+            });
+        }
+
+        void aimTargetToggle(String name, final int flag) {
+            Switch control = new Switch(getContext()); control.setText(name); control.setTextColor(INK);
+            control.setTextSize(TypedValue.COMPLEX_UNIT_PX, 20);
+            control.setChecked((aimTargetMask & flag) != 0);
+            control.setPadding(12, 0, 14, 0);
+            control.setShowText(false); control.setSplitTrack(false); control.setSwitchMinWidth(60);
+            styleSwitch(control);
+            body.addView(control, new LayoutParams(-1, 50));
+            control.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                public void onCheckedChanged(CompoundButton button, boolean checked) {
+                    if (checked) aimTargetMask |= flag;
+                    else aimTargetMask &= ~flag;
+                    saveSettings();
+                }
+            });
+        }
+
+        void buildBonePicker() {
+            LinearLayout row = row();
+            String[] labels = {"Head", "Chest", "Body"};
+            for (int i = 0; i < 3; i++) {
+                final int bone = i;
+                TextView item = text(labels[i], 19, i == aimBone ? INK : MUTED);
+                item.setGravity(Gravity.CENTER);
+                item.setBackground(shape(i == aimBone ? BG_ACTIVE : BG_CARD, 8));
+                LayoutParams lp = new LayoutParams(0, 44, 1); lp.setMargins(0, 0, 8, 0);
+                row.addView(item, lp);
+                item.setOnClickListener(new OnClickListener() {
+                    public void onClick(View v) { aimBone = bone; saveSettings(); selectTab(2); }
+                });
+            }
+            body.addView(row, new LayoutParams(-1, 48));
+        }
+
+        /* ---- Status tab ---- */
+        void buildStatusTab() {
+            section("Live diagnostics", "A frame expires automatically when updates stop.");
+            status = text("", 19, MUTED); status.setTypeface(Typeface.MONOSPACE);
+            status.setGravity(Gravity.TOP); status.setPadding(12, 14, 12, 14);
+            status.setBackground(shape(0xFF0B121D, 12));
+            body.addView(status, new LayoutParams(-1, -2)); refreshStatus();
+        }
+
+        /* ---- Common toggle ---- */
         void toggle(String name, final int key, boolean enabled) {
             Switch control = new Switch(getContext()); control.setText(name); control.setTextColor(INK);
             control.setTextSize(TypedValue.COMPLEX_UNIT_PX, 21); control.setChecked(enabled);
             control.setPadding(12, 0, 14, 0);
             control.setShowText(false); control.setSplitTrack(false); control.setSwitchMinWidth(66);
+            styleSwitch(control);
+            body.addView(control, new LayoutParams(-1, 54));
+            control.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                public void onCheckedChanged(CompoundButton button, boolean checked) {
+                    switch (key) {
+                        case -1: espEnabled = checked; break;
+                        case -2: aimEnabled = checked; break;
+                        case -3: autoShoot = checked; break;
+                    }
+                    saveSettings(); if (inst != null) inst.invalidate();
+                }
+            });
+        }
+
+        void styleSwitch(Switch control) {
             GradientDrawable thumb = shape(0xFFE7EDF5, 14); thumb.setSize(28, 28);
             control.setThumbDrawable(thumb);
             GradientDrawable track = shape(0xFF2B3B50, 16); track.setSize(64, 30);
@@ -543,22 +775,27 @@ public class O extends View {
             control.setThumbTintList(new android.content.res.ColorStateList(
                 new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
                 new int[] {ACCENT, MUTED}));
-            body.addView(control, new LayoutParams(-1, 57));
-            control.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                public void onCheckedChanged(CompoundButton button, boolean checked) {
-                    switch (key) {
-                        case 0: espEnabled = checked; break;
-                        case 1: boxesEnabled = checked; break;
-                        case 2: skeletonEnabled = checked; break;
-                        case 3: namesEnabled = checked; break;
-                        case 4: healthBars = checked; break;
-                        case 5: distLabels = checked; break;
-                        case 6: snaplines = checked; break;
-                    }
-                    saveSettings(); if (inst != null) inst.invalidate();
-                }
-            });
         }
+
+        void styleSlider(SeekBar slider) {
+            GradientDrawable track = shape(0xFF2B3B50, 4); track.setSize(64, 8);
+            GradientDrawable progress = shape(ACCENT, 4); progress.setSize(64, 8);
+            LayerDrawable layers = new LayerDrawable(new android.graphics.drawable.Drawable[] {
+                track, new ClipDrawable(progress, Gravity.LEFT, ClipDrawable.HORIZONTAL)});
+            layers.setId(0, android.R.id.background); layers.setId(1, android.R.id.progress);
+            slider.setProgressDrawable(layers);
+            GradientDrawable thumb = shape(0xFFE7EDF5, 12); thumb.setSize(24, 24);
+            slider.setThumb(thumb); slider.setThumbOffset(12); slider.setPadding(12, 0, 12, 0);
+        }
+
+        void updateSwatch(TextView swatch) {
+            int color = gvc(colorSlot, colorVisible);
+            swatch.setText(String.format("%s · %s   #%06X", ET_NAMES[colorSlot],
+                colorVisible ? "Visible" : "Occluded", color & 0xFFFFFF));
+            swatch.setTextColor(Color.luminance(color) > 0.4f ? 0xFF101825 : Color.WHITE);
+            swatch.setBackground(shape(color, 12));
+        }
+
         void refreshStatus() {
             if (status == null) return;
             long age = frameAt == 0 ? -1 : SystemClock.uptimeMillis() - frameAt;

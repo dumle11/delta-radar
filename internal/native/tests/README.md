@@ -3,6 +3,7 @@ Run host regressions from the repository root:
 ```sh
 python3 internal/native/tests/test_safe_reads.py
 python3 internal/native/tests/test_projection.py
+python3 internal/native/tests/test_visibility.py
 ```
 
 The tests compile the production helper functions into isolated host programs.
@@ -29,6 +30,11 @@ completed-frame retention during an incomplete/busy producer, pinned-reader
 exclusion, 2,000 reused frames, menu dragging/clamping, tabs, skeleton and colors.
 It writes menu previews to `/data/local/tmp/delta-menu-{0,1,2}.png`.
 It does not validate live camera/entity data, sustained flicker or game stability.
+The visibility fixture checks production ray math and collection against synthetic
+bounds: parallel/boundary intersections, partial cover, body-sized sampling,
+query modes/channel responses, thin/large walls, managed bounds, nearby/endpoint
+cover and unknown visibility when geometry is missing or incomplete. The Android fixture also checks
+independent per-entity visible/occluded colors and persistence to disk.
 
 To exercise the same checked-read fixture on Android, emit its C source with
 `python3 internal/native/tests/test_safe_reads.py --emit-c /tmp/checked-reads.c`,

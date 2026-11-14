@@ -124,14 +124,52 @@ public class OverlayRegression {
         check(position.x == 0 && position.y == 0 && O.menuX == 0 && O.menuY == 0,
             "drag clamps to top/left and remembers position");
         O.wm = originalWm;
-        Switch skeleton = (Switch) panel.body.getChildAt(4);
-        skeleton.setChecked(true); check(O.gk(), "skeleton toggle is wired");
+        Switch skeleton = null;
+        for (int i = 0; i < panel.body.getChildCount(); i++) {
+            View child = panel.body.getChildAt(i);
+            if (child instanceof Switch && ((Switch) child).getText().toString().equals("Skeleton"))
+                skeleton = (Switch) child;
+        }
+        check(skeleton != null, "per-entity skeleton control exists");
+        skeleton.setChecked(true);
+        check((O.gf(panel.selectedEntityType) & O.F_SKELETON) != 0, "skeleton toggle is wired");
         skeleton.setChecked(false);
         panel.selectTab(1); check(panel.selectedTab == 1, "color tab opens");
         int oldColor = O.gc(1); O.setColor(1, 0xFF123456);
         check(O.gc(1) == 0xFF123456, "native color getter follows selection"); O.setColor(1, oldColor);
-        panel.selectTab(2); check(panel.status != null, "live status tab opens");
-        for (int tab = 0; tab < 3; tab++) {
+        for (int type = 0; type < O.ET_COUNT; type++) {
+            check(O.gvc(type, true) == 0xFF00FF00, "visible defaults green");
+            check(O.gvc(type, false) == 0xFFFF0000, "occluded defaults red");
+        }
+        O.setVisibilityColor(1, true, 0xFF123456);
+        O.setVisibilityColor(1, false, 0xFF654321);
+        check(O.gvc(1, true) == 0xFF123456 && O.gvc(1, false) == 0xFF654321,
+            "visible and occluded selections are independent");
+        check(O.gvc(0, true) == 0xFF00FF00 && O.gvc(0, false) == 0xFFFF0000,
+            "entity palettes are independent");
+        java.io.File settingsFile = java.io.File.createTempFile("overlay-colors-", ".xml",
+            new java.io.File("/data/local/tmp"));
+        settingsFile.delete();
+        java.lang.reflect.Constructor<?> prefsConstructor = Class.forName("android.app.SharedPreferencesImpl")
+            .getDeclaredConstructor(java.io.File.class, int.class);
+        prefsConstructor.setAccessible(true);
+        O.prefs = (android.content.SharedPreferences) prefsConstructor.newInstance(settingsFile, 0);
+        O.saveSettings();
+        check(O.prefs.edit().commit(), "flush saved palette to disk");
+        android.content.SharedPreferences reloaded = (android.content.SharedPreferences)
+            prefsConstructor.newInstance(settingsFile, 0);
+        check(reloaded.getInt("visibleColor1", 0) == 0xFF123456 &&
+            reloaded.getInt("occludedColor1", 0) == 0xFF654321 &&
+            reloaded.getInt("visibleColor0", 0) == 0xFF00FF00,
+            "entity and visibility palettes persist to disk independently");
+        O.prefs = null; settingsFile.delete();
+        panel.colorSlot = 1; panel.colorVisible = false; panel.selectTab(1);
+        android.widget.TextView swatch = new android.widget.TextView(context);
+        panel.updateSwatch(swatch);
+        check(swatch.getText().toString().contains("Occluded") &&
+            swatch.getText().toString().contains("654321"), "swatch follows entity and visibility");
+        panel.selectTab(3); check(panel.status != null, "live status tab opens");
+        for (int tab = 0; tab < 4; tab++) {
             panel.selectTab(tab);
             panel.measure(View.MeasureSpec.makeMeasureSpec(760, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(700, View.MeasureSpec.EXACTLY));
