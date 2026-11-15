@@ -23,8 +23,8 @@ program = r'''
 #define OFF_CHARACTER_LAST_IS_DEAD 0xe5d
 static uint64_t ue4_base;
 ''' + helpers + r'''
-static unsigned char objects[11][0x4000], classes[11][0x100], array[0x28], items[11][0x18];
-static uint64_t chunks[1], weapons[2];
+static unsigned char objects[17][0x6000], classes[17][0x100], array[0x28], items[17][0x18];
+static uint64_t chunks[1], weapons[2], modifiers[3];
 static struct { int32_t index,serial; } weak[19];
 static struct { int32_t index,serial; } weak_data[1];
 static int is_any_ptr(uint64_t p) { return p>65536 && p<0xffffffffffffULL && !(p&3); }
@@ -32,8 +32,8 @@ static int32_t read_i32(uint64_t p) { int32_t v=0; ev_read(p,&v,4); return v; }
 static void resolve_fname(int32_t i,char *out,size_t n) {
     const char *names[]={"?","Pawn","WeaponManagerComponent","WeaponBase",
         "WeaponFuncComponentFireShake","WeaponFuncComponentSpread","WeaponFireRecoilDFM","WeaponFireSpreadDFM",
-        "GPWeaponDataComponentFiring","WeaponFireRecoilPUBGM","WeaponFuncComponentGunKick"};
-    snprintf(out,n,"%s",i>=0 && i<11 ? names[i] : "?");
+        "GPWeaponDataComponentFiring","WeaponFireRecoilPUBGM","WeaponFuncComponentGunKick","WeaponFuncComponentGunSway","Controller","PlayerCameraManager","GPCameraModifier_WeaponRecoil","GPCameraModifier_WeaponGunSway","GPCameraModifier_Fire"};
+    snprintf(out,n,"%s",i>=0 && i<17 ? names[i] : "?");
 }
 static void _diag(const char *s) { (void)s; }
 #include "engine_weapon.h"
@@ -49,13 +49,22 @@ static void object_init(int i,int cls,int size) {
 }
 int main(void) {
     ue4_base=(uintptr_t)array-OFF_GUOBJECTARRAY_FROM_BASE;
-    chunks[0]=(uintptr_t)items;put32(array+0x14,11);put64(array+0x20,(uintptr_t)chunks);
+    chunks[0]=(uintptr_t)items;put32(array+0x14,17);put64(array+0x20,(uintptr_t)chunks);
     object_init(0,1,0x4000);object_init(1,2,0x700);object_init(2,3,0x1800);
-    object_init(3,4,0x9c0);object_init(4,5,0x518);
+    object_init(3,4,0x9c0);object_init(4,5,0x518);objects[4][0x1e0]=1;
+    for(int i=0x288;i<0x9c0;i+=4) putfloat(objects[3]+i,3.25f);
     /* Distinct numeric/opaque data lets us detect any accidental broad erase. */
     for(int i=0x28;i<0x1db0;i+=4) putfloat(objects[5]+i,1.25f);
     for(int i=0x28;i<0x7d8;i+=4) putfloat(objects[6]+i,2.5f);
     object_init(5,6,0x1db0);object_init(6,7,0x7d8);object_init(7,3,0x1800);
+    object_init(12,12,0x700);object_init(13,13,0x5000);
+    put64(objects[0]+0x3a8,(uintptr_t)objects[12]);put64(objects[12]+0x408,(uintptr_t)objects[13]);
+    put64(objects[13]+0x370,(uintptr_t)objects[12]);
+    for(int k=0;k<3;k++) {object_init(14+k,14+k,k==2?0x50:0x48);put64(objects[14+k]+0x30,(uintptr_t)objects[13]);
+        objects[14+k][k==2?0x48:0x44]=1;modifiers[k]=(uintptr_t)objects[14+k];}
+    EVArray mods={(uintptr_t)modifiers,3,3};memcpy(objects[13]+0x4260,&mods,sizeof(mods));
+    object_init(11,11,0x1690);put64(objects[11]+0x10,(uintptr_t)objects[2]);
+    putfloat(objects[11]+0x1cc,1);putfloat(objects[11]+0x260,1);putfloat(objects[11]+0xf80,1);putfloat(objects[11]+0x1350,1);
     object_init(10,10,0x360);put64(objects[10]+0x10,(uintptr_t)objects[2]);
     putfloat(objects[10]+0x25c,1);putfloat(objects[10]+0x260,0.75f);
     object_init(8,8,0xa08);object_init(9,9,0xb8);
@@ -65,6 +74,7 @@ int main(void) {
     put64(objects[1]+WM_OFF_CURRENT_ACTIVE,(uintptr_t)objects[2]);
     put64(objects[2]+0xa60,(uintptr_t)objects[0]);put64(objects[7]+0xa60,(uintptr_t)objects[0]);
     for(int i=0;i<19;i++) weak[i].index=-1;
+    weak[2].index=11;weak[2].serial=111;
     weak[1].index=10;weak[1].serial=110;
     weak[0].index=3;weak[0].serial=103;weak[18].index=4;weak[18].serial=104;
     list=(EVArray){(uintptr_t)weak,19,19};memcpy(objects[2]+0xb68,&list,sizeof(list));
@@ -80,23 +90,35 @@ int main(void) {
     memcpy(shake_before,objects[3],sizeof(shake_before));
     atomic_store(&ew_no_recoil,1);atomic_store(&ew_no_spread,1);
     ew_update((uintptr_t)objects[0]);
+    assert(!objects[14][0x44] && !objects[15][0x44] && !objects[16][0x48]);
+    assert(ew_spread_gate_group.count==1 && !objects[4][0x1e0]);
+    assert(ew_shake_group.count==73 && getfloat(objects[3]+0x288+0x49c)==0);
+    assert(getfloat(objects[3]+0x288+0x468)==3.25f); /* timing preserved */
+    assert(getfloat(objects[3]+0x288+0x30+0x28)==3.25f); /* curve storage preserved */
+    assert(ew_sway_group.count==4 && getfloat(objects[11]+0xf80)==0 && getfloat(objects[11]+0x1350)==0);
     assert(ew_kick_group.count==2 && getfloat(objects[10]+0x25c)==0 && getfloat(objects[10]+0x260)==0);
+    assert(getfloat(objects[6]+0x37c)==0 && getfloat(objects[6]+0x380)==0 && getfloat(objects[6]+0x3bc)==0 && getfloat(objects[6]+0x3c0)==0);
+    assert(getfloat(objects[6]+0x350+0x18)==2.5f); /* custom distribution storage preserved */
+    assert(getfloat(objects[6]+0x3fc)==0 && getfloat(objects[6]+0x404)==EW_SPREAD_CAP && getfloat(objects[6]+0x5c4)==0 && getfloat(objects[6]+0x5cc)==EW_SPREAD_CAP);
     assert(getfloat(objects[6]+0x3d0)==0 && getfloat(objects[6]+0x598)==0 && getfloat(objects[6]+0x760)==0);
     assert(atomic_load(&ew_recoil_zeros)==1 && atomic_load(&ew_spread_zeros)==1);
     for(unsigned c=0;c<2;c++) for(unsigned pose=0;pose<6;pose++) {
         float factor=1; memcpy(&factor,objects[5]+(c?0xd48:0x88)+0xa28+pose*4,4);
-        assert(factor==-1); /* additive cancellation of cached patterns */
+        assert(factor==EW_RECOIL_CANCEL); /* additive cancellation of cached patterns */
     }
     assert(getfloat(objects[5]+0x88+0xa8)==0 && getfloat(objects[5]+0xd48+0x6c8+0xa8)==0);
     assert(!memcmp(objects[5]+0x1aa8,recoil_before+0x1aa8,0x140)); /* runtime/curve pointers preserved */
-    assert(getfloat(objects[6]+0x50+4)==0 && getfloat(objects[6]+0x1d0+0x14)==0);
+    assert(getfloat(objects[6]+0x50+4)==0 && getfloat(objects[6]+0x1d0+0x14)==EW_SPREAD_CAP);
     assert(!memcmp(objects[6]+0x50+0x70,spread_before+0x50+0x70,0x110)); /* pose map untouched */
     assert(!memcmp(objects[6]+0x1d0+0x70,spread_before+0x1d0+0x70,0x110));
     assert(objects[3][0x288+0x30+0xc]==0x80); /* unrelated flag bit preserved */
     atomic_store(&ew_no_recoil,0);atomic_store(&ew_no_spread,0);ew_update((uintptr_t)objects[0]);
     assert(!memcmp(objects[5],recoil_before,sizeof(recoil_before)));
+    assert(objects[14][0x44]==1 && objects[15][0x44]==1 && objects[16][0x48]==1);
+    assert(getfloat(objects[11]+0xf80)==1 && getfloat(objects[11]+0x1350)==1);
     assert(getfloat(objects[10]+0x25c)==1 && getfloat(objects[10]+0x260)==0.75f);
     assert(!memcmp(objects[6],spread_before,sizeof(spread_before)));
+    assert(objects[4][0x1e0]==1);
     assert(!memcmp(objects[3],shake_before,sizeof(shake_before)));
     /* A second strategy has no FireShake DFM cache. Its firing-data method
      * must be followed, with its own layout rather than DFM offsets. */
@@ -135,15 +157,15 @@ int main(void) {
     ew_release();assert(getfloat(objects[6]+0x50+4)==9.0f); /* recycled allocation not restored */
     /* A shuffled FUObjectItem tail is recovered from actual weak references,
      * without changing the general reader's legacy identity assumptions. */
-    for (int i=0;i<11;i++) { put32(items[i]+0xc,100+i);put32(items[i]+0x10,0); }
+    for (int i=0;i<17;i++) { put32(items[i]+0xc,100+i);put32(items[i]+0x10,0); }
     ew_serial_offset=-1;
     assert(ew_bind_serial((uintptr_t)objects[2]) && ew_serial_offset==0xc);
     assert(ew_resolve_weak((uintptr_t)weak,18)==(uintptr_t)objects[4]);
     weak[18].serial++;
     assert(!ew_resolve_weak((uintptr_t)weak,18));weak[18].serial--;
-    for (int i=0;i<11;i++) put32(items[i]+0x14,100+i);
+    for (int i=0;i<17;i++) put32(items[i]+0x14,100+i);
     ew_serial_offset=-1;assert(!ew_bind_serial((uintptr_t)objects[2])); /* ambiguity fails closed */
-    for (int i=0;i<11;i++) put32(items[i]+0xc,0);
+    for (int i=0;i<17;i++) put32(items[i]+0xc,0);
     assert(ew_bind_serial((uintptr_t)objects[2]) && ew_serial_offset==0x14);
     assert(ew_resolve_weak((uintptr_t)weak,18)==(uintptr_t)objects[4]);
     float value=4,zero=0;

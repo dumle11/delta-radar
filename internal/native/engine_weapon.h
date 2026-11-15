@@ -11,6 +11,8 @@
 #define FS_OFF_FIRE_RECOIL 0x968
 #define FC_SPREAD_OFF_METHOD 0x1f8
 #define EW_MAX_FIELDS 96
+#define EW_SPREAD_CAP 0.000001f /* positive: zero is the native unlimited sentinel */
+#define EW_RECOIL_CANCEL -1000.0f /* additive channel clamps negative sums to zero */
 static _Atomic int ew_no_recoil, ew_no_spread;
 static _Atomic unsigned ew_recoil_zeros, ew_spread_zeros;
 static unsigned ew_diag_seq;
@@ -21,7 +23,9 @@ static unsigned ew_host_rewrites;
 static __thread SelfMemoryReader ew_writer = {-1,-1};
 typedef struct { uint32_t offset; uint8_t size, mask; unsigned char before[4], applied[4]; } EWField;
 typedef struct { EVObject owner, source; uint32_t source_link; int count; EWField fields[EW_MAX_FIELDS]; } EWGroup;
-static EWGroup ew_recoil_group, ew_shake_group, ew_kick_group, ew_spread_group;
+static EWGroup ew_recoil_group, ew_shake_group, ew_kick_group, ew_sway_group, ew_spread_group;
+static EWGroup ew_camera_groups[3];
+static EWGroup ew_spread_gate_group;
 
 /* Kernel-checked destination copy instead of dereferencing a retired object. */
 static int ew_write(uint64_t address, const void *data, size_t size) {
@@ -220,7 +224,7 @@ static int ew_apply_no_recoil(uint64_t weapon) {
     int dfm=ew_is_a(recoil,"WeaponFireRecoilDFM",0x1db0);
     int pubgm=!dfm && ew_is_a(recoil,"WeaponFireRecoilPUBGM",0xb8);
     if (!shake || (!dfm && !pubgm)) {
-        ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); return 0;
+        ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); ew_restore_group(&ew_sway_group); return 0;
     }
     if (!ew_begin(&ew_recoil_group,recoil,source,link) || !ew_begin(&ew_shake_group,shake,shake,0)) return 0;
     int ok=1;
@@ -233,9 +237,9 @@ static int ew_apply_no_recoil(uint64_t weapon) {
         }
         /* Per-shot pose factors are additive percentage modifiers, not raw
          * amplitudes. Native aggregation starts at 1 and clamps negatives to
-         * zero (+0xBA42490, +0xBA42730). A full negative adjustment cancels
-         * the cached pattern; zero merely leaves its original size unchanged. */
-        for (unsigned pose=0;pose<6;pose++) ok &= ew_set(&ew_recoil_group,cfg+0xa28+pose*4,4,0,-1.0f);
+         * zero (+0xBA42490, +0xBA42730). Include headroom for other attachment
+         * terms in the same additive channel; -1 alone leaves their residue. */
+        for (unsigned pose=0;pose<6;pose++) ok &= ew_set(&ew_recoil_group,cfg+0xa28+pose*4,4,0,EW_RECOIL_CANCEL);
         /* Reflected amplitudes/factors, not opaque recoil runtime memory. */
         const unsigned amplitudes[]={0xa40,0xa44,0xb08,0xb20,0xb38,0xbe8,0xc98,0xc9c,0xca0,0xca4,0xcb0,0xcb4};
         for (unsigned a=0;a<sizeof(amplitudes)/sizeof(*amplitudes);a++) ok &= ew_float(&ew_recoil_group,cfg+amplitudes[a]);
@@ -247,11 +251,23 @@ static int ew_apply_no_recoil(uint64_t weapon) {
             ok &= ew_float(&ew_recoil_group,legacy_configs[c]+f);
     }
     /* Firing shake channels: preserve curve pointers, arrays and maps. */
-    for (unsigned axis=0;axis<6;axis++) ok &= ew_flag(&ew_shake_group,0x288+0x30+axis*0x70+0xc,1);
+    for (unsigned axis=0;axis<6;axis++) {
+        unsigned item=0x288+0x30+axis*0x70;
+        ok &= ew_flag(&ew_shake_group,item+0xc,1);
+        const unsigned amplitudes[]={8,0x14,0x18,0x54,0x58};
+        for (unsigned i=0;i<5;i++) ok &= ew_float(&ew_shake_group,item+amplitudes[i]);
+    }
     const unsigned flags[]={0x2d4,0x2d5,0x304,0x305,0x330,0x331,0x332,0x378,0x3c8,0x418};
     for (unsigned i=0;i<sizeof(flags)/sizeof(*flags);i++) ok &= ew_flag(&ew_shake_group,0x288+flags[i],0xff);
     const unsigned runtime[]={0x7a8,0x828,0x8a8};
-    for (unsigned i=0;i<3;i++) ok &= ew_flag(&ew_shake_group,runtime[i],0xff);
+    for (unsigned i=0;i<3;i++) {
+        ok &= ew_flag(&ew_shake_group,runtime[i],0xff);
+        for (unsigned a=0xc;a<=0x18;a+=4) ok &= ew_float(&ew_shake_group,runtime[i]+a);
+    }
+    /* Reflected cached camera roll outputs; their time, identity, last-view
+     * rotation and arrays remain intact. Flags do not clear a running shake. */
+    const unsigned roll_outputs[]={0x470,0x474,0x478,0x47c,0x480,0x48c,0x490,0x498,0x49c,0x4a0,0x4a4,0x4a8};
+    for (unsigned i=0;i<12;i++) ok &= ew_float(&ew_shake_group,0x288+roll_outputs[i]);
     uint64_t kick=ew_find_component(weapon,"WeaponFuncComponentGunKick",0x360);
     if (kick) {
         ok &= ew_begin(&ew_kick_group,kick,kick,0);
@@ -260,37 +276,118 @@ static int ew_apply_no_recoil(uint64_t weapon) {
         ok &= ew_float(&ew_kick_group,0x25c);
         ok &= ew_float(&ew_kick_group,0x260);
     } else ew_restore_group(&ew_kick_group);
-    if (!ok) { ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); return 0; }
+    uint64_t sway=ew_find_component(weapon,"WeaponFuncComponentGunSway",0x1690);
+    if (sway) {
+        ok &= ew_begin(&ew_sway_group,sway,sway,0);
+        /* Native sway scale cache (+0xB9DCE58), scale propagation
+         * (+0xB9D8630), and final operator scales (+0xBA08D0C/+0xBA03150).
+         * Preserve each operator's dirty flags so host setters can refresh it. */
+        const unsigned scales[]={0x1cc,0x260,0xf80,0x1350};
+        for (unsigned i=0;i<4;i++) ok &= ew_float(&ew_sway_group,scales[i]);
+    } else ew_restore_group(&ew_sway_group);
+    if (!ok) { ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); ew_restore_group(&ew_sway_group); return 0; }
     atomic_fetch_add(&ew_recoil_zeros,1);
     return 1;
 }
 static int ew_apply_no_spread(uint64_t weapon) {
     uint64_t component=ew_find_component(weapon,"WeaponFuncComponentSpread",0x518);
     uint64_t method=component ? ev_ptr(component+FC_SPREAD_OFF_METHOD) : 0;
-    if (!ew_is_a(method,"WeaponFireSpreadDFM",0x7d8)) { ew_restore_group(&ew_spread_group); return 0; }
+    if (!ew_is_a(method,"WeaponFireSpreadDFM",0x7d8)) { ew_restore_group(&ew_spread_group); ew_restore_group(&ew_spread_gate_group); return 0; }
     if (!ew_begin(&ew_spread_group,method,component,FC_SPREAD_OFF_METHOD)) return 0;
     int ok=1; const unsigned configs[]={0x50,0x1d0};
     for (unsigned c=0;c<2;c++) {
         unsigned cfg=configs[c];
-        for (unsigned f=4;f<0x1c;f+=4) ok &= ew_float(&ew_spread_group,cfg+f);
+        for (unsigned f=4;f<0x1c;f+=4) ok &= ew_set(&ew_spread_group,cfg+f,4,0,f>=0x14 ? EW_SPREAD_CAP : 0);
         ok &= ew_float(&ew_spread_group,cfg+0x68);
+    }
+    /* Distribution and modifier radii are separate from the base cone.
+     * Preserve sampling counts/ratios and the custom-position array. */
+    const unsigned modifiers[]={0x350,0x390};
+    for(unsigned c=0;c<2;c++) {
+        ok &= ew_float(&ew_spread_group,modifiers[c]+4); /* MaxRotateAngle */
+        ok &= ew_float(&ew_spread_group,modifiers[c]+8); /* CenterSlideValue */
+        ok &= ew_float(&ew_spread_group,modifiers[c]+0x2c); /* RandomRadius.X */
+        ok &= ew_float(&ew_spread_group,modifiers[c]+0x30); /* RandomRadius.Y */
     }
     /* Native live spread getter (+0xBBD76EC) interpolates cached hip/aim
      * half-angles at +0x3D0/+0x598; current spread is +0x760 (+0xF1BFB58).
      * The reflected authoring configs alone do not clear these live caches. */
-    const unsigned cached[]={0x3d0,0x3d4,0x598,0x59c,0x590,0x594,0x758,0x75c,0x760,0x764};
-    for (unsigned i=0;i<sizeof(cached)/sizeof(*cached);i++) ok &= ew_float(&ew_spread_group,cached[i]);
-    if (!ok) { ew_restore_group(&ew_spread_group); return 0; }
+    /* Init copies SpreadMax/SpreadMaxFinal into runtime +0x2C/+0x34
+     * (+0xBBD5844). Clear these bounds so the engine's own per-frame clamp
+     * produces zero between scanner updates, including the firing frame. */
+    const unsigned cached[]={0x3d0,0x3d4,0x3fc,0x400,0x404,0x408,
+        0x598,0x59c,0x5c4,0x5c8,0x5cc,0x5d0,0x590,0x594,0x758,0x75c,0x760,0x764};
+    for (unsigned i=0;i<sizeof(cached)/sizeof(*cached);i++) {
+        unsigned off=cached[i];
+        /* +0xBBD489C selects a large fallback if the final maximum is zero.
+         * A positive subpixel cap keeps the native clamp enabled. */
+        int final_max=off==0x404 || off==0x408 || off==0x5cc || off==0x5d0;
+        ok &= ew_set(&ew_spread_group,off,4,0,final_max ? EW_SPREAD_CAP : 0);
+    }
+    /* Native component enable gate: getter +0xBBE4C94 and shot callbacks
+     * (+0xBBE4DF0/+0xBBE4FAC/+0xBBE515C) skip the strategy when false. This
+     * prevents within-frame dispersion that scanner-only cache writes miss. */
+    ok &= ew_begin(&ew_spread_gate_group,component,component,0);
+    ok &= ew_flag(&ew_spread_gate_group,0x1e0,0xff);
+    if (!ok) { ew_restore_group(&ew_spread_group); ew_restore_group(&ew_spread_gate_group); return 0; }
     atomic_fetch_add(&ew_spread_zeros,1);
     return 1;
 }
+static void ew_camera_release(void) {
+    for(unsigned i=0;i<3;i++) ew_restore_group(&ew_camera_groups[i]);
+}
+static void ew_camera_update(uint64_t pawn) {
+    uint64_t controller=ev_ptr(pawn+0x3a8),manager=ev_ptr(controller+0x408);
+    EVArray list={0};
+    if (!ew_is_a(manager,"PlayerCameraManager",0x4270) || ev_ptr(manager+0x370)!=controller ||
+        !ev_read(manager+0x4260,&list,sizeof(list)) || !is_any_ptr(list.data) ||
+        list.count<0 || list.count>64 || list.capacity<list.count || list.capacity>256) {
+        ew_camera_release();return;
+    }
+    const char *names[]={"GPCameraModifier_WeaponRecoil","GPCameraModifier_WeaponGunSway","GPCameraModifier_Fire"};
+    for(unsigned k=0;k<3;k++) {
+        uint64_t found=0;
+        for(int i=0;i<list.count;i++) {
+            uint64_t modifier=ev_ptr(list.data+(uint64_t)i*8);
+            if(ew_is_a(modifier,names[k],k==2?0x50:0x48) && ev_ptr(modifier+0x30)==manager) {found=modifier;break;}
+        }
+        if (!found || !ew_begin(&ew_camera_groups[k],found,manager,0) ||
+            !ew_flag(&ew_camera_groups[k],k==2?0x48:0x44,0xff)) ew_restore_group(&ew_camera_groups[k]);
+    }
+}
 static void ew_release(void) {
-    ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); ew_restore_group(&ew_spread_group);
+    ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); ew_restore_group(&ew_sway_group); ew_restore_group(&ew_spread_group);
+    ew_camera_release();
+    ew_restore_group(&ew_spread_gate_group);
+}
+/* Read the game's completed shot record, without changing its fire packet.
+ * Comparing these angles separates dispersion from camera/weapon animation. */
+static void ew_log_shot(uint64_t weapon) {
+    static uint64_t last_source,last_id; static unsigned logged;
+    uint64_t source=ew_firing_seen;
+    if (!ew_is_a(source,"GPWeaponDataComponentFiring",0xa08) || !ew_owned_by(source,weapon)) return;
+    uint64_t id=ev_ptr(source+0x4b0);
+    if (last_source!=source) { last_source=source;last_id=0;logged=0; }
+    if (!id || id==last_id || logged>=256) return;
+    EVArray bullets={0};float rotations[6],view[4],kick[2];
+    if (!ev_read(source+0x4d8,&bullets,sizeof(bullets)) || !is_any_ptr(bullets.data) ||
+        bullets.count<1 || bullets.count>32 || bullets.capacity<bullets.count || bullets.capacity>128 ||
+        !ev_read(bullets.data+0x20,rotations,sizeof(rotations)) ||
+        !ev_read(source+0x4fc,view,sizeof(view)) || !ev_read(source+0x514,kick,sizeof(kick)) ||
+        ev_ptr(source+0x4b0)!=id) return;
+    for (unsigned i=0;i<6;i++) if (!isfinite(rotations[i]) || fabsf(rotations[i])>3600) return;
+    last_id=id;logged++;
+    float control[2]={0},spread[2]={0};
+    uint64_t controller=ev_ptr(ev_ptr(weapon+0xa60)+0x3a8);
+    ev_read(controller+0x3d8,control,8);
+    if (ew_same(&ew_spread_group.owner)) ev_read(ew_spread_group.owner.address+0x760,spread,8);
+    char line[256];snprintf(line,sizeof(line),"weapon shot: id=%lx spawn=%.5f,%.5f fire=%.5f,%.5f control=%.5f,%.5f spread=%.5f,%.5f kick=%.5f,%.5f",
+        (unsigned long)id,rotations[0],rotations[1],rotations[3],rotations[4],control[0],control[1],spread[0],spread[1],kick[0],kick[1]);_diag(line);
 }
 static void ew_update(uint64_t pawn) {
     int nr=atomic_load(&ew_no_recoil), ns=atomic_load(&ew_no_spread);
-    if (!nr) { ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); }
-    if (!ns) ew_restore_group(&ew_spread_group);
+    if (!nr) { ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); ew_restore_group(&ew_sway_group); ew_camera_release(); }
+    if (!ns) {ew_restore_group(&ew_spread_group);ew_restore_group(&ew_spread_gate_group);}
     if (!nr && !ns) return;
     uint64_t weapon=ew_get_current_weapon(pawn);
     if (!weapon || !ew_bind_serial(weapon)) {
@@ -302,13 +399,17 @@ static void ew_update(uint64_t pawn) {
         }
         return;
     }
+    ew_log_shot(weapon);
     int recoil=nr ? ew_apply_no_recoil(weapon) : 0;
+    if (nr) ew_camera_update(pawn);
     int spread=ns ? ew_apply_no_spread(weapon) : 0;
     if (ew_diag_seq++%200==0) {
         char line[200];
-        snprintf(line,sizeof(line),"weapon: wpn=%lx recoil=%d spread=%d fields=%d/%d/%d kick=%d applied=%u/%u",
+        snprintf(line,sizeof(line),"weapon: wpn=%lx recoil=%d spread=%d fields=%d/%d/%d kick=%d sway=%d camera=%d gate=%d applied=%u/%u",
             (unsigned long)weapon,recoil,spread,ew_recoil_group.count,ew_shake_group.count,ew_spread_group.count,
-            ew_kick_group.count,
+            ew_kick_group.count,ew_sway_group.count,
+            ew_camera_groups[0].count+ew_camera_groups[1].count+ew_camera_groups[2].count,
+            ew_spread_gate_group.count,
             atomic_load(&ew_recoil_zeros),atomic_load(&ew_spread_zeros));
         _diag(line);
         if (ns && spread) {

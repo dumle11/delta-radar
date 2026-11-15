@@ -1,52 +1,62 @@
 # Delta Radar — Handoff (2026-11-15)
 
-## Current weapon work (2026-11-15, evening)
+## Current weapon overrides — verified in firing range (2026-11-15)
 
-This section supersedes older architecture/deployment notes below. At the start
-of this task another session had replaced the GameThread bridge: visibility
-calls ProcessEvent on the scanner thread and aim writes controller rotation
-directly. Those prior changes were preserved. No loader or anti-cheat changes
-were made during weapon debugging.
+The user confirmed **“Both are now steady”** for camera movement and bullet
+marks with the final build. This follows repeated machine-gun wall tests;
+intermediate “override active” counters were insufficient. Do not describe this
+as a quantitative guarantee for every weapon, distance or future game build.
 
-`internal/native/engine_weapon.h` now selects the active weapon from
-WeaponManager.RuntimeContext.CurrentActiveWeapon (+0x218), validates ownership,
-resolves both function (+0xB68) and data (+0xAC8) weak component lists, and finds
-GPWeaponDataComponentFiring.FireRecoilMethod (+0x578). FireShake's DFM cache can
-be null after switching weapons. Weak-reference serials are validated against
-the live FUObjectItem layout (observed +0x14); ambiguous layouts fail closed.
+Final installed SHA256:
+`ed554a5fcae807b2851d0c7876c5a23c2ad7ffbf74cd631e7cabc62d79b47be7`.
+Local/device hashes match. Device `20f9aa6c`, app UID `u0_a556`; diagnostics are
+in the app-private `cache/d` file. Final logs and investigation notes are under
+`docs/weapon-2026-11-15/`.
 
-Overrides change typed scalar/flag fields and restore originals on disable,
-weapon change or scanner cleanup. Kernel-checked writes reject invalid or
-read-only destinations. Opaque recoil runtime blocks, curves, maps and arrays
-are preserved. The original spread code used FWeaponDataSpread offsets on
-FWeaponSpreadConfig; corrected fields are +4 through +0x18 and +0x68 in each
-hip/aim config. Recoil supports DFM and PUBGM layouts.
+`internal/native/engine_weapon.h` now:
 
-Live binding succeeded on both equipped weapons (38 recoil, 19 shake and 14
-spread fields), but the user still reported camera climb. Counters alone are
-not proof of correct behavior. Static native tracing then identified the missing
-per-shot pose factors: DFM code at +0xBBC65C8 selects config +0xA28..+0xA3C
-for standing/crouching/prone after reading cached patterns. The latest build
-sets those twelve hip/aim factors to -1 (50 recoil fields). Native aggregation
-starts at 1 and clamps negative totals to zero; the zero-factor build still
-climbed. The active firing component and first-person weapon match, and logs
-showed no host rewrites. **Latest physical
-test is pending; do not mark no-recoil fixed yet.** Bullet dispersion has not
-been measured quantitatively.
+- Selects WeaponManager.RuntimeContext.CurrentActiveWeapon (+0x218), verifies
+  pawn/weapon ownership and rejects empty-hand or arbitrary holstered fallback.
+- Resolves function (+0xB68) and data (+0xAC8) weak component lists with serial
+  validation. Live FUObjectItem serials are at +0x14, inferred from multiple
+  independent owned weak references; ambiguous layouts fail closed.
+- Resolves recoil through GPWeaponDataComponentFiring.FireRecoilMethod (+0x578)
+  when the FireShake DFM cache is null after a weapon switch. Supports DFM and
+  PUBGM scalar layouts; live tests used DFM implementations.
+- Handles additive DFM recoil factors with a finite negative adjustment and
+  the native zero clamp, plus separate FireShake, GunKick and GunSway scalar
+  paths. Disables only the local camera's WeaponRecoil, WeaponGunSway and Fire
+  modifiers through their SDK bEnable fields. Other camera modifier types stay
+  under host control.
+- Handles spread authoring values, cached bounds/current angles, separate
+  distribution/random-radius settings and the component's native enable gate
+  (+0x1E0). Final maxima use a positive 1e-6 cap: native code treats zero as
+  unlimited. Expected active counts: recoil/shake/spread `50/73/40`, `kick=2`,
+  `sway=4`, `camera=3`, `gate=1` (gate is the tracked override count).
+- Preserves opaque blocks, curves, maps, arrays and sampling/timing fields.
+  Kernel-checked copies reject invalid write destinations; identity-checked
+  groups restore values on disable, weapon change and scanner cleanup.
 
-Latest installed library SHA256:
-`a534cc66dba78e211bce727db5999de719b41e667e8fb57f75dbd595122d8981`.
-Device `20f9aa6c`, app UID `u0_a556`. Logs are app-private `cache/d`, not logcat.
-The game was restarted to load the pose-factor build; the user was asked to
-test both weapons in the firing range. Two unexpected process exits occurred
-during earlier diagnostics; no fresh crash tombstone established their cause.
-Avoid further external process-memory probes; internal typed logs suffice.
+The scanner clears stale local-pawn state each update and always runs weapon
+cleanup, including when possession disappears. Read-only completed-shot logs
+are capped at 256 records per weapon. Their angle variation did not independently
+establish authoritative impact dispersion; final firing-range confirmation came
+from the user observing steady camera and grouping.
 
-Validation: native NDK build, weapon regression and five host fixtures
-(safe reads, projection, bounds visibility, entity types, FNames) passed.
-The old engine visibility/aim fixtures reference removed bridge markers and
-fail during source extraction. Evidence from intermediate builds is under
-`docs/weapon-2026-11-15/`; it does not establish final-build success.
+Validation: current NDK build, weapon regression and five host fixtures
+(safe reads, projection, bounds visibility, entity types, FNames) passed;
+`git diff --check` passed. Weapon regression includes weak identity/ownership,
+active selection, both recoil layouts, camera flags, shake/kick/sway fields,
+spread bounds/radii/gate, restoration, recycled objects and failed writes.
+Two older engine visibility/aim fixtures still reference removed GameThread
+bridge markers and fail during source extraction.
+
+At task start another session had already replaced the GameThread bridge:
+visibility calls ProcessEvent on the scanner thread and aim writes controller
+rotation directly. Those changes were preserved. Older sections below describe
+historical builds. Two unexpected exits occurred during earlier diagnostics;
+no fresh crash tombstone established a cause. External process-memory probes
+were discontinued. The final user-confirmed session remains running.
 
 ## Historical notes
 

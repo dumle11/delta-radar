@@ -1,0 +1,67 @@
+ed554a5fcae807b2851d0c7876c5a23c2ad7ffbf74cd631e7cabc62d79b47be7  /data/data/com.proxima.dfm/libue4patch.so
+[35514.952] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=5955/5955
+[35514.952] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35514.952] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=2587
+[35519.535] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=6155/6155
+[35519.535] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35519.535] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=2587
+[35524.092] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=6355/6355
+[35524.092] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35524.092] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=2587
+[35528.641] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=6555/6555
+[35528.641] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35528.641] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=2587
+[35533.226] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=6755/6755
+[35533.226] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35533.226] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=2587
+[35537.766] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=6955/6955
+[35537.766] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35537.766] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=2587
+[35542.302] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=7155/7155
+[35542.302] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35542.302] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=8 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=2670
+[35546.801] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=7355/7355
+[35546.804] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35546.804] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=67 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3039
+[35551.249] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=7555/7555
+[35551.249] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35551.249] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=125 target=0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3396
+[35555.792] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=7755/7755
+[35555.792] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35555.792] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=125 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3434
+[35560.380] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=7955/7955
+[35560.380] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35560.380] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3434
+[35564.931] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=8155/8155
+[35564.931] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35564.932] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3434
+[35569.491] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=8355/8355
+[35569.491] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35569.491] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3434
+[35574.079] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=8555/8555
+[35574.079] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35574.079] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3434
+[35578.509] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=8755/8755
+[35578.510] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35578.510] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=0 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3434
+[35582.907] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=8955/8955
+[35582.907] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35582.907] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=10 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3535
+[35587.244] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=9155/9155
+[35587.245] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35587.245] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=66 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=3879
+[35591.612] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=9355/9355
+[35591.612] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35591.612] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=87 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=4037
+[35595.989] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=9555/9555
+[35595.989] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35595.989] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=106 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=4195
+[35600.423] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=9755/9755
+[35600.423] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35600.423] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=125 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=4353
+[35605.235] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=9955/9955
+[35605.235] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35605.235] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=5 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=4456
+[35609.996] weapon: wpn=719373d180 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=10155/10155
+[35609.996] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[35609.996] weapon runtime: source=71956d60a0 self_dc=71956d60a0 game_dc=71956d60a0 shot=34 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=4686

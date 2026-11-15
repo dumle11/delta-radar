@@ -1,0 +1,113 @@
+[34047.806] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=1169/1169
+[34047.806] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34047.806] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=0 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=489
+[34052.032] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=1369/1369
+[34052.032] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34052.032] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=0 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=489
+[34056.257] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=1569/1569
+[34056.257] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34056.257] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=0 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=489
+[34060.456] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=1769/1769
+[34060.456] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34060.456] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=0 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=489
+[34064.720] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=1969/1969
+[34064.720] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34064.720] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=0 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=489
+[34068.942] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=2169/2169
+[34068.942] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34068.942] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=0 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=489
+[34073.163] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=2369/2369
+[34073.163] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34073.163] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=0 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=489
+[34074.057] weapon shot: id=eafa219000000081 spawn=-0.40632,-3.27175 fire=-0.40632,-3.27175 control=359.59576,356.74820 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.117] weapon shot: id=eafa219000000082 spawn=-0.07293,-3.36016 fire=-0.07293,-3.36016 control=359.59576,356.74820 spread=0.09549,0.09549 kick=0.00000,0.00000
+[34074.193] weapon shot: id=eafa219000000083 spawn=0.58276,-3.54488 fire=0.58276,-3.54488 control=0.13580,356.63596 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.255] weapon shot: id=eafa219000000084 spawn=0.65084,-3.44747 fire=0.65084,-3.44747 control=0.22263,356.55737 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.366] weapon shot: id=eafa219000000085 spawn=0.36397,-3.02578 fire=0.36397,-3.02578 control=0.06217,356.88675 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.428] weapon shot: id=eafa219000000086 spawn=0.29997,-3.35363 fire=0.29997,-3.35363 control=359.83643,356.68069 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.490] weapon shot: id=eafa219000000087 spawn=1.02319,-3.21884 fire=1.02319,-3.21884 control=0.51062,356.83783 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.614] weapon shot: id=eafa219000000088 spawn=0.48000,-3.40362 fire=0.48000,-3.40362 control=0.48907,356.57925 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.662] weapon shot: id=eafa219000000089 spawn=0.46641,-3.44932 fire=0.46641,-3.44932 control=359.98245,356.67810 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.738] weapon shot: id=eafa21900000008a spawn=0.91040,-3.23148 fire=0.91040,-3.23148 control=0.42969,356.89285 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.784] weapon shot: id=eafa21900000008b spawn=1.02143,-3.60039 fire=1.02143,-3.60039 control=0.52446,356.58496 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.895] weapon shot: id=eafa21910000008c spawn=0.63426,-3.42301 fire=0.63426,-3.42301 control=0.35858,356.65540 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34074.988] weapon shot: id=eafa21910000008d spawn=0.59903,-3.35948 fire=0.59903,-3.35948 control=0.33285,357.01251 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.022] weapon shot: id=eafa21910000008e spawn=1.09324,-3.66459 fire=1.09324,-3.66459 control=0.68559,356.61005 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.116] weapon shot: id=eafa21910000008f spawn=0.79192,-3.49183 fire=0.79192,-3.49183 control=0.55697,356.57941 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.195] weapon shot: id=eafa219100000090 spawn=0.64888,-3.34703 fire=0.64888,-3.34703 control=0.24366,356.81094 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.255] weapon shot: id=eafa219100000091 spawn=1.34790,-3.24048 fire=1.34790,-3.24048 control=0.92153,356.88840 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.319] weapon shot: id=eafa219100000092 spawn=1.36682,-2.99446 fire=1.36682,-2.99446 control=0.95238,357.07867 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.429] weapon shot: id=eafa219100000093 spawn=1.17133,-2.88956 fire=1.17133,-2.88956 control=0.88485,356.99051 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.488] weapon shot: id=eafa219100000094 spawn=0.89622,-3.20456 fire=0.89622,-3.20456 control=0.45806,356.80704 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.551] weapon shot: id=eafa219100000095 spawn=1.27550,-3.08546 fire=1.27550,-3.08546 control=0.86418,356.98898 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.649] weapon shot: id=eafa219100000096 spawn=1.07474,-3.45442 fire=1.07474,-3.45442 control=0.82781,356.61523 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.744] weapon shot: id=eafa219100000097 spawn=0.91510,-3.15110 fire=0.91510,-3.15110 control=0.50042,356.82242 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34075.796] weapon shot: id=eafa219100000098 spawn=1.40810,-3.08067 fire=1.40810,-3.08067 control=0.96635,356.91312 spread=0.00000,0.00000 kick=0.00000,0.00000
+[34077.399] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=2569/2569
+[34077.399] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34077.399] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34081.608] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=2769/2769
+[34081.609] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34081.609] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34085.865] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=2969/2969
+[34085.865] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34085.865] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34090.190] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=3169/3169
+[34090.190] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34090.190] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34094.481] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=3369/3369
+[34094.481] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34094.481] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34098.758] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=3569/3569
+[34098.758] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34098.758] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34103.014] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=3769/3769
+[34103.014] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34103.014] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34107.233] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=3969/3969
+[34107.233] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34107.233] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34111.451] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=4169/4169
+[34111.451] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34111.451] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34115.678] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=4369/4369
+[34115.678] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34115.678] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34119.967] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=4569/4569
+[34119.967] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34119.967] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34124.717] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=4769/4769
+[34124.717] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34124.717] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34129.510] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=4969/4969
+[34129.510] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34129.511] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34133.806] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=5169/5169
+[34133.806] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34133.806] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34138.240] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=5369/5369
+[34138.240] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34138.240] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34142.643] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=5569/5569
+[34142.643] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34142.643] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34146.902] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=5768/5768
+[34146.902] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34146.902] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34151.194] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=5968/5968
+[34151.194] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34151.194] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34155.477] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=6168/6168
+[34155.477] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34155.477] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34159.733] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=6368/6368
+[34159.733] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34159.733] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34163.971] weapon: wpn=7199c15d40 recoil=1 spread=1 fields=50/73/32 kick=2 applied=6568/6568
+[34163.971] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[34163.971] weapon runtime: source=71bfe4e020 self_dc=71bfe4e020 game_dc=71bfe4e020 shot=24 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=596
+[34213.554] weapon: unavailable resolved=0 current=0 serial_offset=-1
+[34217.058] weapon: unavailable resolved=0 current=0 serial_offset=-1
+[34220.580] weapon: unavailable resolved=0 current=0 serial_offset=-1
+[34224.276] weapon: unavailable resolved=0 current=0 serial_offset=-1
+[34228.188] weapon: unavailable resolved=0 current=0 serial_offset=-1

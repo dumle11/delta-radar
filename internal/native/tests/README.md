@@ -14,7 +14,9 @@ python3 internal/native/tests/test_fnames.py
 The tests compile the production helper functions into isolated host programs.
 The weapon fixture checks active-weapon selection, weak-reference serial layouts,
 typed firing-component lookup, both recoil layouts, spread fields, restoration,
-opaque-data preservation, recycled objects and checked-write failures.
+opaque-data preservation, recycled objects and checked-write failures. It also
+checks the three camera modifier switches, independent kick/sway groups,
+positive spread caps, random radii and the native spread component gate.
 The older engine visibility/aim fixtures currently reference removed GameThread
 bridge markers and fail during extraction; they need updating for the current
 scanner-thread implementation.
