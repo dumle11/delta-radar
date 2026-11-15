@@ -1653,15 +1653,9 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 
     atomic_store(&lib_running_flag, 1);
 
-    {
-        JNIEnv *env;
-        (*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6);
-        if (env) _spoof_build_fields(env);
-    }
-    /* Keep the loaded image intact: remapping our executing code without
-     * PROT_EXEC faults during initialization before the overlay can start. */
-    _apply_cfg();
-    patch_report_functions();
+    /* Reader/UI startup only. Legacy identity and process-patching routines
+     * are deliberately excluded from the production initialization path. */
+    _diag("jni: overlay-v2 npc-and-bot-players; plain-init");
 
     {
         static char nos[40];

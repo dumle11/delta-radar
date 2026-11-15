@@ -135,6 +135,8 @@ public class OverlayRegression {
         check((O.gf(panel.selectedEntityType) & O.F_SKELETON) != 0, "skeleton toggle is wired");
         skeleton.setChecked(false);
         panel.selectTab(1); check(panel.selectedTab == 1, "color tab opens");
+        check(O.ET_NAMES[O.ET_NPC].equals("NPCs") && O.ET_NAMES[O.ET_BOT_PLAYER].equals("Bot Players"),
+            "NPCs and simulated players have distinct menu entries");
         int oldColor = O.gc(1); O.setColor(1, 0xFF123456);
         check(O.gc(1) == 0xFF123456, "native color getter follows selection"); O.setColor(1, oldColor);
         for (int type = 0; type < O.ET_COUNT; type++) {
@@ -154,6 +156,8 @@ public class OverlayRegression {
             .getDeclaredConstructor(java.io.File.class, int.class);
         prefsConstructor.setAccessible(true);
         O.prefs = (android.content.SharedPreferences) prefsConstructor.newInstance(settingsFile, 0);
+        O.setVisibilityColor(O.ET_NPC, true, 0xFF112233);
+        O.setVisibilityColor(O.ET_BOT_PLAYER, true, 0xFF445566);
         O.saveSettings();
         check(O.prefs.edit().commit(), "flush saved palette to disk");
         android.content.SharedPreferences reloaded = (android.content.SharedPreferences)
@@ -162,6 +166,9 @@ public class OverlayRegression {
             reloaded.getInt("occludedColor1", 0) == 0xFF654321 &&
             reloaded.getInt("visibleColor0", 0) == 0xFF00FF00,
             "entity and visibility palettes persist to disk independently");
+        check(reloaded.getInt("visibleColor.npc", 0) == 0xFF112233 &&
+            reloaded.getInt("visibleColor.botPlayer", 0) == 0xFF445566,
+            "NPC and player-bot palettes persist independently of old bot/team slots");
         O.prefs = null; settingsFile.delete();
         panel.colorSlot = 1; panel.colorVisible = false; panel.selectTab(1);
         android.widget.TextView swatch = new android.widget.TextView(context);

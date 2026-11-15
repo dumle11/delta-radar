@@ -1,4 +1,81 @@
-# Delta Radar — Handoff (2026-11-14)
+# Delta Radar — Handoff (2026-11-15)
+
+## Current installed build and remaining failures
+
+The user's requested full overlay is installed, replacing the temporary inert
+probe. **Do not restore the old production backup over this revision.**
+Current SHA256: `175a90e352b031a414bac931e4288debb833653b7600f65dca339912fb38cad3`,
+114624 bytes, deployed at approximately 11:08 UTC. Fixed path
+`/data/data/com.proxima.dfm/libue4patch.so`; verified UID/GID 10556:10556,
+mode 0755, context `u:object_r:app_data_file:s0:c44,c258,c512,c768`.
+Explicit force-stop/relaunch performed; latest launch PID 9711.
+Its maps confirmed inode 2261283 with no deleted suffix.
+
+Menu groups are Enemies, Teammates, NPCs, Bot Players, Loot. World AI/training
+targets share NPCs; simulated players on either team share Bot Players.
+The new AI groups have independent named preference keys (`.npc`, `.botPlayer`).
+Classification walks native ancestry and uses PlayerState bIsABot. The live
+FName decoder fails some class names despite resolving None, so this revision
+also checks matching 1.202.37119.3601 native class/parent index pairs; names
+remain the fallback for other versions. Recheck these pairs after game updates.
+
+Default production JNI now initializes the reader and Android UI without the
+legacy identity/config/GOT/code/report-hook startup calls. Existing definitions
+remain unused. Marker: `jni: overlay-v2 npc-and-bot-players; plain-init`.
+
+**Actual runtime findings:** previous full build hash `78031e4b...` loaded in
+PID 7124; its map/inode and JNI marker were verified. Live firing-range capture
+showed the new menu, boxes, lines and labels, but exposed targets were red and
+labelled Bot Player. That process exited after several minutes. User also
+reported subsequent exits before range entry. No crash fix is established.
+The initial black capture was a sleeping/locked phone, not proven game failure.
+
+A read-only helper found target-owned components traversed under other actors:
+component UObject Outer matched the target while traversed actor Owner was zero.
+Latest revision records component Outer and excludes it for the matching target,
+in addition to existing actor/Owner exclusions. Native ancestry fallback also
+corrects NPC classification when FName reads fail. Focused host classification
+and visibility tests pass. Live PID 9711 showed exposed targets green and
+correctly labelled NPC. Read-only ancestry inspection confirmed RangeTarget
+1C0D -> DFMCharacter F5F. User confirmed some walls/characters block rays,
+but glass and some other walls still show green. Visibility remains incomplete.
+PID 9711 exited at 11:09:43 UTC; Zygote reported signal 7 (SIGBUS), with no new
+tombstone or fatal backtrace. The bounded monitor saw 15 samples and about
+12.9 seconds after host range-capture confirmation (range entry was earlier).
+This is not a stability fix. Android Canvas/menu regression and DEX/native
+builds passed before deployment.
+
+Private live captures/logs/monitor state: `/tmp/delta-overlay-entity-test/`.
+Do not commit account-bearing screenshots or raw logs. Diagnostic helper is
+`/data/local/.stash/delta-inspect`; remove after use. Other comparison staging
+libraries/executables were removed. Original user's KittyInjector is preserved.
+
+## Completed loader controls
+
+Original root settings are restored: Zygisk=1, original custom module enabled,
+DenyList enforcement=1, SELinux Enforcing. Boot ID
+`372866de-ad82-4f87-bf43-01cc44afb387`. No inert probe remains at the fixed path.
+Private original library/configuration and results: `/tmp/delta-loader-comparison/`.
+
+- No-Zygisk/no-payload: PID 12138 completed 603.9 seconds of range observation;
+  user confirmed moving, aiming and shooting remained responsive.
+- Kitty v6 canonical-path inert probe: constructor/JNI/detach succeeded in a
+  foreground game process, PID 32032, then it exited about 26.1 seconds later
+  before range. Earlier alias-path failures explicitly killed the target from
+  the injector; those are not evidence of a game crash or detection.
+- Zygisk/same inert probe: PID 12711 exited after 473.9 seconds of confirmed
+  firing-range observation (94 samples).
+
+Exits occur with either loading route even without reader/UI. Timing differs,
+and no matching fatal record identifies the cause; these observations do not
+establish anti-cheat detection or a stable alternative loader. See
+`docs/overlay-2026-11-14/loader-comparison.md` for details.
+
+Actual model chams and rendering below the game's HUD remain unimplemented.
+The Android overlay window cannot interleave with the game's internal UI;
+a verified game-side material/render integration is needed.
+
+## Historical work (superseded deployment details below)
 
 ## Always-green correction and chams assessment (latest)
 

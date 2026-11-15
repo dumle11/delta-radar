@@ -4,6 +4,7 @@ Run host regressions from the repository root:
 python3 internal/native/tests/test_safe_reads.py
 python3 internal/native/tests/test_projection.py
 python3 internal/native/tests/test_visibility.py
+python3 internal/native/tests/test_entity_types.py
 ```
 
 The tests compile the production helper functions into isolated host programs.
@@ -40,3 +41,7 @@ To exercise the same checked-read fixture on Android, emit its C source with
 `python3 internal/native/tests/test_safe_reads.py --emit-c /tmp/checked-reads.c`,
 compile it with the NDK arm64 compiler and `-I external/scanner`, then push/run
 the executable under `/data/local/tmp`. It reads only its own synthetic memory.
+
+The entity fixture checks real-player team routing, world-NPC ancestry, native
+class/parent validation when names fail, and one simulated-player category for
+both teams. Visibility also checks target-owned component Outer exclusions.

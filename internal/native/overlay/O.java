@@ -72,10 +72,11 @@ public class O extends View {
         java.util.Arrays.fill(occludedColors, OCCLUDED_COLOR);
     }
     static volatile boolean espEnabled = true;
+    static volatile boolean rayDebug = false, rayViews = true, rayLos = true, rayBounds = true;
 
-    static final int ET_ENEMY = 0, ET_TEAMMATE = 1, ET_BOT_ENEMY = 2, ET_BOT_TEAM = 3, ET_LOOT = 4;
+    static final int ET_ENEMY = 0, ET_TEAMMATE = 1, ET_NPC = 2, ET_BOT_PLAYER = 3, ET_LOOT = 4;
     static final int ET_COUNT = 5;
-    static final String[] ET_NAMES = {"Enemies", "Teammates", "Bot Enemies", "Bot Teammates", "Loot"};
+    static final String[] ET_NAMES = {"Enemies", "Teammates", "NPCs", "Bot Players", "Loot"};
 
     static final int F_ENABLED = 1, F_BOXES = 2, F_SKELETON = 4, F_NAMES = 8,
                       F_HEALTH = 16, F_DISTANCE = 32, F_SNAPLINES = 64;
@@ -111,15 +112,19 @@ public class O extends View {
                 try {
                     prefs = a.getSharedPreferences("overlay_v2", Context.MODE_PRIVATE);
                     espEnabled = prefs.getBoolean("esp", true);
+                    rayDebug = prefs.getBoolean("rayDebug", false);
+                    rayViews = prefs.getBoolean("rayViews", true);
+                    rayLos = prefs.getBoolean("rayLos", true);
+                    rayBounds = prefs.getBoolean("rayBounds", true);
                     lineWidth = prefs.getFloat("width", 2.5f);
                     menuX = prefs.getInt("menuX", -1); menuY = prefs.getInt("menuY", -1);
                     snapOrigin = prefs.getInt("snapOrigin", 0);
                     for (int i = 0; i < ET_COUNT; i++) {
-                        entityColors[i] = prefs.getInt("color" + i, defaultColors[i]);
-                        visibleColors[i] = prefs.getInt("visibleColor" + i, VISIBLE_COLOR);
-                        occludedColors[i] = prefs.getInt("occludedColor" + i, OCCLUDED_COLOR);
-                        entityFeatures[i] = prefs.getInt("feat" + i, defaultFeatures(i));
-                        entityRenderDist[i] = prefs.getInt("rdist" + i, 500);
+                        entityColors[i] = prefs.getInt(entityKey("color", i), defaultColors[i]);
+                        visibleColors[i] = prefs.getInt(entityKey("visibleColor", i), VISIBLE_COLOR);
+                        occludedColors[i] = prefs.getInt(entityKey("occludedColor", i), OCCLUDED_COLOR);
+                        entityFeatures[i] = prefs.getInt(entityKey("feat", i), defaultFeatures(i));
+                        entityRenderDist[i] = prefs.getInt(entityKey("rdist", i), 500);
                     }
                     aimEnabled = prefs.getBoolean("aim", false);
                     aimFov = prefs.getInt("aimFov", 15);
@@ -181,8 +186,13 @@ public class O extends View {
     static int defaultFeatures(int type) {
         if (type == ET_LOOT) return F_ENABLED | F_BOXES | F_NAMES;
         if (type == ET_TEAMMATE) return F_ENABLED | F_BOXES | F_NAMES | F_HEALTH;
-        if (type == ET_BOT_TEAM) return F_ENABLED | F_BOXES | F_NAMES | F_HEALTH;
         return F_ENABLED | F_BOXES | F_NAMES | F_HEALTH | F_DISTANCE | F_SNAPLINES;
+    }
+
+    static String entityKey(String setting, int type) {
+        if (type == ET_NPC) return setting + ".npc";
+        if (type == ET_BOT_PLAYER) return setting + ".botPlayer";
+        return setting + type;
     }
 
     @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
@@ -266,6 +276,7 @@ public class O extends View {
 
     /* Per-entity-type queries (called from C) */
     static boolean ge() { return espEnabled; }
+    static int grd() { return rayDebug ? 1 | (rayViews ? 2 : 0) | (rayLos ? 4 : 0) | (rayBounds ? 8 : 0) : 0; }
     static int gf(int type) { return (type >= 0 && type < ET_COUNT) ? entityFeatures[type] : 0; }
     static int gr(int type) { return (type >= 0 && type < ET_COUNT) ? entityRenderDist[type] : 500; }
     static int gso() { return snapOrigin; }
@@ -299,13 +310,15 @@ public class O extends View {
             .putInt("snapOrigin", snapOrigin)
             .putBoolean("aim", aimEnabled).putInt("aimFov", aimFov)
             .putInt("aimStr", aimStrength).putInt("aimBone", aimBone)
-            .putBoolean("autoShoot", autoShoot).putInt("aimMask", aimTargetMask);
+            .putBoolean("autoShoot", autoShoot).putInt("aimMask", aimTargetMask)
+            .putBoolean("rayDebug", rayDebug).putBoolean("rayViews", rayViews)
+            .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds);
         for (int i = 0; i < ET_COUNT; i++) {
-            edit.putInt("color" + i, entityColors[i]);
-            edit.putInt("visibleColor" + i, visibleColors[i]);
-            edit.putInt("occludedColor" + i, occludedColors[i]);
-            edit.putInt("feat" + i, entityFeatures[i]);
-            edit.putInt("rdist" + i, entityRenderDist[i]);
+            edit.putInt(entityKey("color", i), entityColors[i]);
+            edit.putInt(entityKey("visibleColor", i), visibleColors[i]);
+            edit.putInt(entityKey("occludedColor", i), occludedColors[i]);
+            edit.putInt(entityKey("feat", i), entityFeatures[i]);
+            edit.putInt(entityKey("rdist", i), entityRenderDist[i]);
         }
         edit.apply();
     }
@@ -511,7 +524,8 @@ public class O extends View {
             toggle("Enable visuals", -1, espEnabled);
             section("Snap line origin", null);
             buildSnapOriginPicker();
-            section("Per-entity settings", "Configure what each entity type shows.");
+            section("Per-entity settings", selectedEntityType == ET_NPC ? "World NPCs and training targets." :
+                selectedEntityType == ET_BOT_PLAYER ? "Simulated players from either team." : "Configure what each entity type shows.");
             buildEntityTypePicker();
             if (selectedEntityType >= 0 && selectedEntityType < ET_COUNT) {
                 int feat = entityFeatures[selectedEntityType];
@@ -737,6 +751,15 @@ public class O extends View {
 
         /* ---- Status tab ---- */
         void buildStatusTab() {
+            section("Raycast debug", "Collected collision bounds; not an engine physics trace.");
+            toggle("Enable raycast debug", -4, rayDebug);
+            toggle("Actor eye / view rays (50 m)", -5, rayViews);
+            toggle("Camera LOS: five body samples", -6, rayLos);
+            toggle("Draw hit collision bounds", -7, rayBounds);
+            TextView note = text("Actor rays use controller rotation, or labelled body rotation when unavailable. " +
+                "LOS links start at screen centre; markers show the first bound hit. " +
+                "Names fall back to class/object IDs. Up to 32 nearest actors within 100 m.", 17, MUTED);
+            note.setPadding(12, 8, 12, 12); body.addView(note, new LayoutParams(-1, -2));
             section("Live diagnostics", "A frame expires automatically when updates stop.");
             status = text("", 19, MUTED); status.setTypeface(Typeface.MONOSPACE);
             status.setGravity(Gravity.TOP); status.setPadding(12, 14, 12, 14);
@@ -758,6 +781,10 @@ public class O extends View {
                         case -1: espEnabled = checked; break;
                         case -2: aimEnabled = checked; break;
                         case -3: autoShoot = checked; break;
+                        case -4: rayDebug = checked; break;
+                        case -5: rayViews = checked; break;
+                        case -6: rayLos = checked; break;
+                        case -7: rayBounds = checked; break;
                     }
                     saveSettings(); if (inst != null) inst.invalidate();
                 }

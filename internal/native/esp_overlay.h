@@ -8,7 +8,7 @@ static jclass _ov_cls;
 static jmethodID _ov_z, _ov_b, _ov_r, _ov_f, _ov_l, _ov_t, _ov_e, _ov_gw, _ov_gh, _ov_ok;
 static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
-static jmethodID _ov_gvc;
+static jmethodID _ov_gvc, _ov_grd;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam;
 static int _ov_ready;
 static int _ov_w, _ov_h;
@@ -109,6 +109,7 @@ static int _ov_load_dex(void) {
     _ov_dx = (*env)->GetStaticMethodID(env, _ov_cls, "dx", "(Ljava/lang/String;)V");
     _ov_gc = (*env)->GetStaticMethodID(env, _ov_cls, "gc", "(I)I");
     _ov_gvc = (*env)->GetStaticMethodID(env, _ov_cls, "gvc", "(IZ)I");
+    _ov_grd = (*env)->GetStaticMethodID(env, _ov_cls, "grd", "()I");
     _ov_ge = (*env)->GetStaticMethodID(env, _ov_cls, "ge", "()Z");
     _ov_gf = (*env)->GetStaticMethodID(env, _ov_cls, "gf", "(I)I");
     _ov_gr = (*env)->GetStaticMethodID(env, _ov_cls, "gr", "(I)I");
@@ -122,7 +123,7 @@ static int _ov_load_dex(void) {
 
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     if (!_ov_z || !_ov_b || !_ov_r || !_ov_f || !_ov_l || !_ov_t ||
-        !_ov_e || !_ov_gw || !_ov_gh || !_ov_ok || !_ov_gvc) {
+        !_ov_e || !_ov_gw || !_ov_gh || !_ov_ok || !_ov_gvc || !_ov_grd) {
         _diag("ov: mid fail"); return 0;
     }
 
@@ -400,8 +401,8 @@ static void _ov_update_diag(uint64_t gworld, int n, int ac,
 /* Entity type indices matching O.java */
 #define ET_ENEMY     0
 #define ET_TEAMMATE  1
-#define ET_BOT_ENEMY 2
-#define ET_BOT_TEAM  3
+#define ET_NPC       2
+#define ET_BOT_PLAYER 3
 #define ET_LOOT      4
 #define ET_COUNT     5
 
@@ -416,8 +417,141 @@ static void _ov_update_diag(uint64_t gworld, int n, int ac,
 
 static int _ov_entity_type(Entity *e) {
     if (e->kind[0] == 'l') return ET_LOOT;
-    if (e->kind[0] == 'a') return e->team == 1 ? ET_BOT_TEAM : ET_BOT_ENEMY;
+    if (e->kind[0] == 'a') return e->is_player_bot ? ET_BOT_PLAYER : ET_NPC;
     return e->team == 1 ? ET_TEAMMATE : ET_ENEMY;
+}
+
+/* Debug rendering uses our collected collision bounds, never invokes game code. */
+static void _ov_debug_text(JNIEnv *env, const char *text, float x, float y, int color) {
+    jstring js = (*env)->NewStringUTF(env, text);
+    if (js) {
+        (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t, js, x, y, color);
+        (*env)->DeleteLocalRef(env, js);
+    }
+}
+static int _ov_debug_project(const float p[3], const float cam[6], float *x, float *y) {
+    return _ov_w2s(p[0],p[1],p[2],cam[0],cam[1],cam[2],cam[3],cam[4],cam[5],x,y);
+}
+static void _ov_debug_segment(JNIEnv *env, const float from[3], const float to[3],
+                               const float cam[6], int color, float width) {
+    float a[3], b[3], forward[3];
+    float yaw=cam[3]*(float)(M_PI/180), pitch=cam[4]*(float)(M_PI/180);
+    forward[0]=cosf(pitch)*cosf(yaw); forward[1]=cosf(pitch)*sinf(yaw); forward[2]=sinf(pitch);
+    float da=0,db=0;
+    for(int k=0;k<3;k++){a[k]=from[k];b[k]=to[k];da+=(a[k]-cam[k])*forward[k];db+=(b[k]-cam[k])*forward[k];}
+    if(da<0.55f && db<0.55f)return;
+    if(da<0.55f || db<0.55f){
+        float t=(0.55f-da)/(db-da);
+        for(int k=0;k<3;k++){float v=a[k]+t*(b[k]-a[k]);if(da<0.55f)a[k]=v;else b[k]=v;}
+    }
+    float ax,ay,bx,by;
+    if(_ov_debug_project(a,cam,&ax,&ay)&&_ov_debug_project(b,cam,&bx,&by))
+        (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_l,ax,ay,bx,by,color,width);
+}
+static void _ov_debug_box(JNIEnv *env, const OccluderAABB *b, const float cam[6]) {
+    for(int v=0;v<8;v++)for(int axis=0;axis<3;axis++)if(!(v&(1<<axis))){
+        float a[3],z[3];int w=v|(1<<axis);
+        for(int k=0;k<3;k++){a[k]=(v&(1<<k))?b->max[k]:b->min[k];z[k]=(w&(1<<k))?b->max[k]:b->min[k];}
+        _ov_debug_segment(env,a,z,cam,(int)0xFFFFB300,1.0f);
+    }
+}
+static void _ov_debug_marker(JNIEnv *env,const float point[3],const float cam[6],int color,int link) {
+    float x,y;if(!_ov_debug_project(point,cam,&x,&y))return;
+    if(link)(*env)->CallStaticVoidMethod(env,_ov_cls,_ov_l,(float)_ov_w*.5f,(float)_ov_h*.5f,x,y,color,1.0f);
+    (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_l,x-5,y,x+5,y,color,2.0f);
+    (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_l,x,y-5,x,y+5,color,2.0f);
+}
+static int _ov_debug_name(uint64_t object,char *out,int size) {
+    if(!is_telemetry_ptr(object))return 0;
+    int n=resolve_fname(read_i32(object+OFF_UOBJECT_NAME),out,size);
+    if(n<=0)return 0;
+    for(int i=0;i<n;i++)if((unsigned char)out[i]<32 || (unsigned char)out[i]>126){out[0]=0;return 0;}
+    return 1;
+}
+static void _ov_debug_hit_name(int index,char *out,int size) {
+    if(index<0){snprintf(out,size,"no collected hit");return;}
+    static struct {uint64_t component,actor;long long at;char text[200];} cache[128];
+    static unsigned next;
+    OccluderAABB *b=&occluders[index];long long now=sample_time_ms();
+    for(unsigned i=0;i<128;i++)if(cache[i].component==b->component_addr && cache[i].actor==b->actor_addr && now-cache[i].at<1000){
+        snprintf(out,size,"%s",cache[i].text);return;
+    }
+    char name[72]={0},cls_name[72]={0};
+    uint64_t owner=is_telemetry_ptr(b->component_outer)?b->component_outer:b->actor_addr;
+    uint64_t cls=read_ptr(owner+OFF_UOBJECT_CLASS);
+    if(_ov_debug_name(b->component_addr,name,sizeof(name)) || _ov_debug_name(owner,name,sizeof(name))){
+        if(_ov_debug_name(cls,cls_name,sizeof(cls_name)))snprintf(out,size,"%s [%s]",name,cls_name);
+        else snprintf(out,size,"%s [class#%X]",name,read_i32(cls+0x24));
+    }else snprintf(out,size,"name unavailable: class#%X obj@%llx cmp@%llx",read_i32(cls+0x24),
+        (unsigned long long)owner,(unsigned long long)b->component_addr);
+    unsigned slot=next++%128;cache[slot].component=b->component_addr;cache[slot].actor=b->actor_addr;
+    cache[slot].at=now;snprintf(cache[slot].text,sizeof(cache[slot].text),"%s",out);
+}
+static void _ov_draw_ray_debug(JNIEnv *env,const float cam[6],int flags) {
+    if(!(flags&1))return;
+    int nearest[32],count=0;float distances[32];
+    for(int i=0;i<num_entities;i++){
+        Entity *e=&entities[i];if(e->dead || e->kind[0]=='l' || !strcmp(e->id,self_entity_id))continue;
+        float d=0;for(int k=0;k<3;k++){float p=k==0?e->x:k==1?e->y:e->z;d+=(p-cam[k])*(p-cam[k]);}
+        if(!isfinite(d)||d>10000)continue;
+        int at=count;while(at>0 && distances[at-1]>d)at--;
+        if(at>=32)continue;
+        int end=count<32?count:31;for(int j=end;j>at;j--){nearest[j]=nearest[j-1];distances[j]=distances[j-1];}
+        nearest[at]=i;distances[at]=d;if(count<32)count++;
+    }
+    char caption[220];snprintf(caption,sizeof(caption),"RAY DEBUG: bounds estimate | actors %d/32 | bounds %d%s",count,num_occluders,occlusion_incomplete?" INCOMPLETE":"");
+    _ov_debug_text(env,caption,20,72,(int)0xFFFFB300);
+    snprintf(caption,sizeof(caption),"cam %.2f %.2f %.2f | yaw %.1f pitch %.1f | view cyan / hit red / LOS green / unknown amber",cam[0],cam[1],cam[2],cam[3],cam[4]);
+    _ov_debug_text(env,caption,20,96,(int)0xFFFFFFFF);
+    int boxes[64],box_count=0;
+    for(int i=0;i<count;i++){
+        Entity *e=&entities[nearest[i]];float label_point[3]={e->x,e->y,e->z+e->half_height},lx,ly;
+        int on_screen=_ov_debug_project(label_point,cam,&lx,&ly)&&lx>=0&&lx<_ov_w&&ly>=0&&ly<_ov_h;
+        char hit_name[200],label[280];
+        if(flags&2){
+            float origin[3]={e->x,e->y,e->z},target[3];
+            float height=read_float(e->actor_address+0x37C)/100.0f;
+            if(!isfinite(height)||height<0||height>e->half_height*1.5f)height=e->half_height*.8f;
+            origin[2]+=height;
+            float yaw=e->yaw,pitch=e->pitch;const char *source="body";
+            uint64_t controller=read_ptr(e->actor_address+OFF_APAWN_CONTROLLER);
+            if(is_telemetry_ptr(controller)&&read_ptr(controller+0x3A0)==e->actor_address){
+                float rotation[2];
+                if(read_mem(controller+OFF_PC_CONTROL_PITCH,rotation,sizeof(rotation))==sizeof(rotation)&&
+                   isfinite(rotation[0])&&isfinite(rotation[1])&&fabsf(rotation[0])<10000&&fabsf(rotation[1])<10000){
+                    pitch=rotation[0];yaw=rotation[1];source="controller";
+                }
+            }
+            if(isfinite(yaw)&&isfinite(pitch)){
+                float yr=yaw*(float)(M_PI/180),pr=pitch*(float)(M_PI/180);
+                target[0]=origin[0]+50*cosf(pr)*cosf(yr);target[1]=origin[1]+50*cosf(pr)*sinf(yr);target[2]=origin[2]+50*sinf(pr);
+                BoundsRayHit hit=trace_debug_bounds(origin,target,e->actor_address,0);
+                int color=hit.index>=0?(int)0xFFFF5555:hit.incomplete?(int)0xFFFFB300:(int)0xFF46D9FF;
+                _ov_debug_segment(env,origin,hit.point,cam,color,2.0f);_ov_debug_marker(env,hit.point,cam,color,0);
+                _ov_debug_hit_name(hit.index,hit_name,sizeof(hit_name));
+                if(on_screen){snprintf(label,sizeof(label),"%s view(%s) %.1fm %s",e->name,source,hit.distance,hit_name);_ov_debug_text(env,label,lx,ly-44,color);}
+                if(hit.index>=0 && box_count<64)boxes[box_count++]=hit.index;
+            }
+        }
+        if(flags&4){
+            int blocked=0,inside=0;char states[6]={0};int first=-1;float nearest_hit=1e9;
+            for(int r=0;r<5;r++){
+                float target[3];visibility_sample_point(cam[0],cam[1],e->x,e->y,e->z,e->half_height,r,target);
+                BoundsRayHit hit=trace_debug_bounds(cam,target,0,e->actor_address);
+                states[r]=hit.index>=0?'X':hit.incomplete?'?':'O';blocked+=hit.index>=0;inside+=hit.inside;
+                int color=hit.index>=0?(int)0xFFFF5555:hit.incomplete?(int)0xFFFFB300:(int)0xFF00FF00;
+                _ov_debug_marker(env,hit.point,cam,color,1);
+                if(hit.index>=0 && hit.distance<nearest_hit){first=hit.index;nearest_hit=hit.distance;}
+            }
+            _ov_debug_hit_name(first,hit_name,sizeof(hit_name));
+            if(on_screen){snprintf(label,sizeof(label),"LOS %s (%d/5 blocked; inside %d): %s",states,blocked,inside,hit_name);_ov_debug_text(env,label,lx,ly-22,(int)0xFFFFFFFF);}
+            if(first>=0 && box_count<64)boxes[box_count++]=first;
+        }
+    }
+    if(flags&8)for(int i=0;i<box_count;i++){
+        int duplicate=0;for(int j=0;j<i;j++)if(boxes[j]==boxes[i])duplicate=1;
+        if(!duplicate)_ov_debug_box(env,&occluders[boxes[i]],cam);
+    }
 }
 
 static void _ov_draw_esp(void) {
@@ -541,7 +675,7 @@ static void _ov_draw_esp(void) {
             char lbl[96];
             const char *kind_str = e->kind[0] == 'p' ? "PLR" :
                                    e->kind[0] == 'l' ? "LOOT" :
-                                   e->kind[0] == 'a' ? "BOT" : "NPC";
+                                   e->is_player_bot ? "BOT PLAYER" : "NPC";
             if (e->name[0])
                 snprintf(lbl, sizeof(lbl), "%s [%s]", e->name, kind_str);
             else
@@ -581,6 +715,9 @@ static void _ov_draw_esp(void) {
             (*env)->DeleteLocalRef(env, js);
         }
     }
+
+    int ray_flags = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_grd);
+    if (ray_flags & 1) _ov_draw_ray_debug(env, cam, ray_flags);
 
     if (_esp_dbg < 10 && drawn == 0 && num_entities > 0) {
         char dbuf[64];

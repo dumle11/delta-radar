@@ -10,7 +10,7 @@ program = r"""
 #include <assert.h>
 #include <math.h>
 #include <stdint.h>
-typedef struct { float min[3], max[3]; uint64_t actor_addr, owner_addr; } OccluderAABB;
+typedef struct { float min[3], max[3]; uint64_t actor_addr, owner_addr, component_outer, component_addr; } OccluderAABB;
 static OccluderAABB occluders[8];
 static int num_occluders, occlusion_incomplete;
 #include <string.h>
@@ -18,6 +18,7 @@ static int num_occluders, occlusion_incomplete;
 #define MAX_OCCLUDERS 8
 #define OFF_UOBJECT_CLASS 0x8
 #define OFF_UOBJECT_NAME 0x1c
+#define OFF_UOBJECT_OUTER 0x10
 #define OFF_COMPONENT_BOUNDS 0x148
 static unsigned char heap[16384];
 static uint64_t verified_uworld = 1;
@@ -87,6 +88,24 @@ int main(void) {
     occlusion_incomplete = 0;
     assert(1 == is_visible_from_camera(0,0,0, 10,0,0, 1.05f, 1234));
     assert(0 == is_visible_from_camera(0,0,0, 10,0,0, 1.05f, 9999));
+    occluders[0].owner_addr = 0;
+    occluders[0].component_outer = 1234;
+    assert(1 == is_visible_from_camera(0,0,0, 10,0,0, 1.05f, 1234));
+    assert(0 == is_visible_from_camera(0,0,0, 10,0,0, 1.05f, 9999));
+    /* Debug must report the nearest surface regardless of collector order. */
+    float target[3] = {10,0,0}; origin[0]=origin[1]=origin[2]=0;
+    occluders[0]=(OccluderAABB){{7,-2,-2},{8,2,2},0};
+    occluders[1]=(OccluderAABB){{3,-2,-2},{4,2,2},0}; num_occluders=2;
+    BoundsRayHit hit=trace_debug_bounds(origin,target,0,0);
+    assert(hit.index==1 && fabsf(hit.distance-3)<0.001f && fabsf(hit.point[0]-3)<0.001f);
+    occluders[1].component_outer=1234;
+    hit=trace_debug_bounds(origin,target,1234,0);
+    assert(hit.index==0 && fabsf(hit.distance-7)<0.001f);
+    hit=trace_debug_bounds(origin,target,0,1234); assert(hit.index==0);
+    occluders[0]=(OccluderAABB){{-1,-1,-1},{1,1,1},0};
+    hit=trace_debug_bounds(origin,target,0,1234); assert(hit.index==-1 && hit.inside==1 && hit.incomplete);
+    assert(!occlusion_incomplete); /* Diagnostic rays never mutate LOS state. */
+    num_occluders=0; hit=trace_debug_bounds(origin,target,0,0); assert(hit.index==-1 && hit.incomplete);
     /* Collector fixture: a plain scene root with an occluding mesh child. */
     uint64_t primitive = (uint64_t)heap + 1024, scene = (uint64_t)heap + 2048;
     uint64_t mesh = (uint64_t)heap + 3072, root = (uint64_t)heap + 4096;
@@ -99,6 +118,7 @@ int main(void) {
     put_ptr(root + OFF_UOBJECT_CLASS, scene); put_ptr(child + OFF_UOBJECT_CLASS, mesh);
     put_ptr(actor + 0x100, root); put_ptr(root + 0x118, children);
     put_ptr(actor + 0x120, 99);
+    put_ptr(child + OFF_UOBJECT_OUTER, 1234);
     put_int(root + 0x120, 1); put_ptr(children, child);
     float bounds[8] = {500,0,0,0, 50,200,200,300};
     memcpy((void *)(child + OFF_COMPONENT_BOUNDS), bounds, sizeof(bounds));
@@ -110,6 +130,7 @@ int main(void) {
     num_occluders = occlusion_incomplete = 0;
     try_add_occluder(actor, 0x100, 0, 0,0,0);
     assert(num_occluders == 1 && occluders[0].actor_addr == actor && occluders[0].owner_addr == 99);
+    assert(occluders[0].component_outer == 1234);
     assert(fabsf(occluders[0].min[0] - 4.5f) < 0.001f);
     assert(fabsf(occluders[0].max[1] - 2.0f) < 0.001f);
     *(unsigned char *)(child + 0x19c) = 0x60; /* hidden collision remains relevant */

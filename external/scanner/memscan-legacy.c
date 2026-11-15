@@ -1011,6 +1011,7 @@ typedef struct {
     float x, y, z, yaw, pitch, fov;
     char name[64];
     char kind[16];
+    int is_player_bot; /* AI-controlled player character, distinct from world NPCs. */
     int64_t operator_id;
     uint64_t hero_id;
     char npc_template[96];
@@ -1040,7 +1041,7 @@ static int num_entities = 0;
 
 /* Software occlusion: axis-aligned bounding boxes of large static meshes
  * collected during actor cache refresh. Used to ray-test camera→enemy LOS. */
-typedef struct { float min[3], max[3]; uint64_t actor_addr, owner_addr; } OccluderAABB;
+typedef struct { float min[3], max[3]; uint64_t actor_addr, owner_addr, component_outer, component_addr; } OccluderAABB;
 #define MAX_OCCLUDERS 2048
 static OccluderAABB occluders[MAX_OCCLUDERS];
 static int num_occluders = 0;
@@ -1385,7 +1386,8 @@ static int single_ray_blocked(float cam_x, float cam_y, float cam_z,
     for (int j = 0; j < num_occluders; j++) {
         const OccluderAABB *b = &occluders[j];
         /* Character-owned visual/proxy actors must not occlude their owner. */
-        if (target_actor && (b->actor_addr == target_actor || b->owner_addr == target_actor)) continue;
+        if (target_actor && (b->actor_addr == target_actor || b->owner_addr == target_actor ||
+                             b->component_outer == target_actor)) continue;
         /* A camera inside a coarse scene bound cannot use that bound for LOS. */
         if (cam_x >= b->min[0] && cam_x <= b->max[0] &&
             cam_y >= b->min[1] && cam_y <= b->max[1] &&
@@ -1398,27 +1400,75 @@ static int single_ray_blocked(float cam_x, float cam_y, float cam_z,
     return 0;
 }
 
-static int is_visible_from_camera(float cam_x, float cam_y, float cam_z,
-                                   float tx, float ty, float tz, float half_height, uint64_t target_actor) {
-    if (!isfinite(cam_x) || !isfinite(cam_y) || !isfinite(cam_z) ||
-        !isfinite(tx) || !isfinite(ty) || !isfinite(tz)) return -1;
-    if (num_occluders == 0) return -1;
+/* Shared by classification and the debug view: sample only the target body. */
+static void visibility_sample_point(float cam_x, float cam_y, float tx, float ty,
+                                     float tz, float half_height, int sample, float out[3]) {
     if (!isfinite(half_height) || half_height <= 0) half_height = 1.05f;
     float dx = tx - cam_x, dy = ty - cam_y;
     float hlen = sqrtf(dx*dx + dy*dy);
     float px = hlen > 0.01f ? -dy / hlen : 1.0f;
     float py = hlen > 0.01f ? dx / hlen : 0.0f;
-    /* Sample points inside the target silhouette, never 1–2m to either side. */
     float radius = fminf(0.25f, half_height * 0.3f);
-    float offsets[5][3] = {
-        {0, 0, 0}, {0, 0, half_height * 0.8f}, {0, 0, -half_height * 0.8f},
-        {px * radius, py * radius, 0}, {-px * radius, -py * radius, 0}
-    };
-    for (int r = 0; r < 5; r++)
-        if (!single_ray_blocked(cam_x, cam_y, cam_z,
-                tx + offsets[r][0], ty + offsets[r][1], tz + offsets[r][2], target_actor))
+    out[0] = tx; out[1] = ty; out[2] = tz;
+    if (sample == 1) out[2] += half_height * 0.8f;
+    if (sample == 2) out[2] -= half_height * 0.8f;
+    if (sample == 3) { out[0] += px * radius; out[1] += py * radius; }
+    if (sample == 4) { out[0] -= px * radius; out[1] -= py * radius; }
+}
+
+static int is_visible_from_camera(float cam_x, float cam_y, float cam_z,
+                                   float tx, float ty, float tz, float half_height, uint64_t target_actor) {
+    if (!isfinite(cam_x) || !isfinite(cam_y) || !isfinite(cam_z) ||
+        !isfinite(tx) || !isfinite(ty) || !isfinite(tz)) return -1;
+    if (num_occluders == 0) return -1;
+    for (int r = 0; r < 5; r++) {
+        float target[3];
+        visibility_sample_point(cam_x, cam_y, tx, ty, tz, half_height, r, target);
+        if (!single_ray_blocked(cam_x, cam_y, cam_z, target[0], target[1], target[2], target_actor))
             return occlusion_incomplete ? -1 : 1;
+    }
     return 0;
+}
+
+/* Debug traces use the same collected bounds/exclusions, without changing the
+ * visibility state. Return the nearest entry surface, never list-order hits. */
+typedef struct { int index, inside, incomplete; float distance, point[3]; } BoundsRayHit;
+static BoundsRayHit trace_debug_bounds(const float origin[3], const float target[3],
+                                       uint64_t source_actor, uint64_t target_actor) {
+    BoundsRayHit hit = {.index = -1, .incomplete = occlusion_incomplete || num_occluders == 0};
+    float dir[3], length = 0;
+    for (int k = 0; k < 3; k++) {
+        if (!isfinite(origin[k]) || !isfinite(target[k])) { hit.incomplete = 1; return hit; }
+        dir[k] = target[k] - origin[k]; length += dir[k] * dir[k];
+        hit.point[k] = target[k];
+    }
+    length = sqrtf(length); hit.distance = length;
+    if (!isfinite(length) || length < 0.01f) { hit.incomplete = 1; return hit; }
+    for (int k = 0; k < 3; k++) dir[k] /= length;
+    float limit = fmaxf(0, length - 0.02f);
+    for (int j = 0; j < num_occluders; j++) {
+        const OccluderAABB *b = &occluders[j];
+        if ((source_actor && (b->actor_addr == source_actor || b->owner_addr == source_actor || b->component_outer == source_actor)) ||
+            (target_actor && (b->actor_addr == target_actor || b->owner_addr == target_actor || b->component_outer == target_actor))) continue;
+        int inside = 1;
+        for (int k = 0; k < 3; k++) if (origin[k] < b->min[k] || origin[k] > b->max[k]) inside = 0;
+        if (inside) { hit.inside++; hit.incomplete = 1; continue; }
+        float enter = 0, leave = limit;
+        int blocked = 1;
+        for (int k = 0; k < 3; k++) {
+            if (fabsf(dir[k]) < 1e-8f) {
+                if (origin[k] < b->min[k] || origin[k] > b->max[k]) { blocked = 0; break; }
+            } else {
+                float a = (b->min[k] - origin[k]) / dir[k], z = (b->max[k] - origin[k]) / dir[k];
+                if (a > z) { float tmp = a; a = z; z = tmp; }
+                enter = fmaxf(enter, a); leave = fminf(leave, z);
+                if (enter > leave) { blocked = 0; break; }
+            }
+        }
+        if (blocked && leave > 0 && enter < hit.distance) { hit.index = j; hit.distance = enter; }
+    }
+    if (hit.index >= 0) for (int k = 0; k < 3; k++) hit.point[k] = origin[k] + dir[k] * hit.distance;
+    return hit;
 }
 
 /* Collect query-blocking primitive components using native world-space bounds.
@@ -1509,6 +1559,10 @@ static int try_add_occluder_from_component(uint64_t comp,
     OccluderAABB *o = &occluders[num_occluders++];
     o->actor_addr = occ_cur_actor;
     o->owner_addr = read_ptr(occ_cur_actor + 0x120);
+    /* Attached trees can contain another actor's component. Its UObject Outer
+     * identifies the actual owner even when the traversed actor has no Owner. */
+    o->component_outer = read_ptr(comp + OFF_UOBJECT_OUTER);
+    o->component_addr = comp;
     /* Preserve measured bounds; artificial doorway gaps yield false visibility. */
     for (int i = 0; i < 3; i++) {
         o->min[i] = (origin[i] - extent[i]) / 100.0f;
@@ -1739,6 +1793,45 @@ static int identity_is_a(uint64_t object, int native_index) {
         cls = parent;
     }
     return 0;
+}
+
+/* Player-like bots have a PlayerState bot flag. World NPC classes can also
+ * carry a PlayerState, so recognize their native ancestry before using it. */
+static int class_is_world_npc(uint64_t cls) {
+    static struct { uint64_t cls; int npc; } cache[256];
+    static unsigned count;
+    static uint64_t world;
+    if (world != verified_uworld) { world = verified_uworld; count = 0; }
+    for (unsigned i = 0; i < count; i++) if (cache[i].cls == cls) return cache[i].npc;
+    uint64_t original = cls;
+    int npc = 0, names_complete = 1;
+    for (int depth = 0; depth < 24 && is_telemetry_ptr(cls); depth++) {
+        char name[96] = {0};
+        uint64_t parent = read_ptr(cls + 0x40);
+        int32_t index = read_i32(cls + 0x24);
+        int32_t parent_index = is_telemetry_ptr(parent) ? read_i32(parent + 0x24) : -1;
+        /* Matching 1.202.37119.3601 native class/parent pairs. The live FName
+         * pool can resolve None while failing character names; validate both
+         * class and parent rather than treating that failure as a player bot. */
+        if (index == 0x1C5D && parent_index == 0xF5F) break;
+        if (((index == 0xFDC || index == 0x1C0D) && parent_index == 0xF5F) ||
+            (index == 0x1C49 && parent_index == 0xFDC)) { npc = 1; break; }
+        if (!resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name)))
+            names_complete = 0;
+        if (!strcmp(name, "DFMPlayerCharacter")) break;
+        if (!strcmp(name, "DFMAICharacter") || !strcmp(name, "DFMNPCCharacter") ||
+            !strcmp(name, "DFMRangeTargetCharacter")) { npc = 1; break; }
+        if (parent == cls) break;
+        cls = parent;
+    }
+    if ((npc || names_complete) && count < 256) {
+        cache[count].cls = original; cache[count++].npc = npc;
+    }
+    return npc;
+}
+
+static int player_bot_from_state(int has_playerstate, uint8_t bot_flags, int world_npc) {
+    return has_playerstate && (bot_flags & 0x8) != 0 && !world_npc;
 }
 
 static void read_actor_identity(Entity *e, uint64_t actor, uint64_t state) {
@@ -2495,7 +2588,9 @@ camera_done:
             snprintf(e->name, sizeof(e->name), "B%d", player_num);
         }
 
-        strncpy(e->kind, has_playerstate && !(bot_flags & 0x8) ? "p" : "a", sizeof(e->kind) - 1);
+        int world_npc = has_playerstate && class_is_world_npc(e->class_address);
+        e->is_player_bot = player_bot_from_state(has_playerstate, bot_flags, world_npc);
+        strncpy(e->kind, has_playerstate && !(bot_flags & 0x8) && !world_npc ? "p" : "a", sizeof(e->kind) - 1);
         read_actor_identity(e, actor_ptrs[i], player_state);
         e->native_team = -1;
         if (has_playerstate &&
@@ -2891,9 +2986,10 @@ static int post_to_radar(void) {
             entities[i].half_height, entities[i].dead ? "true" : "false",
             entities[i].team, now_ms);
         APPEND_SNAPSHOT(
-            ",\"oi\":%lld,\"hi\":%llu,\"nt\":\"%s\",\"iv\":%s",
+            ",\"oi\":%lld,\"hi\":%llu,\"nt\":\"%s\",\"iv\":%s,\"pb\":%s",
             (long long)entities[i].operator_id, (unsigned long long)entities[i].hero_id,
-            entities[i].npc_template, entities[i].identity_verified ? "true" : "false");
+            entities[i].npc_template, entities[i].identity_verified ? "true" : "false",
+            entities[i].is_player_bot ? "true" : "false");
         if (entities[i].position_observation.present) {
             const PositionObservation *observation = &entities[i].position_observation;
             APPEND_SNAPSHOT(
