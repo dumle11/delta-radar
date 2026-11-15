@@ -6,11 +6,18 @@ python3 internal/native/tests/test_projection.py
 python3 internal/native/tests/test_visibility.py
 python3 internal/native/tests/test_engine_visibility.py
 python3 internal/native/tests/test_engine_aim.py
+python3 internal/native/tests/test_engine_weapon.py
 python3 internal/native/tests/test_entity_types.py
 python3 internal/native/tests/test_fnames.py
 ```
 
 The tests compile the production helper functions into isolated host programs.
+The weapon fixture checks active-weapon selection, weak-reference serial layouts,
+typed firing-component lookup, both recoil layouts, spread fields, restoration,
+opaque-data preservation, recycled objects and checked-write failures.
+The older engine visibility/aim fixtures currently reference removed GameThread
+bridge markers and fail during extraction; they need updating for the current
+scanner-thread implementation.
 Memory tests use unreadable/unmapped pages and verify kernel-copy errors,
 subsequent valid copies, partial/large transfers and unchanged host signal handlers.
 

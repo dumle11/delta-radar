@@ -1,0 +1,44 @@
+[32621.510] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=1092/1092
+[32621.511] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=19 target=-0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32621.511] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32622.096] cam: 15,-87,2 y=-22.1 p=-10.2 f=77.3 n=18 pt=1
+[32625.894] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=1292/1292
+[32625.894] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32625.894] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32628.728] cam: 15,-87,2 y=-8.7 p=-21.2 f=88.7 n=18 pt=1
+[32630.327] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=1492/1492
+[32630.327] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32630.328] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32634.740] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=1692/1692
+[32634.740] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32634.740] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32635.351] cam: 15,-87,2 y=-8.7 p=-21.8 f=90.0 n=18 pt=1
+[32639.208] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=1892/1892
+[32639.208] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32639.208] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32641.940] cam: 15,-87,2 y=-8.5 p=-21.7 f=89.6 n=18 pt=1
+[32643.486] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=2092/2092
+[32643.486] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32643.486] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32647.906] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=2292/2292
+[32647.906] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=30 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32647.906] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32648.487] cam: 15,-87,2 y=-10.3 p=-2.2 f=90.0 n=18 pt=1
+[32652.312] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=2492/2492
+[32652.312] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32652.312] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32655.131] cam: 15,-87,2 y=-9.3 p=-1.3 f=90.0 n=18 pt=1
+[32656.699] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=2692/2692
+[32656.699] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=7 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32656.699] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32661.137] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=2892/2892
+[32661.138] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32661.138] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32661.734] cam: 15,-87,2 y=-9.3 p=-1.3 f=90.0 n=18 pt=1
+[32665.536] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=3092/3092
+[32665.537] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=11 target=-0.000,0.000 shake=-0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32665.537] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0
+[32668.330] cam: 15,-87,2 y=-10.4 p=2.8 f=90.0 n=18 pt=1
+[32669.934] weapon: wpn=718d830040 recoil=1 spread=1 fields=50/19/14 applied=3292/3292
+[32669.934] weapon runtime: source=71e9f0f010 self_dc=71e9f0f010 game_dc=71e9f0f010 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1.00,-1.00 rewrites=0
+[32669.934] weapon peers: gp=718d830040 fp=0 tp=718a558bc0 weapon=718d830040 fp=718d830040 tp=718a558bc0

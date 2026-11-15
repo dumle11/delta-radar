@@ -90,10 +90,14 @@ public class O extends View {
     static volatile int aimStrength = 100;
     static volatile int aimBone = 2; // 0=head, 1=chest, 2=body
     static volatile boolean autoShoot = false;
-    static volatile int aimTargetMask = 0x5; // enemies + bot enemies
+    static volatile int aimTargetMask = 0x5; // enemies + bots
 
-    static final int AIM_ENEMIES = 1, AIM_BOTS = 4;
-    static final int AIM_ALL = AIM_ENEMIES | AIM_BOTS;
+    // Misc settings
+    static volatile boolean noRecoil = false;
+    static volatile boolean noSpread = false;
+
+    static final int AIM_ENEMIES = 1, AIM_TEAMMATES = 2, AIM_BOTS = 4;
+    static final int AIM_ALL = AIM_ENEMIES | AIM_TEAMMATES | AIM_BOTS;
 
     static volatile String diagGWorld = "---";
     static volatile String diagEntities = "---";
@@ -132,6 +136,8 @@ public class O extends View {
                     aimBone = Math.max(0, Math.min(2, prefs.getInt("aimBone", 2)));
                     autoShoot = prefs.getBoolean("autoShoot", false);
                     aimTargetMask = prefs.getInt("aimMask", AIM_ENEMIES | AIM_BOTS) & AIM_ALL;
+                    noRecoil = prefs.getBoolean("noRecoil", false);
+                    noSpread = prefs.getBoolean("noSpread", false);
 
                     wm = (WindowManager) a.getSystemService(Context.WINDOW_SERVICE);
                     sh = a.getResources().getDisplayMetrics().heightPixels;
@@ -315,6 +321,10 @@ public class O extends View {
     static boolean gaa() { return autoShoot; }
     static int gam() { return aimTargetMask; }
 
+    /* Misc queries (called from C) */
+    static boolean gnr() { return noRecoil; }
+    static boolean gns() { return noSpread; }
+
     static void setColor(int slot, int color) {
         if (slot >= 0 && slot < ET_COUNT) entityColors[slot] = color;
     }
@@ -327,7 +337,8 @@ public class O extends View {
             .putInt("aimStr", aimStrength).putInt("aimBone", aimBone)
             .putBoolean("autoShoot", autoShoot).putInt("aimMask", aimTargetMask)
             .putBoolean("rayDebug", rayDebug).putBoolean("rayViews", rayViews)
-            .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds);
+            .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds)
+            .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread);
         for (int i = 0; i < ET_COUNT; i++) {
             edit.putInt(entityKey("color", i), entityColors[i]);
             edit.putInt(entityKey("visibleColor", i), visibleColors[i]);
@@ -516,7 +527,7 @@ public class O extends View {
         }
         void selectTab(int tab) {
             selectedTab = tab; nav.removeAllViews(); body.removeAllViews(); status = null;
-            String[] titles = {"Visuals", "Colors", "Aim", "Status"};
+            String[] titles = {"Visuals", "Colors", "Aim", "Misc", "Status"};
             for (int i = 0; i < titles.length; i++) {
                 final int target = i;
                 TextView item = text(titles[i], 20, i == tab ? 0xFF0C201A : MUTED);
@@ -530,7 +541,8 @@ public class O extends View {
                 case 0: buildVisualsTab(); break;
                 case 1: buildColorsTab(); break;
                 case 2: buildAimTab(); break;
-                case 3: buildStatusTab(); break;
+                case 3: buildMiscTab(); break;
+                case 4: buildStatusTab(); break;
             }
         }
 
@@ -698,7 +710,8 @@ public class O extends View {
             toggle("Enable aim", -2, aimEnabled);
 
             section("Target types", null);
-            aimTargetToggle("Enemies", AIM_ENEMIES);
+            aimTargetToggle("Enemy players", AIM_ENEMIES);
+            aimTargetToggle("Teammates", AIM_TEAMMATES);
             aimTargetToggle("Bots", AIM_BOTS);
 
             section("Aim point", null);
@@ -753,6 +766,13 @@ public class O extends View {
             body.addView(row, new LayoutParams(-1, 48));
         }
 
+        /* ---- Misc tab ---- */
+        void buildMiscTab() {
+            section("Weapon", null);
+            toggle("No recoil", -8, noRecoil);
+            toggle("No spread", -9, noSpread);
+        }
+
         /* ---- Status tab ---- */
         void buildStatusTab() {
             section("Raycast debug", "Collected collision bounds; not an engine physics trace.");
@@ -789,6 +809,8 @@ public class O extends View {
                         case -5: rayViews = checked; break;
                         case -6: rayLos = checked; break;
                         case -7: rayBounds = checked; break;
+                        case -8: noRecoil = checked; break;
+                        case -9: noSpread = checked; break;
                     }
                     saveSettings(); if (inst != null) inst.invalidate();
                 }

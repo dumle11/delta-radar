@@ -71,6 +71,7 @@ static void _diag(const char *msg) {
 }
 
 #include "engine_visibility.h"
+#include "engine_weapon.h"
 
 /*
  * Neutralise the verification function's termination path.
@@ -1252,14 +1253,16 @@ static void *injected_scanner_thread(void *arg) {
             use_gworld, use_actor_src, use_root_off, use_pos_off, use_ctw);
         if ((seq == 1 || seq % 300 == 0) && !atomic_load(&ev_ready)) {
             int bound = ev_initialize();
-            _diag(bound ? "visibility: engine query bound on GameThread" : "visibility: engine query unavailable; colors unknown");
+            _diag(bound ? "visibility: engine trace ready" : "visibility: engine trace unavailable");
         }
         atomic_store(&ea_config, _ov_aim_config());
+        _ov_misc_config();
         ev_update(n);
+        ew_update(atomic_load(&ev_local_pawn));
         if (seq <= 5 || seq % 100 == 0) {
             char vis_diag[160];
-            snprintf(vis_diag, sizeof(vis_diag), "engine LOS: ready=%d tid=%d callbacks=%u batches=%u traces=%u",
-                atomic_load(&ev_ready), atomic_load(&ev_game_tid), atomic_load(&ev_callbacks),
+            snprintf(vis_diag, sizeof(vis_diag), "engine LOS: ready=%d batches=%u traces=%u",
+                atomic_load(&ev_ready),
                 atomic_load(&ev_batches), atomic_load(&ev_traces));
             _diag(vis_diag);
             snprintf(vis_diag,sizeof(vis_diag),"aim: enabled=%d ready=%d state=%u target=%lx corrections=%u",
@@ -1278,13 +1281,17 @@ static void *injected_scanner_thread(void *arg) {
             static int pd_logged = 0;
             if (seq <= 5 || seq % 300 == 0) {
                 for (int ei = 0; ei < n && ei < 18; ei++) {
-                    char evbuf[120];
-                    snprintf(evbuf, sizeof(evbuf), "  e[%d] eng=%d blocked=0x%02X vis=%d vk=%d %s",
-                        ei, entities[ei].engine_visible, entities[ei].visibility_ray_mask,
+                    char evbuf[200];
+                    snprintf(evbuf, sizeof(evbuf),
+                        "  e[%d] k=%s t=%d hp=%d/%d pt=%d vis=%d vk=%d eng=%d blk=0x%02X dead=%d act=%d %s",
+                        ei, entities[ei].kind, entities[ei].team,
+                        (int)entities[ei].health, (int)entities[ei].max_health,
+                        entities[ei].position_plaintext,
                         entities[ei].visible_from_camera, entities[ei].visibility_known,
+                        entities[ei].engine_visible, entities[ei].visibility_ray_mask,
+                        entities[ei].dead, entities[ei].actor_address != 0,
                         entities[ei].name);
                     _diag(evbuf);
-
                 }
             }
             if (seq <= 5 || seq % 100 == 0) {
@@ -1559,6 +1566,8 @@ static void *injected_scanner_thread(void *arg) {
     }
 
 cleanup:
+    ew_release();
+    self_memory_close(&ew_writer);
     atomic_store(&ea_config, 0);
     atomic_store(&ev_ready, 0);
     self_memory_close(&ev_reader);

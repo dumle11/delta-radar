@@ -1,5 +1,55 @@
 # Delta Radar — Handoff (2026-11-15)
 
+## Current weapon work (2026-11-15, evening)
+
+This section supersedes older architecture/deployment notes below. At the start
+of this task another session had replaced the GameThread bridge: visibility
+calls ProcessEvent on the scanner thread and aim writes controller rotation
+directly. Those prior changes were preserved. No loader or anti-cheat changes
+were made during weapon debugging.
+
+`internal/native/engine_weapon.h` now selects the active weapon from
+WeaponManager.RuntimeContext.CurrentActiveWeapon (+0x218), validates ownership,
+resolves both function (+0xB68) and data (+0xAC8) weak component lists, and finds
+GPWeaponDataComponentFiring.FireRecoilMethod (+0x578). FireShake's DFM cache can
+be null after switching weapons. Weak-reference serials are validated against
+the live FUObjectItem layout (observed +0x14); ambiguous layouts fail closed.
+
+Overrides change typed scalar/flag fields and restore originals on disable,
+weapon change or scanner cleanup. Kernel-checked writes reject invalid or
+read-only destinations. Opaque recoil runtime blocks, curves, maps and arrays
+are preserved. The original spread code used FWeaponDataSpread offsets on
+FWeaponSpreadConfig; corrected fields are +4 through +0x18 and +0x68 in each
+hip/aim config. Recoil supports DFM and PUBGM layouts.
+
+Live binding succeeded on both equipped weapons (38 recoil, 19 shake and 14
+spread fields), but the user still reported camera climb. Counters alone are
+not proof of correct behavior. Static native tracing then identified the missing
+per-shot pose factors: DFM code at +0xBBC65C8 selects config +0xA28..+0xA3C
+for standing/crouching/prone after reading cached patterns. The latest build
+sets those twelve hip/aim factors to -1 (50 recoil fields). Native aggregation
+starts at 1 and clamps negative totals to zero; the zero-factor build still
+climbed. The active firing component and first-person weapon match, and logs
+showed no host rewrites. **Latest physical
+test is pending; do not mark no-recoil fixed yet.** Bullet dispersion has not
+been measured quantitatively.
+
+Latest installed library SHA256:
+`a534cc66dba78e211bce727db5999de719b41e667e8fb57f75dbd595122d8981`.
+Device `20f9aa6c`, app UID `u0_a556`. Logs are app-private `cache/d`, not logcat.
+The game was restarted to load the pose-factor build; the user was asked to
+test both weapons in the firing range. Two unexpected process exits occurred
+during earlier diagnostics; no fresh crash tombstone established their cause.
+Avoid further external process-memory probes; internal typed logs suffice.
+
+Validation: native NDK build, weapon regression and five host fixtures
+(safe reads, projection, bounds visibility, entity types, FNames) passed.
+The old engine visibility/aim fixtures reference removed bridge markers and
+fail during source extraction. Evidence from intermediate builds is under
+`docs/weapon-2026-11-15/`; it does not establish final-build success.
+
+## Historical notes
+
 ## Internal aim assistance (2026-11-15)
 
 The internal overlay's previously unused aim settings now drive native

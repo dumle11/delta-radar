@@ -11,6 +11,7 @@ static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt;
 static jmethodID _ov_circle;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam;
+static jmethodID _ov_gnr, _ov_gns;
 static int _ov_ready;
 static int _ov_w, _ov_h;
 static int _ov_dex_loaded;
@@ -123,7 +124,10 @@ static int _ov_load_dex(void) {
     _ov_gab = (*env)->GetStaticMethodID(env, _ov_cls, "gab", "()I");
     _ov_gaa = (*env)->GetStaticMethodID(env, _ov_cls, "gaa", "()Z");
     _ov_gam = (*env)->GetStaticMethodID(env, _ov_cls, "gam", "()I");
-
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    _ov_gnr = (*env)->GetStaticMethodID(env, _ov_cls, "gnr", "()Z");
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    _ov_gns = (*env)->GetStaticMethodID(env, _ov_cls, "gns", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     if (!_ov_z || !_ov_b || !_ov_r || !_ov_f || !_ov_l || !_ov_t ||
         !_ov_e || !_ov_gw || !_ov_gh || !_ov_ok || !_ov_gvc || !_ov_grd || !_ov_dt) {
@@ -598,12 +602,23 @@ static unsigned _ov_aim_config(void) {
     int enabled = (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_ga);
     int fov = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gaf);
     int bone = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gab);
-    int mask = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gam) & 5;
+    int mask = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gam) & 7;
+    int autoshoot = _ov_gaa ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gaa) : 0;
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return 0; }
     if (fov<5) fov=5; if (fov>45) fov=45;
     if (bone<0 || bone>2) bone=2;
-    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16);
+    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u);
 }
+static void _ov_misc_config(void) {
+    if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); return; }
+    JNIEnv *env = _ov_env(); if (!env) return;
+    int nr = _ov_gnr ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gnr) : 0;
+    int ns = _ov_gns ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gns) : 0;
+    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); nr = ns = 0; }
+    atomic_store(&ew_no_recoil, nr);
+    atomic_store(&ew_no_spread, ns);
+}
+
 static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {
     unsigned config = atomic_load(&ea_config);
     if (!(config&1)) return;
@@ -612,7 +627,10 @@ static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {
     unsigned status=atomic_load(&ea_status);
     int color=status==2 ? (int)0xFF00FF00 : (int)0xDDFFFFFF;
     (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_circle,_ov_w*0.5f,_ov_h*0.5f,radius,color);
-    const char *text=status==2 ? "Aim: locked" : status==3 ? "Aim: unavailable" : "Aim: searching";
+    int autoshoot_on = (config >> 24) & 1;
+    int shooting = atomic_load(&ea_autoshoot_active);
+    const char *text=status==2 ? (shooting ? "Aim: FIRE" : "Aim: locked") :
+        status==3 ? "Aim: unavailable" : autoshoot_on ? "Aim+AS: searching" : "Aim: searching";
     _ov_debug_text(env,text,20,(float)_ov_h-28,color);
 }
 
@@ -629,6 +647,8 @@ static void _ov_draw_esp(void) {
 
     _ov_w = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gw);
     _ov_h = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gh);
+    atomic_store(&ea_screen_w, _ov_w);
+    atomic_store(&ea_screen_h, _ov_h);
     if (_ov_w <= 0 || _ov_h <= 0) {
         (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_e);
         return;
