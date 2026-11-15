@@ -16,8 +16,9 @@ from pathlib import Path
 import sys
 data = Path(sys.argv[1]).read_bytes()
 Path(sys.argv[2]).write_text(
-    'static const unsigned char _overlay_dex[] = {' +
-    ','.join('0x%02x' % b for b in data) + '};\n' +
+    'static const unsigned char _overlay_dex[] = {\n' +
+    ''.join('    ' + ','.join('0x%02x' % b for b in data[i:i+16]) + ',\n'
+            for i in range(0, len(data), 16)) + '};\n' +
     'static const unsigned int _overlay_dex_len = %d;\n' % len(data)
 )
 print('Generated overlay_dex.h (%d bytes)' % len(data))

@@ -10,7 +10,7 @@ static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt;
 static jmethodID _ov_circle;
-static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam;
+static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz;
 static jmethodID _ov_gnr, _ov_gns;
 static int _ov_ready;
 static int _ov_w, _ov_h;
@@ -123,6 +123,7 @@ static int _ov_load_dex(void) {
     _ov_gas = (*env)->GetStaticMethodID(env, _ov_cls, "gas", "()I");
     _ov_gab = (*env)->GetStaticMethodID(env, _ov_cls, "gab", "()I");
     _ov_gaa = (*env)->GetStaticMethodID(env, _ov_cls, "gaa", "()Z");
+    _ov_gaz = (*env)->GetStaticMethodID(env, _ov_cls, "gaz", "()Z");
     _ov_gam = (*env)->GetStaticMethodID(env, _ov_cls, "gam", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gnr = (*env)->GetStaticMethodID(env, _ov_cls, "gnr", "()Z");
@@ -266,6 +267,8 @@ static int _ov_check_ready(void) {
     if (_ov_ready) {
         _ov_w = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gw);
         _ov_h = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gh);
+    atomic_store(&ea_screen_w, _ov_w);
+    atomic_store(&ea_screen_h, _ov_h);
         char dbuf[48];
         snprintf(dbuf, sizeof(dbuf), "ov: rdy %dx%d", _ov_w, _ov_h);
         _diag(dbuf);
@@ -604,10 +607,11 @@ static unsigned _ov_aim_config(void) {
     int bone = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gab);
     int mask = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gam) & 7;
     int autoshoot = _ov_gaa ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gaa) : 0;
+    int autozoom = _ov_gaz ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gaz) : 0;
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return 0; }
     if (fov<5) fov=5; if (fov>45) fov=45;
     if (bone<0 || bone>2) bone=2;
-    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u);
+    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u) | (autozoom?1u<<25:0u);
 }
 static void _ov_misc_config(void) {
     if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); return; }
@@ -621,17 +625,23 @@ static void _ov_misc_config(void) {
 
 static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {
     unsigned config = atomic_load(&ea_config);
-    if (!(config&1)) return;
-    float radius=aim_radius_pixels((float)_ov_w,cam[5],(config>>8)&255);
-    if (!(radius>0)) return;
-    unsigned status=atomic_load(&ea_status);
-    int color=status==2 ? (int)0xFF00FF00 : (int)0xDDFFFFFF;
-    (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_circle,_ov_w*0.5f,_ov_h*0.5f,radius,color);
-    int autoshoot_on = (config >> 24) & 1;
-    int shooting = atomic_load(&ea_autoshoot_active);
-    const char *text=status==2 ? (shooting ? "Aim: FIRE" : "Aim: locked") :
-        status==3 ? "Aim: unavailable" : autoshoot_on ? "Aim+AS: searching" : "Aim: searching";
-    _ov_debug_text(env,text,20,(float)_ov_h-28,color);
+    if (config & 1) {
+        float radius = aim_radius_pixels((float)_ov_w, cam[5], (config >> 8) & 255);
+        unsigned status = atomic_load(&ea_status);
+        int color = status == 2 ? (int)0xFF00FF00 : (int)0xDDFFFFFF;
+        if (radius > 0) (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_circle,
+            _ov_w * 0.5f, _ov_h * 0.5f, radius, color);
+        const char *text = status == 2 ? "Aim: locked" :
+            status == 3 ? "Aim: unavailable" : "Aim: searching";
+        _ov_debug_text(env, text, 20, (float)_ov_h - 28, color);
+    }
+    if (config & (1u << 24)) {
+        unsigned status = atomic_load(&et_status);
+        const char *text = status == 2 ? "Trigger: firing" :
+            status == 3 ? "Trigger: unavailable" : status == 4 ? "Trigger: zooming" : "Trigger: ready";
+        _ov_debug_text(env, text, 20, (float)_ov_h - ((config & 1) ? 56 : 28),
+            status == 2 ? (int)0xFF00FF00 : (int)0xDDFFFFFF);
+    }
 }
 
 static void _ov_draw_esp(void) {

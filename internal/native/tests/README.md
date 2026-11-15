@@ -7,6 +7,8 @@ python3 internal/native/tests/test_visibility.py
 python3 internal/native/tests/test_engine_visibility.py
 python3 internal/native/tests/test_engine_aim.py
 python3 internal/native/tests/test_engine_weapon.py
+python3 internal/native/tests/test_engine_trigger.py
+python3 internal/native/tests/test_engine_fire.py
 python3 internal/native/tests/test_entity_types.py
 python3 internal/native/tests/test_fnames.py
 ```
@@ -89,3 +91,20 @@ rotation math, and one balanced SetIgnoreLookInput increment/decrement. It also
 checks release on covered aim points, death, disable, expiry, possession change,
 object recycling and scanner stop. The Android bitmap fixture checks an outlined,
 centered acquisition circle and its presentation with ESP disabled.
+
+The trigger fixture runs the production center-screen physics query and first-hit
+selection against synthetic objects. It covers enemy/NPC hits, teammates, walls,
+empty/failed queries, death/unknown health, weak-pointer recycling, sustained
+hold, disabling, and input-backend failure. Trigger operation is independent of
+Aim and does not use the aim FOV as a firing gate.
+
+The internal fire fixture runs production UFunction binding and GameThread-only
+start/stop dispatch with a synthetic engine. It verifies SDK ownership, native
+entry and 4-byte argument layout, zero/unassigned native-function serials,
+non-game-thread and nested callback exclusion, one sustained start with a balanced
+stop, target/weapon/possession switches, death, stale data, disable, recycled
+objects, and scanner shutdown. A name-only thread check is not used in production:
+the SDK GetGGameThreadId accessor is signature-checked to identify Unreal's thread.
+The native fire bridge patches the verified Actor::ProcessEvent vtable slot on
+local controller/pawn classes. Visibility and aim calculations keep their existing
+scanner path. No touch input, root helper, or screen fire-button position is used.

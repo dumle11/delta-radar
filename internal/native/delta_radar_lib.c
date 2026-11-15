@@ -1269,6 +1269,11 @@ static void *injected_scanner_thread(void *arg) {
                 (atomic_load(&ea_config)&1)!=0,atomic_load(&ea_ready),atomic_load(&ea_status),
                 (unsigned long)atomic_load(&ea_locked_actor),atomic_load(&ea_corrections));
             _diag(vis_diag);
+            snprintf(vis_diag,sizeof(vis_diag),"trigger: enabled=%d state=%u hit=%lx queries=%u starts=%u stops=%u callbacks=%u tid=%d reject=%u",
+                (atomic_load(&ea_config) & (1u<<24)) != 0, atomic_load(&et_status),
+                (unsigned long)atomic_load(&et_hit_actor), atomic_load(&et_queries), atomic_load(&ef_starts),
+                atomic_load(&ef_stops), atomic_load(&ef_callbacks), atomic_load(&ef_game_tid), atomic_load(&ef_reject));
+            _diag(vis_diag);
             int visible = 0;
             for (int vi = 0; vi < n; vi++) visible += entities[vi].visible_from_camera != 0;
             char dbuf[144];
@@ -1566,6 +1571,8 @@ static void *injected_scanner_thread(void *arg) {
     }
 
 cleanup:
+    et_release();
+    ea_release();
     ew_release();
     self_memory_close(&ew_writer);
     atomic_store(&ea_config, 0);

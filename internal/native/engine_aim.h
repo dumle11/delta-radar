@@ -1,7 +1,5 @@
 #ifndef INTERNAL_ENGINE_AIM_H
 #define INTERNAL_ENGINE_AIM_H
-#include <sys/ioctl.h>
-#include <linux/input.h>
 /* Direct memory-write aim. No ProcessEvent calls for rotation — writes
  * ControlRotation directly on the controller. Runs on the scanner thread.
  * No vtable hooks, no game-thread interception. */
@@ -11,46 +9,6 @@ static _Atomic int ea_ready;
 static _Atomic int ea_autoshoot_active;
 static _Atomic int ea_screen_w, ea_screen_h;
 static EVObject ea_controller_obj, ea_target, ea_world_obj, ea_pawn_obj;
-
-/* Touch injection for autoshoot — writes raw input_event to /dev/input. */
-static int ea_touch_fd = -1;
-static int ea_touch_slot = 9;
-struct ea_input_event { uint32_t sec, usec; uint16_t type, code; int32_t value; };
-
-static int ea_touch_open(void) {
-    if (ea_touch_fd >= 0) return 1;
-    for (int i = 0; i < 10; i++) {
-        char path[32];
-        snprintf(path, sizeof(path), "/dev/input/event%d", i);
-        int fd = open(path, O_WRONLY | O_NONBLOCK);
-        if (fd < 0) continue;
-        unsigned long bits[2] = {0};
-        if (ioctl(fd, EVIOCGBIT(0, sizeof(bits)), bits) >= 0 &&
-            (bits[0] & (1UL << 3))) {
-            ea_touch_fd = fd;
-            return 1;
-        }
-        close(fd);
-    }
-    return 0;
-}
-static void ea_touch_write(uint16_t type, uint16_t code, int32_t value) {
-    struct ea_input_event ev = {0, 0, type, code, value};
-    write(ea_touch_fd, &ev, sizeof(ev));
-}
-static void ea_touch_down(int x, int y) {
-    ea_touch_write(3, 0x2f, ea_touch_slot);
-    ea_touch_write(3, 0x39, ea_touch_slot + 100);
-    ea_touch_write(3, 0x35, x);
-    ea_touch_write(3, 0x36, y);
-    ea_touch_write(3, 0x30, 50);
-    ea_touch_write(0, 0, 0);
-}
-static void ea_touch_up(void) {
-    ea_touch_write(3, 0x2f, ea_touch_slot);
-    ea_touch_write(3, 0x39, -1);
-    ea_touch_write(0, 0, 0);
-}
 
 /* SetIgnoreLookInput offset: APlayerController::bIgnoreLookInput is a
  * counter-style flag. We write ControlRotation directly each frame instead
@@ -81,8 +39,6 @@ static void ea_bind_controller(uint64_t controller) {
 }
 
 static void ea_release(void) {
-    if (atomic_exchange(&ea_autoshoot_active, 0) && ea_touch_fd >= 0)
-        ea_touch_up();
     memset(&ea_controller_obj, 0, sizeof(ea_controller_obj));
     memset(&ea_target, 0, sizeof(ea_target));
     atomic_store(&ea_locked_actor, 0);
@@ -214,19 +170,5 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
     /* Write rotation directly to controller memory. */
     ea_write_rotation(controller, rotation[0], rotation[1]);
 
-    /* Autoshoot: inject fire touch when locked and target is clear. */
-    int autoshoot = (aim_config >> 24) & 1;
-    int was_shooting = atomic_load(&ea_autoshoot_active);
-    if (autoshoot && choices[chosen].eligible && ea_touch_open()) {
-        if (!was_shooting) {
-            int fw = atomic_load(&ea_screen_w); if (fw <= 0) fw = 2400;
-            int fh = atomic_load(&ea_screen_h); if (fh <= 0) fh = 1080;
-            ea_touch_down(fw * 85 / 100, fh * 45 / 100);
-            atomic_store(&ea_autoshoot_active, 1);
-        }
-    } else if (was_shooting) {
-        ea_touch_up();
-        atomic_store(&ea_autoshoot_active, 0);
-    }
 }
 #endif

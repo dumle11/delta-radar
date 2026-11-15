@@ -1,0 +1,420 @@
+[37921.035]   occ[6] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.035]   occ[7] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.035]   occ[8] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.035]   occ[9] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.035]   occ[10] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.035]   occ[11] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.036]   occ[12] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.036]   occ[13] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.036]   occ[14] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.036]   occ[15] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37921.036] nonprim classes: 19 types
+[37921.036]   np[0] n=330 SceneComponent
+[37921.036]   np[1] n=1 CameraTransComponent
+[37921.036]   np[2] n=1 GameAkComponent
+[37921.036]   np[3] n=57 CameraComponent
+[37921.036]   np[4] n=4 SceneCaptureComponent2D
+[37921.036]   np[5] n=122 SpotLightComponent
+[37921.036]   np[6] n=40 DirectionalLightComponent
+[37921.036]   np[7] n=41 SkyLightComponent
+[37921.036]   np[8] n=5 PostProcessComponent
+[37921.036]   np[9] n=8 SphereReflectionCaptureComponent
+[37921.036]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[37921.036]   np[11] n=6 BoxReflectionCaptureComponent
+[37921.036]   np[12] n=30 PointLightComponent
+[37921.036]   np[13] n=9 LocalLightGroupBakeComponent
+[37921.036]   np[14] n=6 ExponentialHeightFogComponent
+[37921.036]   np[15] n=2 SkyAtmosphereComponent
+[37921.037] frame 6300: render end
+[37921.037] loop n=18 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=145 w=720ebc8960
+[37921.097] weapon shot: id=eafa30970000007f spawn=-0.14952,-69.51979 fire=-0.14952,-69.51979 control=-0.03579,-69.48335 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37921.184] weapon shot: id=eafa309700000080 spawn=0.04003,-69.41624 fire=0.04003,-69.41624 control=-0.03579,-69.48334 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37921.250] weapon shot: id=eafa309700000081 spawn=0.33945,-69.43268 fire=0.33945,-69.43268 control=-0.03543,-69.48460 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37921.316] weapon shot: id=eafa309700000082 spawn=0.40705,-69.47573 fire=0.40705,-69.47573 control=-0.03929,-69.48577 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37921.419] weapon shot: id=eafa309700000083 spawn=0.23464,-69.42888 fire=0.23464,-69.42888 control=-0.02990,-69.48041 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37921.503] weapon shot: id=eafa309700000084 spawn=0.46182,-69.53009 fire=0.46182,-69.53009 control=-0.04002,-69.48656 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37921.535] weapon shot: id=eafa309700000085 spawn=0.49611,-69.57820 fire=0.49611,-69.57820 control=-0.03149,-69.48725 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37921.639] weapon shot: id=eafa309700000086 spawn=0.25863,-69.75229 fire=0.25863,-69.75229 control=-0.02837,-69.48712 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37921.705] weapon shot: id=eafa309700000087 spawn=0.41269,-69.64771 fire=0.41269,-69.64771 control=-0.03891,-69.48495 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.071] weapon shot: id=eafa309800000089 spawn=-0.11911,-69.53170 fire=-0.11911,-69.53170 control=-0.03552,-69.48337 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.174] weapon shot: id=eafa30980000008a spawn=0.12150,-69.42626 fire=0.12150,-69.42626 control=-0.03641,-69.48362 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.238] weapon shot: id=eafa30980000008b spawn=0.39579,-69.53216 fire=0.39579,-69.53216 control=-0.03776,-69.48247 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.303] weapon shot: id=eafa30980000008c spawn=0.45458,-69.58058 fire=0.45458,-69.58058 control=-0.03776,-69.48247 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.436] weapon shot: id=eafa30980000008d spawn=0.35709,-69.68337 fire=0.35709,-69.68337 control=-0.04317,-69.47966 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.469] weapon shot: id=eafa30980000008e spawn=0.62719,-69.87695 fire=0.62719,-69.87695 control=-0.04168,-69.48360 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.570] weapon shot: id=eafa30980000008f spawn=0.63903,-69.96519 fire=0.63903,-69.96519 control=-0.03410,-69.48463 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.651] weapon shot: id=eafa309800000090 spawn=0.26672,-69.56914 fire=0.26672,-69.56914 control=-0.02856,-69.48444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.704] weapon shot: id=eafa309800000091 spawn=0.27396,-69.56067 fire=0.27396,-69.56067 control=-0.02856,-69.48444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.784] weapon shot: id=eafa309800000092 spawn=0.14087,-69.43980 fire=0.14087,-69.43980 control=-0.04320,-69.48238 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.849] weapon shot: id=eafa309800000093 spawn=0.05813,-69.30376 fire=0.05813,-69.30376 control=-0.04271,-69.47950 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37922.968] weapon shot: id=eafa309900000094 spawn=-0.05558,-69.04155 fire=-0.05558,-69.04155 control=-0.04444,-69.47939 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.017] weapon shot: id=eafa309900000095 spawn=0.25572,-69.00235 fire=0.25572,-69.00235 control=-0.03578,-69.47798 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.099] weapon shot: id=eafa309900000096 spawn=0.41201,-69.09824 fire=0.41201,-69.09824 control=-0.03214,-69.49079 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.183] weapon shot: id=eafa309900000097 spawn=0.41134,-68.94235 fire=0.41134,-68.94235 control=-0.02744,-69.48474 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.249] weapon shot: id=eafa309900000098 spawn=0.61435,-69.09283 fire=0.61435,-69.09283 control=-0.03499,-69.48283 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.262] frame 6400: read begin
+[37923.277] engine LOS: ready=1 batches=5406 traces=224566
+[37923.277] aim: enabled=1 ready=1 state=2 target=71cf240010 corrections=1006
+[37923.277] trigger: enabled=1 state=1 hit=72b782a880 queries=5360 starts=32 stops=32 callbacks=4235 tid=7586 reject=0
+[37923.277] frame 6400: read end n=18 camera=1 occ=119 visible=1 read_ms=15
+[37923.277] visibility: actors=526 primitive_rej=689 flags_rej=230 bounds_rej=0 size_rej=0 added=119
+[37923.277] occ_rej: badread=0 nocol=168(wall=0,floor=0) nochan=62
+[37923.277]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37923.277]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37923.277]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[37923.277]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[37923.277]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[37923.277]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[37923.277]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37923.277]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37923.277]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[37923.277]   occ[1] org=-30000,12202,12321 ext=1099,1099,679 SM_Miniworld_SkyCube3
+[37923.277]   occ[2] org=-30000,12202,12321 ext=1102,1102,679 SM_Miniworld_SkyCube
+[37923.277]   occ[3] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[4] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[5] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[6] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[7] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[8] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[9] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[10] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[11] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[12] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[13] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[14] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277]   occ[15] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37923.277] nonprim classes: 19 types
+[37923.277]   np[0] n=330 SceneComponent
+[37923.277]   np[1] n=1 CameraTransComponent
+[37923.277]   np[2] n=1 GameAkComponent
+[37923.277]   np[3] n=57 CameraComponent
+[37923.277]   np[4] n=4 SceneCaptureComponent2D
+[37923.277]   np[5] n=122 SpotLightComponent
+[37923.277]   np[6] n=40 DirectionalLightComponent
+[37923.278]   np[7] n=41 SkyLightComponent
+[37923.278]   np[8] n=5 PostProcessComponent
+[37923.278]   np[9] n=8 SphereReflectionCaptureComponent
+[37923.278]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[37923.278]   np[11] n=6 BoxReflectionCaptureComponent
+[37923.278]   np[12] n=30 PointLightComponent
+[37923.278]   np[13] n=9 LocalLightGroupBakeComponent
+[37923.278]   np[14] n=6 ExponentialHeightFogComponent
+[37923.278]   np[15] n=2 SkyAtmosphereComponent
+[37923.279] frame 6400: render end
+[37923.279] loop n=18 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=145 w=720ebc8960
+[37923.310] weapon: wpn=72b7fa4600 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=5315/5316
+[37923.310] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[37923.310] weapon runtime: source=7194fd7090 self_dc=7194fd7090 game_dc=7194fd7090 shot=55 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=1717
+[37923.310] weapon peers: gp=72b7fa4600 fp=0 tp=7195e5ba40 weapon=72b7fa4600 fp=72b7fa4600 tp=7195e5ba40
+[37923.315] weapon shot: id=eafa309900000099 spawn=0.58918,-69.07864 fire=0.58918,-69.07864 control=-0.04252,-69.48318 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.379] weapon shot: id=eafa30990000009a spawn=0.57574,-69.22355 fire=0.57574,-69.22355 control=-0.04533,-69.48631 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.499] weapon shot: id=eafa30990000009b spawn=0.31130,-69.49635 fire=0.31130,-69.49635 control=-0.04265,-69.48495 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.547] weapon shot: id=eafa30990000009c spawn=0.34155,-69.57407 fire=0.34155,-69.57407 control=-0.03380,-69.48629 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.627] weapon shot: id=eafa30990000009d spawn=0.25167,-69.65959 fire=0.25167,-69.65959 control=-0.03064,-69.48167 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.707] weapon shot: id=eafa30990000009e spawn=-0.02212,-69.82069 fire=-0.02212,-69.82069 control=-0.02906,-69.48083 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.775] weapon shot: id=eafa30990000009f spawn=0.12312,-69.82116 fire=0.12312,-69.82116 control=-0.03478,-69.48206 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.838] weapon shot: id=eafa3099000000a0 spawn=0.05945,-69.79300 fire=0.05945,-69.79300 control=-0.03144,-69.48133 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37923.919] weapon shot: id=eafa309a000000a1 spawn=0.02843,-69.89602 fire=0.02843,-69.89602 control=-0.04266,-69.48331 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.020] weapon shot: id=eafa309a000000a2 spawn=-0.22249,-70.19868 fire=-0.22249,-70.19868 control=-0.03974,-69.48668 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.083] weapon shot: id=eafa309a000000a3 spawn=-0.06405,-70.02112 fire=-0.06405,-70.02112 control=-0.03033,-69.48634 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.147] weapon shot: id=eafa309a000000a4 spawn=-0.04041,-70.08266 fire=-0.04041,-70.08266 control=-0.03574,-69.48372 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.279] weapon shot: id=eafa309a000000a5 spawn=-0.26915,-70.18832 fire=-0.26915,-70.18832 control=-0.02857,-69.48752 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.311] weapon shot: id=eafa309a000000a6 spawn=-0.11948,-70.16606 fire=-0.11948,-70.16606 control=-0.03498,-69.48550 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.406] weapon shot: id=eafa309a000000a7 spawn=-0.03129,-70.07304 fire=-0.03129,-70.07304 control=-0.03292,-69.47992 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.454] weapon shot: id=eafa309a000000a8 spawn=0.03257,-70.05425 fire=0.03257,-70.05425 control=-0.04090,-69.47931 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.553] weapon shot: id=eafa309a000000a9 spawn=-0.08294,-70.08625 fire=-0.08294,-70.08625 control=-0.02916,-69.48825 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.618] weapon shot: id=eafa309a000000aa spawn=0.20684,-70.08173 fire=0.20684,-70.08173 control=-0.03502,-69.48507 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.681] weapon shot: id=eafa309a000000ab spawn=0.31433,-70.09068 fire=0.31433,-70.09068 control=-0.04266,-69.48599 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.797] weapon shot: id=eafa309a000000ac spawn=0.22540,-69.82254 fire=0.22540,-69.82254 control=-0.04355,-69.48419 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.839] cam: 27,-148,2 y=-69.5 p=-0.0 f=77.3 n=18 pt=1
+[37924.844] weapon shot: id=eafa309a000000ad spawn=0.42714,-69.84892 fire=0.42714,-69.84892 control=-0.03533,-69.48282 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.924] weapon shot: id=eafa309b000000ae spawn=0.46778,-69.80254 fire=0.46778,-69.80254 control=-0.03278,-69.48154 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37924.987] weapon shot: id=eafa309b000000af spawn=0.50536,-69.80050 fire=0.50536,-69.80050 control=-0.04369,-69.48689 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.087] weapon shot: id=eafa309b000000b0 spawn=0.31416,-69.78970 fire=0.31416,-69.78970 control=-0.02904,-69.48074 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.184] weapon shot: id=eafa309b000000b1 spawn=0.44425,-69.68932 fire=0.44425,-69.68932 control=-0.03420,-69.48057 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.215] weapon shot: id=eafa309b000000b2 spawn=0.40540,-69.67985 fire=0.40540,-69.67985 control=-0.04192,-69.48275 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.315] weapon shot: id=eafa309b000000b3 spawn=0.18678,-69.66984 fire=0.18678,-69.66984 control=-0.04171,-69.47934 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.380] weapon shot: id=eafa309b000000b4 spawn=0.33602,-69.54319 fire=0.33602,-69.54319 control=-0.03566,-69.48267 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.409] frame 6500: read begin
+[37925.445] weapon shot: id=eafa309b000000b5 spawn=0.33514,-69.45525 fire=0.33514,-69.45525 control=-0.03221,-69.48448 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.457] engine LOS: ready=1 batches=5506 traces=226666
+[37925.457] aim: enabled=1 ready=1 state=2 target=71cf240010 corrections=1106
+[37925.457] trigger: enabled=1 state=1 hit=72b782a880 queries=5460 starts=32 stops=32 callbacks=4300 tid=7586 reject=0
+[37925.457] frame 6500: read end n=18 camera=1 occ=119 visible=1 read_ms=48
+[37925.457] visibility: actors=526 primitive_rej=689 flags_rej=232 bounds_rej=0 size_rej=0 added=119
+[37925.457] occ_rej: badread=0 nocol=170(wall=0,floor=0) nochan=62
+[37925.457]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37925.457]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37925.457]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[37925.457]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[37925.457]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[37925.457]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[37925.457]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37925.457]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37925.457]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[37925.457]   occ[1] org=-30000,12202,12321 ext=1099,1099,679 SM_Miniworld_SkyCube3
+[37925.457]   occ[2] org=-30000,12202,12321 ext=1102,1102,679 SM_Miniworld_SkyCube
+[37925.457]   occ[3] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[4] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[5] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[6] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[7] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[8] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[9] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[10] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[11] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[12] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[13] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[14] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457]   occ[15] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37925.457] nonprim classes: 19 types
+[37925.457]   np[0] n=330 SceneComponent
+[37925.457]   np[1] n=1 CameraTransComponent
+[37925.457]   np[2] n=1 GameAkComponent
+[37925.457]   np[3] n=57 CameraComponent
+[37925.457]   np[4] n=4 SceneCaptureComponent2D
+[37925.457]   np[5] n=122 SpotLightComponent
+[37925.457]   np[6] n=40 DirectionalLightComponent
+[37925.457]   np[7] n=41 SkyLightComponent
+[37925.457]   np[8] n=5 PostProcessComponent
+[37925.457]   np[9] n=8 SphereReflectionCaptureComponent
+[37925.458]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[37925.458]   np[11] n=6 BoxReflectionCaptureComponent
+[37925.458]   np[12] n=30 PointLightComponent
+[37925.458]   np[13] n=9 LocalLightGroupBakeComponent
+[37925.458]   np[14] n=6 ExponentialHeightFogComponent
+[37925.458]   np[15] n=2 SkyAtmosphereComponent
+[37925.459] frame 6500: render end
+[37925.459] loop n=18 posted=-1 sock=-1 fail=7 zero=0 st=5 ac=145 w=720ebc8960
+[37925.511] weapon shot: id=eafa309b000000b6 spawn=0.30302,-69.47159 fire=0.30302,-69.47159 control=-0.04476,-69.48085 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.611] weapon shot: id=eafa309b000000b7 spawn=0.09548,-69.42087 fire=0.09548,-69.42087 control=-0.02854,-69.48708 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.708] weapon shot: id=eafa309b000000b8 spawn=0.21629,-69.31118 fire=0.21629,-69.31118 control=-0.04031,-69.48833 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.757] weapon shot: id=eafa309b000000b9 spawn=0.22118,-69.27669 fire=0.22118,-69.27669 control=-0.04340,-69.54424 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.857] weapon shot: id=eafa309b000000ba spawn=-0.00296,-69.49252 fire=-0.00296,-69.49252 control=-0.02603,-69.61541 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.922] weapon shot: id=eafa309c000000bb spawn=0.10435,-69.44753 fire=0.10435,-69.44753 control=-0.03315,-69.66651 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37925.987] weapon shot: id=eafa309c000000bc spawn=0.16116,-69.47544 fire=0.16116,-69.47544 control=-0.04042,-69.72192 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.103] weapon shot: id=eafa309c000000bd spawn=-0.02529,-69.67366 fire=-0.02529,-69.67366 control=-0.04460,-69.77839 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.150] weapon shot: id=eafa309c000000be spawn=0.14761,-69.69439 fire=0.14761,-69.69439 control=-0.03341,-69.87614 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.230] weapon shot: id=eafa309c000000bf spawn=0.17219,-69.72112 fire=0.17219,-69.72112 control=-0.03164,-69.90411 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.277] weapon shot: id=eafa309c000000c0 spawn=0.23909,-69.73984 fire=0.23909,-69.73984 control=-0.03164,-69.90411 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.390] weapon shot: id=eafa309c000000c1 spawn=0.06335,-69.69082 fire=0.06335,-69.69082 control=-0.03164,-69.90411 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.485] weapon shot: id=eafa309c000000c2 spawn=0.25576,-69.68815 fire=0.25576,-69.68815 control=-0.03164,-69.90411 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.516] weapon shot: id=eafa309c000000c3 spawn=0.28993,-69.65992 fire=0.28993,-69.65992 control=-0.03164,-69.90411 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.616] weapon shot: id=eafa309c000000c4 spawn=0.17250,-69.66716 fire=0.17250,-69.66716 control=-0.03164,-69.90411 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.678] weapon shot: id=eafa309c000000c5 spawn=0.40603,-69.69915 fire=0.40603,-69.69915 control=-0.03164,-69.90411 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.689] cam: 27,-146,2 y=-69.9 p=-0.0 f=77.3 n=18 pt=1
+[37926.743] weapon shot: id=eafa309c000000c6 spawn=0.44549,-69.73748 fire=0.44549,-69.73748 control=-0.03164,-69.90411 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.823] weapon shot: id=eafa309c000000c7 spawn=0.42404,-69.77399 fire=0.42404,-69.77399 control=-0.03164,-69.90411 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37926.922] weapon shot: id=eafa309d000000c8 spawn=0.18677,-69.20950 fire=0.18677,-69.20950 control=359.96835,290.88638 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.002] weapon shot: id=eafa309d000000c9 spawn=0.07293,-69.15164 fire=0.07293,-69.15164 control=359.71649,290.86844 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.050] weapon shot: id=eafa309d000000ca spawn=-1.01789,-69.15546 fire=-1.01789,-69.15546 control=358.57166,290.86844 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.147] weapon shot: id=eafa309d000000cb spawn=-1.35348,-69.82533 fire=-1.35348,-69.82533 control=358.45731,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.211] weapon shot: id=eafa309d000000cc spawn=-0.39020,-69.76305 fire=-0.39020,-69.76305 control=359.33267,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.291] weapon shot: id=eafa309d000000cd spawn=-0.28824,-69.72621 fire=-0.28824,-69.72621 control=359.46469,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.391] weapon shot: id=eafa309d000000ce spawn=-0.13659,-69.72766 fire=-0.13659,-69.72766 control=359.63257,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.454] weapon shot: id=eafa309d000000cf spawn=-0.29427,-70.00198 fire=-0.29427,-70.00198 control=359.63257,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.518] weapon shot: id=eafa309d000000d0 spawn=-0.16661,-69.90234 fire=-0.16661,-69.90234 control=359.63257,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.579] frame 6600: read begin
+[37927.584] weapon shot: id=eafa309d000000d1 spawn=-0.18438,-69.86493 fire=-0.18438,-69.86493 control=359.63257,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.595] engine LOS: ready=1 batches=5606 traces=228702
+[37927.595] aim: enabled=1 ready=1 state=1 target=0 corrections=1142
+[37927.595] trigger: enabled=1 state=1 hit=72b782a880 queries=5560 starts=32 stops=32 callbacks=4366 tid=7586 reject=0
+[37927.595] frame 6600: read end n=18 camera=1 occ=118 visible=0 read_ms=16
+[37927.595]   e[0] k=p t=1 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=0 act=1 CeciliKeyi45
+[37927.595]   e[1] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B1
+[37927.595]   e[2] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B2
+[37927.595]   e[3] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B3
+[37927.595]   e[4] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B4
+[37927.595]   e[5] k=a t=2 hp=0/0 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B5
+[37927.595]   e[6] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B6
+[37927.595]   e[7] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B7
+[37927.595]   e[8] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B8
+[37927.595]   e[9] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B9
+[37927.595]   e[10] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B10
+[37927.595]   e[11] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B11
+[37927.595]   e[12] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B12
+[37927.595]   e[13] k=a t=2 hp=7/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B13
+[37927.595]   e[14] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B14
+[37927.595]   e[15] k=a t=2 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B15
+[37927.595]   e[16] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B16
+[37927.595]   e[17] k=a t=2 hp=0/0 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 HeroCameraActorShootingArea
+[37927.595] visibility: actors=526 primitive_rej=689 flags_rej=235 bounds_rej=0 size_rej=0 added=118
+[37927.595] occ_rej: badread=0 nocol=172(wall=0,floor=0) nochan=63
+[37927.595]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37927.595]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37927.595]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[37927.595]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[37927.595]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[37927.595]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[37927.595]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37927.595]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37927.595]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[37927.595]   occ[1] org=-30000,12202,12321 ext=1099,1099,679 SM_Miniworld_SkyCube3
+[37927.595]   occ[2] org=-30000,12202,12321 ext=1102,1102,679 SM_Miniworld_SkyCube
+[37927.595]   occ[3] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[4] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[5] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[6] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[7] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[8] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[9] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[10] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[11] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[12] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[13] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[14] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595]   occ[15] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37927.595] nonprim classes: 19 types
+[37927.595]   np[0] n=330 SceneComponent
+[37927.595]   np[1] n=1 CameraTransComponent
+[37927.595]   np[2] n=1 GameAkComponent
+[37927.595]   np[3] n=57 CameraComponent
+[37927.595]   np[4] n=4 SceneCaptureComponent2D
+[37927.596]   np[5] n=122 SpotLightComponent
+[37927.596]   np[6] n=40 DirectionalLightComponent
+[37927.596]   np[7] n=41 SkyLightComponent
+[37927.596]   np[8] n=5 PostProcessComponent
+[37927.596]   np[9] n=8 SphereReflectionCaptureComponent
+[37927.596]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[37927.596]   np[11] n=6 BoxReflectionCaptureComponent
+[37927.596]   np[12] n=30 PointLightComponent
+[37927.596]   np[13] n=9 LocalLightGroupBakeComponent
+[37927.596]   np[14] n=6 ExponentialHeightFogComponent
+[37927.596]   np[15] n=2 SkyAtmosphereComponent
+[37927.597] frame 6600: render end
+[37927.597] loop n=18 posted=-1 sock=-1 fail=2 zero=0 st=5 ac=145 w=720ebc8960
+[37927.662] weapon: wpn=72b7fa4600 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=5515/5516
+[37927.662] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[37927.662] weapon runtime: source=7194fd7090 self_dc=7194fd7090 game_dc=7194fd7090 shot=111 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=2053
+[37927.662] weapon peers: gp=72b7fa4600 fp=0 tp=7195e5ba40 weapon=72b7fa4600 fp=72b7fa4600 tp=7195e5ba40
+[37927.682] weapon shot: id=eafa309d000000d2 spawn=-0.23299,-69.77934 fire=-0.23299,-69.77934 control=359.80048,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.778] weapon shot: id=eafa309d000000d3 spawn=-0.07055,-69.85567 fire=-0.07055,-69.85567 control=359.80048,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.825] weapon shot: id=eafa309d000000d4 spawn=0.12903,-69.89886 fire=0.12903,-69.89886 control=359.96835,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.909] weapon shot: id=eafa309e000000d5 spawn=0.15887,-69.85965 fire=0.15887,-69.85965 control=359.96835,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37927.988] weapon shot: id=eafa309e000000d6 spawn=0.19530,-69.90664 fire=0.19530,-69.90664 control=0.13626,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37928.051] weapon shot: id=eafa309e000000d7 spawn=0.39581,-69.92192 fire=0.39581,-69.92192 control=0.13626,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37928.062] cam: 28,-144,2 y=-69.6 p=0.1 f=77.3 n=18 pt=1
+[37928.117] weapon shot: id=eafa309e000000d8 spawn=0.43989,-69.96799 fire=0.43989,-69.96799 control=0.13626,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37928.216] weapon shot: id=eafa309e000000d9 spawn=0.33477,-69.75332 fire=0.33477,-69.75332 control=0.13626,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37928.296] weapon shot: id=eafa309e000000da spawn=0.56443,-69.81624 fire=0.56443,-69.81624 control=0.13626,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37928.360] weapon shot: id=eafa309e000000db spawn=0.57139,-69.79990 fire=0.57139,-69.79990 control=0.13626,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37928.460] weapon shot: id=eafa309e000000dc spawn=0.34333,-69.76543 fire=0.34333,-69.76543 control=0.13626,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37928.557] weapon shot: id=eafa309e000000dd spawn=0.55117,-69.71998 fire=0.55117,-69.71998 control=0.13626,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37928.588] weapon shot: id=eafa309e000000de spawn=0.59593,-69.66237 fire=0.59593,-69.66237 control=0.13626,290.36444 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37928.688] weapon shot: id=eafa309e000000df spawn=0.59738,-70.92139 fire=0.59738,-70.92139 control=359.96835,288.41272 spread=0.00000,0.00000 kick=0.00000,0.00000
+[37929.131] cam: 30,-143,2 y=-73.3 p=-1.4 f=90.0 n=18 pt=1
+[37929.760] frame 6700: read begin
+[37929.774] engine LOS: ready=1 batches=5706 traces=230702
+[37929.774] aim: enabled=1 ready=1 state=1 target=0 corrections=1142
+[37929.774] trigger: enabled=1 state=1 hit=72b52b0010 queries=5660 starts=32 stops=32 callbacks=4435 tid=7586 reject=0
+[37929.774] frame 6700: read end n=18 camera=1 occ=118 visible=0 read_ms=14
+[37929.774] visibility: actors=526 primitive_rej=689 flags_rej=229 bounds_rej=0 size_rej=0 added=118
+[37929.774] occ_rej: badread=0 nocol=166(wall=0,floor=0) nochan=63
+[37929.774]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37929.774]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37929.774]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[37929.774]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[37929.774]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[37929.774]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[37929.775]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37929.775]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37929.775]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[37929.775]   occ[1] org=-30000,12202,12321 ext=1099,1099,679 SM_Miniworld_SkyCube3
+[37929.775]   occ[2] org=-30000,12202,12321 ext=1102,1102,679 SM_Miniworld_SkyCube
+[37929.775]   occ[3] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[4] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[5] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[6] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[7] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[8] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[9] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[10] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[11] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[12] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[13] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[14] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775]   occ[15] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37929.775] nonprim classes: 19 types
+[37929.775]   np[0] n=330 SceneComponent
+[37929.775]   np[1] n=1 CameraTransComponent
+[37929.775]   np[2] n=1 GameAkComponent
+[37929.775]   np[3] n=57 CameraComponent
+[37929.775]   np[4] n=4 SceneCaptureComponent2D
+[37929.775]   np[5] n=122 SpotLightComponent
+[37929.775]   np[6] n=40 DirectionalLightComponent
+[37929.775]   np[7] n=41 SkyLightComponent
+[37929.775]   np[8] n=5 PostProcessComponent
+[37929.775]   np[9] n=8 SphereReflectionCaptureComponent
+[37929.775]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[37929.775]   np[11] n=6 BoxReflectionCaptureComponent
+[37929.775]   np[12] n=30 PointLightComponent
+[37929.775]   np[13] n=9 LocalLightGroupBakeComponent
+[37929.775]   np[14] n=6 ExponentialHeightFogComponent
+[37929.775]   np[15] n=2 SkyAtmosphereComponent
+[37929.778] frame 6700: render end
+[37929.778] loop n=18 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=145 w=720ebc8960
+[37929.825] cam: 32,-143,2 y=-177.8 p=-3.1 f=90.0 n=18 pt=1
+[37930.598] cam: 33,-141,2 y=114.4 p=-1.5 f=90.0 n=18 pt=1
+[37930.968] cam: 33,-139,2 y=113.6 p=-2.9 f=90.0 n=18 pt=1
+[37931.375] cam: 33,-137,2 y=109.8 p=-2.4 f=90.0 n=18 pt=1
+[37931.545] cam: 33,-136,2 y=110.0 p=-2.2 f=90.0 n=18 pt=1
+[37931.920] cam: 32,-134,2 y=100.3 p=-1.2 f=90.0 n=18 pt=1
+[37931.989] frame 6800: read begin
+[37932.037] engine LOS: ready=1 batches=5806 traces=232702
+[37932.037] aim: enabled=1 ready=1 state=1 target=0 corrections=1142
+[37932.037] trigger: enabled=1 state=1 hit=71ec353c00 queries=5760 starts=32 stops=32 callbacks=4502 tid=7586 reject=0
+[37932.037] frame 6800: read end n=18 camera=1 occ=119 visible=0 read_ms=48
+[37932.037] visibility: actors=526 primitive_rej=689 flags_rej=228 bounds_rej=0 size_rej=0 added=119
+[37932.037] occ_rej: badread=0 nocol=166(wall=0,floor=0) nochan=62
+[37932.037]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37932.037]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[37932.037]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[37932.037]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[37932.037]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[37932.037]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[37932.037]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37932.037]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLcha
+[37932.037]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[37932.037]   occ[1] org=-30000,12202,12321 ext=1099,1099,679 SM_Miniworld_SkyCube3
+[37932.037]   occ[2] org=-30000,12202,12321 ext=1102,1102,679 SM_Miniworld_SkyCube
+[37932.037]   occ[3] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[4] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[5] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[6] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[7] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[8] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[9] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[10] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[11] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[12] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[13] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[14] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037]   occ[15] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[37932.037] nonprim classes: 19 types
+[37932.038]   np[0] n=330 SceneComponent
+[37932.038]   np[1] n=1 CameraTransComponent
+[37932.038]   np[2] n=1 GameAkComponent
+[37932.038]   np[3] n=57 CameraComponent
+[37932.038]   np[4] n=4 SceneCaptureComponent2D
+[37932.038]   np[5] n=122 SpotLightComponent
+[37932.038]   np[6] n=40 DirectionalLightComponent
+[37932.038]   np[7] n=41 SkyLightComponent
+[37932.038]   np[8] n=5 PostProcessComponent
+[37932.038]   np[9] n=8 SphereReflectionCaptureComponent
+[37932.038]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[37932.038]   np[11] n=6 BoxReflectionCaptureComponent
+[37932.038]   np[12] n=30 PointLightComponent
+[37932.038]   np[13] n=9 LocalLightGroupBakeComponent
+[37932.038]   np[14] n=6 ExponentialHeightFogComponent
+[37932.038]   np[15] n=2 SkyAtmosphereComponent
+[37932.040] frame 6800: render end
+[37932.040] loop n=18 posted=-1 sock=-1 fail=7 zero=0 st=5 ac=145 w=720ebc8960
+[37932.072] weapon: wpn=72b7fa4600 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=5715/5716
+[37932.072] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[37932.072] weapon runtime: source=7194fd7090 self_dc=7194fd7090 game_dc=7194fd7090 shot=125 target=-0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=2175
+[37932.072] weapon peers: gp=72b7fa4600 fp=0 tp=7195e5ba40 weapon=72b7fa4600 fp=72b7fa4600 tp=7195e5ba40
+[37932.262] cam: 33,-132,2 y=77.0 p=-1.5 f=90.0 n=18 pt=1
+[37932.748] cam: 33,-129,2 y=76.9 p=-2.6 f=90.0 n=18 pt=1
+[37933.169] cam: 33,-127,2 y=75.6 p=-1.7 f=90.0 n=18 pt=1
+[37933.547] cam: 33,-125,2 y=77.0 p=-2.6 f=90.0 n=18 pt=1
+[37933.939] cam: 32,-123,2 y=77.6 p=-2.9 f=90.0 n=18 pt=1

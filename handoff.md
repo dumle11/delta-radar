@@ -1,5 +1,44 @@
 # Delta Radar — Handoff (2026-11-15)
 
+## Current internal trigger bot — verified (2026-11-15)
+
+**Aim → Trigger bot → Auto shoot** is restored. The user confirmed:
+**“Yes, it fires and stops correctly”** when asked about visible mannequins under
+the crosshair, death, and aiming away. This implementation uses internal methods;
+it does not press screen buttons, inject touchscreen events, or request app root.
+
+- `engine_trigger.h` traces the exact camera-center ray. Only the nearest blocking
+  hit can trigger, and it must resolve to a fresh living enemy player or NPC with
+  known positive health and a current visibility result. Teammates, self, walls,
+  empty rays, unknown results and recycled weak references cannot trigger.
+- `engine_fire.h` binds `GPCharacterBase.StartFire(int32)` / `StopFire(int32)` from
+  the pawn's native class. It verifies owner, 4-byte argument extent, Native flag,
+  and SDK ExecFunction addresses at UFunction +0xD8. Primary FireIndex is zero.
+- Gameplay calls run after an outermost Actor::ProcessEvent on Unreal's actual
+  game thread. The exact-build dispatcher signature and vtable slot 0x45 are
+  checked before patching controller/pawn class tables. Original dispatch runs
+  first. The class-table bridge remains installed for the library/process lifetime.
+- Thread identity comes from the signature-checked SDK `GetGGameThreadId`
+  accessor/global, never a thread-name guess. Native function objects can have
+  an unassigned zero weak serial; first allocation must not suppress StopFire.
+- Start once and hold while eligible; stop on loss of the crosshair target,
+  cover, death, disable, menu opening, expired observations (>100ms), possession,
+  target/weapon change, or scanner shutdown. GameThread callbacks recheck object
+  identity, ownership and pawn/target death before gameplay calls.
+- Trigger works with Aim disabled. The existing FOV circle still controls Aim
+  acquisition; firing requires the exact center-ray hit. No recoil/spread fields
+  were changed by this task.
+
+Local/device SHA256 (matching): `a6f0d566b1b939a264967c59428adefef91e806b46d853ac49571a1440ef1c73`.
+Device `20f9aa6c`; latest evidence is in `docs/trigger-2026-11-15/`. The recorded
+live check reached 32 starts and 32 stops, with valid game-thread callbacks and
+zero rejection flags. Screen captures showed ammunition consumed and target damage.
+Host trigger/fire/weapon and existing read/projection/visibility/type/FName checks
+passed. Android overlay/menu regression passed, including independent Auto shoot
+and menu pause. The older native aim/visibility fixtures still describe the removed
+architecture; they are not evidence for the current fire bridge. Long sessions,
+all weapon fire modes, and broader live-player scenarios remain unverified.
+
 ## Current weapon overrides — verified in firing range (2026-11-15)
 
 The user confirmed **“Both are now steady”** for camera movement and bullet
@@ -60,7 +99,7 @@ were discontinued. The final user-confirmed session remains running.
 
 ## Historical notes
 
-## Internal aim assistance (2026-11-15)
+## Historical internal aim assistance (2026-11-15; architecture superseded)
 
 The internal overlay's previously unused aim settings now drive native
 GameThread aim control. This is separate from the external touch servo.

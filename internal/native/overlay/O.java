@@ -90,6 +90,7 @@ public class O extends View {
     static volatile int aimStrength = 100;
     static volatile int aimBone = 2; // 0=head, 1=chest, 2=body
     static volatile boolean autoShoot = false;
+    static volatile boolean autoZoom = false;
     static volatile int aimTargetMask = 0x5; // enemies + bots
 
     // Misc settings
@@ -135,6 +136,7 @@ public class O extends View {
                     aimStrength = prefs.getInt("aimStr", 100);
                     aimBone = Math.max(0, Math.min(2, prefs.getInt("aimBone", 2)));
                     autoShoot = prefs.getBoolean("autoShoot", false);
+                    autoZoom = prefs.getBoolean("autoZoom", false);
                     aimTargetMask = prefs.getInt("aimMask", AIM_ENEMIES | AIM_BOTS) & AIM_ALL;
                     noRecoil = prefs.getBoolean("noRecoil", false);
                     noSpread = prefs.getBoolean("noSpread", false);
@@ -318,7 +320,8 @@ public class O extends View {
     static int gaf() { return aimFov; }
     static int gas() { return aimStrength; }
     static int gab() { return aimBone; }
-    static boolean gaa() { return autoShoot; }
+    static boolean gaa() { return autoShoot && !menuShown; }
+    static boolean gaz() { return autoZoom; }
     static int gam() { return aimTargetMask; }
 
     /* Misc queries (called from C) */
@@ -335,7 +338,7 @@ public class O extends View {
             .putInt("snapOrigin", snapOrigin)
             .putBoolean("aim", aimEnabled).putInt("aimFov", aimFov)
             .putInt("aimStr", aimStrength).putInt("aimBone", aimBone)
-            .putBoolean("autoShoot", autoShoot).putInt("aimMask", aimTargetMask)
+            .putBoolean("autoShoot", autoShoot).putBoolean("autoZoom", autoZoom).putInt("aimMask", aimTargetMask)
             .putBoolean("rayDebug", rayDebug).putBoolean("rayViews", rayViews)
             .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds)
             .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread);
@@ -709,6 +712,10 @@ public class O extends View {
             section("Aim assist", "Locks onto a live, visible target inside the circle. Disable Aim to release.");
             toggle("Enable aim", -2, aimEnabled);
 
+            section("Trigger bot", "Holds fire while a visible, living enemy is under the crosshair. Works with Aim off.");
+            toggle("Auto shoot", -3, autoShoot);
+            toggle("Auto zoom before shooting", -6, autoZoom);
+
             section("Target types", null);
             aimTargetToggle("Enemy players", AIM_ENEMIES);
             aimTargetToggle("Teammates", AIM_TEAMMATES);
@@ -805,6 +812,7 @@ public class O extends View {
                         case -1: espEnabled = checked; break;
                         case -2: aimEnabled = checked; break;
                         case -3: autoShoot = checked; break;
+                        case -6: autoZoom = checked; break;
                         case -4: rayDebug = checked; break;
                         case -5: rayViews = checked; break;
                         case -6: rayLos = checked; break;

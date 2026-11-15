@@ -1,5 +1,5 @@
 /* Engine-level visibility via direct ProcessEvent calls from the scanner thread.
- * No vtable hooks, no mprotect on game pages, no game-thread interception.
+ * Internal firing uses its separate, validated GameThread bridge.
  * PhysX read queries are thread-safe (shared lock during scene step). */
 #ifndef ENGINE_VISIBILITY_H
 #define ENGINE_VISIBILITY_H
@@ -132,6 +132,7 @@ static int ev_bind(void) {
 }
 
 #include "engine_aim.h"
+#include "engine_trigger.h"
 
 /* Verify ProcessEvent signature and bind. No hooks, no mprotect on UE4 pages. */
 static int ev_initialize(void) {
@@ -204,18 +205,20 @@ static void ev_update(int count) {
         entities[i].engine_visible = -1;
         entities[i].visibility_ray_mask = 0;
     }
-    if (!atomic_load(&ev_ready) || !camera_frame_valid || count <= 0) return;
+    if (!atomic_load(&ev_ready) || !camera_frame_valid || count <= 0) {
+        ea_release(); et_release(); return;
+    }
 
     uint64_t world = diagnostic_world;
     uint64_t gi = read_ptr(world + 0x190), local = read_ptr(read_ptr(gi + 0x38));
     uint64_t pc = read_ptr(local + 0x30), pawn = read_ptr(pc + 0x3f0);
-    if (!is_any_ptr(world) || !is_any_ptr(pawn)) return;
+    if (!is_any_ptr(world) || !is_any_ptr(pawn)) { ea_release(); et_release(); return; }
     atomic_store(&ev_local_pawn, pawn);
 
     Entity *self = NULL;
     for (int i = 0; i < count; i++)
         if (!strcmp(entities[i].id, self_entity_id)) { self = &entities[i]; break; }
-    if (!self || self->dead) return;
+    if (!self || self->dead) { ea_release(); et_release(); return; }
 
     float cam_x = self->x, cam_y = self->y, cam_z = self->z;
 
@@ -232,6 +235,7 @@ static void ev_update(int count) {
     /* Aim integration: compute and apply on scanner thread. */
     unsigned aim_config = atomic_load(&ea_config);
     if (self->dead || !local_player_controlled) aim_config = 0;
+    et_frame(count, cam_x, cam_y, cam_z, self->yaw, self->pitch, aim_config, world, pc, pawn);
     if (aim_config & 1) {
         ea_bind_controller(pc);
         ea_frame_direct(count, cam_x, cam_y, cam_z, self->yaw, self->pitch,

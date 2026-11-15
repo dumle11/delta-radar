@@ -142,6 +142,20 @@ public class OverlayRegression {
         skeleton.setChecked(true);
         check((O.gf(panel.selectedEntityType) & O.F_SKELETON) != 0, "skeleton toggle is wired");
         skeleton.setChecked(false);
+        panel.selectTab(2);
+        Switch autoShoot = null;
+        for (int i = 0; i < panel.body.getChildCount(); i++) {
+            View child = panel.body.getChildAt(i);
+            if (child instanceof Switch && ((Switch) child).getText().toString().equals("Auto shoot"))
+                autoShoot = (Switch) child;
+        }
+        check(autoShoot != null, "Auto shoot switch restored in Aim tab");
+        O.aimEnabled = false;
+        autoShoot.setChecked(true);
+        check(O.gaa() && !O.ga(), "Trigger works independently of Aim");
+        O.menuShown = true; check(!O.gaa(), "Menu pauses trigger requests");
+        O.menuShown = false;
+        autoShoot.setChecked(false); check(!O.gaa(), "Auto shoot switch disables trigger");
         panel.selectTab(1); check(panel.selectedTab == 1, "color tab opens");
         check(O.ET_NAMES[O.ET_NPC].equals("NPCs") && O.ET_NAMES[O.ET_BOT_PLAYER].equals("Bot Players"),
             "NPCs and simulated players have distinct menu entries");
@@ -167,7 +181,7 @@ public class OverlayRegression {
         O.setVisibilityColor(O.ET_NPC, true, 0xFF112233);
         O.setVisibilityColor(O.ET_BOT_PLAYER, true, 0xFF445566);
         check(O.grd() == 0, "ray debug defaults off");
-        panel.selectTab(3);
+        panel.selectTab(4);
         Switch rayToggle = null;
         for (int i = 0; i < panel.body.getChildCount(); i++) {
             View child = panel.body.getChildAt(i);
@@ -198,8 +212,8 @@ public class OverlayRegression {
         panel.updateSwatch(swatch);
         check(swatch.getText().toString().contains("Occluded") &&
             swatch.getText().toString().contains("654321"), "swatch follows entity and visibility");
-        panel.selectTab(3); check(panel.status != null, "live status tab opens");
-        for (int tab = 0; tab < 4; tab++) {
+        panel.selectTab(4); check(panel.status != null, "live status tab opens");
+        for (int tab = 0; tab < 5; tab++) {
             panel.selectTab(tab);
             panel.measure(View.MeasureSpec.makeMeasureSpec(760, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(700, View.MeasureSpec.EXACTLY));
