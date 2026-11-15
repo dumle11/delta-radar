@@ -5,6 +5,10 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <android/dlext.h>
 #include <android/log.h>
 
 #include "zygisk.hpp"
@@ -12,6 +16,13 @@
 using zygisk::Api;
 
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, "zl", __VA_ARGS__)
+
+#ifndef __NR_memfd_create
+#define __NR_memfd_create 279
+#endif
+#ifndef MFD_CLOEXEC
+#define MFD_CLOEXEC 0x0001U
+#endif
 
 static char _target_pkg[32];
 static void _init_pkg() {
@@ -27,7 +38,6 @@ static void _init_pkg() {
 static JavaVM *g_vm = nullptr;
 
 static void *_loader_thread(void *) {
-    /* Brief delay for app framework init, but not so long that ACE reads identity first */
     usleep(200000);
 
     /* Decode lib path at runtime */
@@ -42,10 +52,48 @@ static void *_loader_thread(void *) {
     for (int i = 0; i < 41; i++) lib_path[i] = lp[i] ^ lk;
     lib_path[41] = 0;
 
-    void *h = dlopen(lib_path, RTLD_NOW);
-    if (!h) { LOGD("dlopen: %s", dlerror()); return nullptr; }
-    LOGD("lib loaded");
+    /* Read library file into memory */
+    int fd = open(lib_path, O_RDONLY);
+    if (fd < 0) { LOGD("open fail"); return nullptr; }
+    struct stat st;
+    if (fstat(fd, &st) != 0 || st.st_size < 64) { close(fd); LOGD("stat fail"); return nullptr; }
+    void *buf = mmap(nullptr, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+    if (buf == MAP_FAILED) { LOGD("mmap fail"); return nullptr; }
 
+    /* Copy into a memfd; retain the source file for subsequent launches. */
+    static const unsigned char mn[] = {0x59,0x5a,0x47,0x1e,0x50,0x52,0x50,0x5b,0x56}; /* XOR 0x33 */
+    char mfd_name[16];
+    volatile unsigned char mk = 0x33;
+    for (int i = 0; i < 9; i++) mfd_name[i] = mn[i] ^ mk;
+    mfd_name[9] = 0;
+
+    void *h = nullptr;
+    int mfd = (int)syscall(__NR_memfd_create, mfd_name, MFD_CLOEXEC);
+    if (mfd < 0) {
+        munmap(buf, st.st_size);
+        LOGD("memfd fail, fallback");
+        h = dlopen(lib_path, RTLD_NOW);
+        if (!h) { LOGD("dlopen: %s", dlerror()); return nullptr; }
+    } else {
+        ssize_t written = 0;
+        while (written < st.st_size) {
+            ssize_t r = write(mfd, (char *)buf + written, st.st_size - written);
+            if (r <= 0) break;
+            written += r;
+        }
+        munmap(buf, st.st_size);
+        if (written != st.st_size) { close(mfd); LOGD("write fail"); return nullptr; }
+
+        android_dlextinfo ext_info = {};
+        ext_info.flags = ANDROID_DLEXT_USE_LIBRARY_FD;
+        ext_info.library_fd = mfd;
+        h = android_dlopen_ext(mfd_name, RTLD_NOW, &ext_info);
+        close(mfd);
+        if (!h) { LOGD("memfd dlopen: %s", dlerror()); return nullptr; }
+    }
+
+    LOGD("lib loaded");
     typedef jint (*fn_t)(JavaVM *, void *);
     fn_t onload = (fn_t)dlsym(h, "JNI_OnLoad");
     if (onload && g_vm) {
@@ -55,7 +103,7 @@ static void *_loader_thread(void *) {
     return nullptr;
 }
 
-class DeltaModule : public zygisk::ModuleBase {
+class SvcModule : public zygisk::ModuleBase {
 public:
     void onLoad(Api *api, JNIEnv *env) override {
         this->api = api;
@@ -103,4 +151,4 @@ private:
     bool is_target = false;
 };
 
-REGISTER_ZYGISK_MODULE(DeltaModule)
+REGISTER_ZYGISK_MODULE(SvcModule)

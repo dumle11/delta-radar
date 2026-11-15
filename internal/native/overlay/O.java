@@ -251,6 +251,16 @@ public class O extends View {
     static void t(String txt, float x, float y, int c) {
         if (cv == null) return; pt.setColor(c); cv.drawText(txt, x, y, pt);
     }
+    static void dt(String txt, float x, float y, int c) {
+        if (cv == null) return;
+        float size = pt.getTextSize(); pt.setTextSize(17); pt.setColor(c);
+        int length = pt.breakText(txt, true, Math.max(32, sw - 24), null);
+        if (length < txt.length()) txt = txt.substring(0, Math.max(0, length - 3)) + "...";
+        float width = pt.measureText(txt);
+        x = Math.max(8, Math.min(x, sw - width - 8)); y = Math.max(20, Math.min(y, sh - 8));
+        pf.setColor(0xC0101825); cv.drawRect(x - 3, y - 18, x + width + 3, y + 4, pf);
+        cv.drawText(txt, x, y, pt); pt.setTextSize(size);
+    }
     static void e() {
         Frame complete = drawingFrame;
         if (cv == null || complete == null) return;

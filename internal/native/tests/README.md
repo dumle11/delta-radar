@@ -5,6 +5,7 @@ python3 internal/native/tests/test_safe_reads.py
 python3 internal/native/tests/test_projection.py
 python3 internal/native/tests/test_visibility.py
 python3 internal/native/tests/test_entity_types.py
+python3 internal/native/tests/test_fnames.py
 ```
 
 The tests compile the production helper functions into isolated host programs.
@@ -45,3 +46,15 @@ the executable under `/data/local/tmp`. It reads only its own synthetic memory.
 The entity fixture checks real-player team routing, world-NPC ancestry, native
 class/parent validation when names fail, and one simulated-player category for
 both teams. Visibility also checks target-owned component Outer exclusions.
+
+Raycast debug is under **Status → Raycast debug**. It is off by default and
+persists its four controls. Actor rays use BaseEyeHeight plus validated controller
+rotation, with a labelled body-rotation fallback; the local ray uses CameraCache.
+LOS draws the same five body samples used by visibility. Markers stop at the
+nearest collected bound, and optional amber wireframes identify that bound.
+These are bounds estimates, not engine physics traces. The nearest-hit fixture
+checks list-order independence, exact entry distance, ownership exclusions,
+missing geometry and origin-containing bounds without mutating LOS state.
+The FName fixture covers the live encoded ASCII format, plaintext compatibility,
+false sentinel rejection and unresolved wide names. The Android fixture checks
+that debug controls reach native flags and persist independently.

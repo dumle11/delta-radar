@@ -164,3 +164,10 @@ failed class-name reads. Its host tests pass. PID 9711 then showed green exposed
 targets labelled NPC; the user confirmed some cover works but glass/other walls
 can remain green. It exited at 11:09:43 UTC, and Zygote reported SIGBUS (signal7),
 without a new tombstone/fatal backtrace. No cause is established yet.
+
+The subsequent full-build process PID 10798 completed 603.1 seconds of confirmed
+range observation with user-confirmed responsiveness, then exited approximately
+40 seconds after that window. Zygote reported SIGSEGV at 11:22:35 UTC. The
+SIGBUS-only trace had been stopped at the window end; no fault stack was captured.
+Do not classify this as a stability fix. The newer ray-debug build and its actual
+deployment/disconnect state are documented at the top of `handoff.md`.

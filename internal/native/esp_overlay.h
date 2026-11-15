@@ -8,7 +8,7 @@ static jclass _ov_cls;
 static jmethodID _ov_z, _ov_b, _ov_r, _ov_f, _ov_l, _ov_t, _ov_e, _ov_gw, _ov_gh, _ov_ok;
 static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
-static jmethodID _ov_gvc, _ov_grd;
+static jmethodID _ov_gvc, _ov_grd, _ov_dt;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam;
 static int _ov_ready;
 static int _ov_w, _ov_h;
@@ -109,6 +109,7 @@ static int _ov_load_dex(void) {
     _ov_dx = (*env)->GetStaticMethodID(env, _ov_cls, "dx", "(Ljava/lang/String;)V");
     _ov_gc = (*env)->GetStaticMethodID(env, _ov_cls, "gc", "(I)I");
     _ov_gvc = (*env)->GetStaticMethodID(env, _ov_cls, "gvc", "(IZ)I");
+    _ov_dt = (*env)->GetStaticMethodID(env, _ov_cls, "dt", "(Ljava/lang/String;FFI)V");
     _ov_grd = (*env)->GetStaticMethodID(env, _ov_cls, "grd", "()I");
     _ov_ge = (*env)->GetStaticMethodID(env, _ov_cls, "ge", "()Z");
     _ov_gf = (*env)->GetStaticMethodID(env, _ov_cls, "gf", "(I)I");
@@ -123,7 +124,7 @@ static int _ov_load_dex(void) {
 
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     if (!_ov_z || !_ov_b || !_ov_r || !_ov_f || !_ov_l || !_ov_t ||
-        !_ov_e || !_ov_gw || !_ov_gh || !_ov_ok || !_ov_gvc || !_ov_grd) {
+        !_ov_e || !_ov_gw || !_ov_gh || !_ov_ok || !_ov_gvc || !_ov_grd || !_ov_dt) {
         _diag("ov: mid fail"); return 0;
     }
 
@@ -425,7 +426,7 @@ static int _ov_entity_type(Entity *e) {
 static void _ov_debug_text(JNIEnv *env, const char *text, float x, float y, int color) {
     jstring js = (*env)->NewStringUTF(env, text);
     if (js) {
-        (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t, js, x, y, color);
+        (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_dt, js, x, y, color);
         (*env)->DeleteLocalRef(env, js);
     }
 }
@@ -504,9 +505,25 @@ static void _ov_draw_ray_debug(JNIEnv *env,const float cam[6],int flags) {
     snprintf(caption,sizeof(caption),"cam %.2f %.2f %.2f | yaw %.1f pitch %.1f | view cyan / hit red / LOS green / unknown amber",cam[0],cam[1],cam[2],cam[3],cam[4]);
     _ov_debug_text(env,caption,20,96,(int)0xFFFFFFFF);
     int boxes[64],box_count=0;
+    if(flags&2){
+        float yr=cam[3]*(float)(M_PI/180),pr=cam[4]*(float)(M_PI/180);
+        float target[3]={cam[0]+50*cosf(pr)*cosf(yr),cam[1]+50*cosf(pr)*sinf(yr),cam[2]+50*sinf(pr)};
+        uint64_t self_actor=0;
+        for(int i=0;i<num_entities;i++)if(!strcmp(entities[i].id,self_entity_id))self_actor=entities[i].actor_address;
+        BoundsRayHit hit=trace_debug_bounds(cam,target,self_actor,0);char name[200],line[280];
+        _ov_debug_hit_name(hit.index,name,sizeof(name));
+        snprintf(line,sizeof(line),"LOCAL camera view: %.2fm | inside %d | %s",hit.distance,hit.inside,name);
+        int color=hit.index>=0?(int)0xFFFF5555:hit.incomplete?(int)0xFFFFB300:(int)0xFF46D9FF;
+        _ov_debug_text(env,line,20,120,color);_ov_debug_marker(env,hit.point,cam,color,0);
+        if(hit.index>=0)boxes[box_count++]=hit.index;
+    }
+    int detail_rows=0;
     for(int i=0;i<count;i++){
         Entity *e=&entities[nearest[i]];float label_point[3]={e->x,e->y,e->z+e->half_height},lx,ly;
         int on_screen=_ov_debug_project(label_point,cam,&lx,&ly)&&lx>=0&&lx<_ov_w&&ly>=0&&ly<_ov_h;
+        int detail=on_screen && detail_rows<12;
+        float row_y=160.0f+detail_rows*46.0f;
+        if(detail)detail_rows++;
         char hit_name[200],label[280];
         if(flags&2){
             float origin[3]={e->x,e->y,e->z},target[3];
@@ -529,7 +546,7 @@ static void _ov_draw_ray_debug(JNIEnv *env,const float cam[6],int flags) {
                 int color=hit.index>=0?(int)0xFFFF5555:hit.incomplete?(int)0xFFFFB300:(int)0xFF46D9FF;
                 _ov_debug_segment(env,origin,hit.point,cam,color,2.0f);_ov_debug_marker(env,hit.point,cam,color,0);
                 _ov_debug_hit_name(hit.index,hit_name,sizeof(hit_name));
-                if(on_screen){snprintf(label,sizeof(label),"%s view(%s) %.1fm %s",e->name,source,hit.distance,hit_name);_ov_debug_text(env,label,lx,ly-44,color);}
+                if(detail){snprintf(label,sizeof(label),"%s view(%s) %.1fm: %s",e->name,source,hit.distance,hit_name);_ov_debug_text(env,label,20,row_y,color);}
                 if(hit.index>=0 && box_count<64)boxes[box_count++]=hit.index;
             }
         }
@@ -544,10 +561,12 @@ static void _ov_draw_ray_debug(JNIEnv *env,const float cam[6],int flags) {
                 if(hit.index>=0 && hit.distance<nearest_hit){first=hit.index;nearest_hit=hit.distance;}
             }
             _ov_debug_hit_name(first,hit_name,sizeof(hit_name));
-            if(on_screen){snprintf(label,sizeof(label),"LOS %s (%d/5 blocked; inside %d): %s",states,blocked,inside,hit_name);_ov_debug_text(env,label,lx,ly-22,(int)0xFFFFFFFF);}
+            if(detail){snprintf(label,sizeof(label),"%s LOS %s (%d/5 blocked; inside %d): %s",e->name,states,blocked,inside,hit_name);_ov_debug_text(env,label,20,row_y+21,(int)0xFFFFFFFF);}
             if(first>=0 && box_count<64)boxes[box_count++]=first;
         }
     }
+    snprintf(caption,sizeof(caption),"Details: %d nearest on-screen actors | LOS order: centre / upper / lower / side / side | X hit, O clear, ? unknown",detail_rows);
+    _ov_debug_text(env,caption,20,140,(int)0xFFFFFFFF);
     if(flags&8)for(int i=0;i<box_count;i++){
         int duplicate=0;for(int j=0;j<i;j++)if(boxes[j]==boxes[i])duplicate=1;
         if(!duplicate)_ov_debug_box(env,&occluders[boxes[i]],cam);

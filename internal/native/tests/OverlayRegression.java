@@ -158,6 +158,17 @@ public class OverlayRegression {
         O.prefs = (android.content.SharedPreferences) prefsConstructor.newInstance(settingsFile, 0);
         O.setVisibilityColor(O.ET_NPC, true, 0xFF112233);
         O.setVisibilityColor(O.ET_BOT_PLAYER, true, 0xFF445566);
+        check(O.grd() == 0, "ray debug defaults off");
+        panel.selectTab(3);
+        Switch rayToggle = null;
+        for (int i = 0; i < panel.body.getChildCount(); i++) {
+            View child = panel.body.getChildAt(i);
+            if (child instanceof Switch && ((Switch)child).getText().toString().equals("Enable raycast debug"))
+                rayToggle = (Switch)child;
+        }
+        check(rayToggle != null, "ray debug control exists in Status");
+        rayToggle.setChecked(true); check(O.grd() == 15, "ray debug toggle reaches native flags");
+        O.rayViews = false; check(O.grd() == 13, "actor rays toggle independent of LOS and bounds");
         O.saveSettings();
         check(O.prefs.edit().commit(), "flush saved palette to disk");
         android.content.SharedPreferences reloaded = (android.content.SharedPreferences)
@@ -169,6 +180,10 @@ public class OverlayRegression {
         check(reloaded.getInt("visibleColor.npc", 0) == 0xFF112233 &&
             reloaded.getInt("visibleColor.botPlayer", 0) == 0xFF445566,
             "NPC and player-bot palettes persist independently of old bot/team slots");
+        check(reloaded.getBoolean("rayDebug", false) && !reloaded.getBoolean("rayViews", true) &&
+            reloaded.getBoolean("rayLos", false) && reloaded.getBoolean("rayBounds", false),
+            "ray debug controls persist independently");
+        O.rayDebug = false; O.rayViews = true;
         O.prefs = null; settingsFile.delete();
         panel.colorSlot = 1; panel.colorVisible = false; panel.selectTab(1);
         android.widget.TextView swatch = new android.widget.TextView(context);

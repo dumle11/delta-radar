@@ -1,54 +1,152 @@
 # Delta Radar — Handoff (2026-11-15)
 
-## Current installed build and remaining failures
+## Final compact build installed; loader restart verification underway
 
-The user's requested full overlay is installed, replacing the temporary inert
-probe. **Do not restore the old production backup over this revision.**
-Current SHA256: `175a90e352b031a414bac931e4288debb833653b7600f65dca339912fb38cad3`,
-114624 bytes, deployed at approximately 11:08 UTC. Fixed path
-`/data/data/com.proxima.dfm/libue4patch.so`; verified UID/GID 10556:10556,
-mode 0755, context `u:object_r:app_data_file:s0:c44,c258,c512,c768`.
-Explicit force-stop/relaunch performed; latest launch PID 9711.
-Its maps confirmed inode 2261283 with no deleted suffix.
+The user confirmed the other session's work and supplied an older crash note:
+SIGSEGV/SEGV_ACCERR in `_mask_memory` via JNI_OnLoad while replacing its own
+executable page. That fault is valid for the artifact in that tombstone; it
+cannot explain the clean debug binary by itself. Our current JNI already
+excluded the function. Removing its unused definition left the binary SHA256
+unchanged, confirming it had been eliminated by the compiler. The unsafe helper
+is now removed entirely from source.
 
-Menu groups are Enemies, Teammates, NPCs, Bot Players, Loot. World AI/training
-targets share NPCs; simulated players on either team share Bot Players.
-The new AI groups have independent named preference keys (`.npc`, `.botPlayer`).
-Classification walks native ancestry and uses PlayerState bIsABot. The live
-FName decoder fails some class names despite resolving None, so this revision
-also checks matching 1.202.37119.3601 native class/parent index pairs; names
-remain the fallback for other versions. Recheck these pairs after game updates.
+**Installed compact debug library:** SHA256
+`5ca39c5904d5477b7f7599480408325bed6d2b760dfc9be3be6218120371265a`,
+125808 bytes. Fixed path `/data/data/com.proxima.dfm/libue4patch.so`, UID/GID
+10556:10556, mode0755, corrected file context matching the parent:
+`u:object_r:app_data_file:s0:c44,c258,c512,c768`. Installation and metadata/hash
+verified at approximately 11:46 UTC. The other session's library and loader were
+backed up privately under `/tmp/delta-overlay-entity-test/other-agent-*-before-final.so`.
 
-Default production JNI now initializes the reader and Android UI without the
-legacy identity/config/GOT/code/report-hook startup calls. Existing definitions
-remain unused. Marker: `jni: overlay-v2 npc-and-bot-players; plain-init`.
+The other session's memfd loader remains in use, with its `unlink(lib_path)`
+removed so the source file survives later game starts. New loader SHA256:
+`f8858e7551f94d988cac325239aebe60a9591ed9d77a18f1548016e11eb1f5c3`.
+Built and installed via Magisk; staged module hash verified. Reboot requested to
+activate it. User was asked to unlock normally. **Remaining work:** verify active
+module/hash after reboot, two fresh game loads without recopying the payload,
+payload file persistence/maps/JNI markers, and live compact debug readout in range.
+Do not call the old unexplained SIGBUS/SIGSEGV exits solved without matching
+fault evidence or a bounded test of this exact build.
 
-**Actual runtime findings:** previous full build hash `78031e4b...` loaded in
-PID 7124; its map/inode and JNI marker were verified. Live firing-range capture
-showed the new menu, boxes, lines and labels, but exposed targets were red and
-labelled Bot Player. That process exited after several minutes. User also
-reported subsequent exits before range entry. No crash fix is established.
-The initial black capture was a sleeping/locked phone, not proven game failure.
+No temporary signal trace remains; do not re-enable it. Only the pre-existing
+wifi trace instance was present before this reboot. Clean up the staged module
+zip `/data/local/tmp/delta-zygisk-final.zip` after verification. Entity grouping,
+debug features and test details are documented below (historical deployment
+state in later sections is superseded by this section).
 
-A read-only helper found target-owned components traversed under other actors:
-component UObject Outer matched the target while traversed actor Owner was zero.
-Latest revision records component Outer and excludes it for the matching target,
-in addition to existing actor/Owner exclusions. Native ancestry fallback also
-corrects NPC classification when FName reads fail. Focused host classification
-and visibility tests pass. Live PID 9711 showed exposed targets green and
-correctly labelled NPC. Read-only ancestry inspection confirmed RangeTarget
-1C0D -> DFMCharacter F5F. User confirmed some walls/characters block rays,
-but glass and some other walls still show green. Visibility remains incomplete.
-PID 9711 exited at 11:09:43 UTC; Zygote reported signal 7 (SIGBUS), with no new
-tombstone or fatal backtrace. The bounded monitor saw 15 samples and about
-12.9 seconds after host range-capture confirmation (range entry was earlier).
-This is not a stability fix. Android Canvas/menu regression and DEX/native
-builds passed before deployment.
+## Concurrent deployment detected — resolve before final installation
 
-Private live captures/logs/monitor state: `/tmp/delta-overlay-entity-test/`.
-Do not commit account-bearing screenshots or raw logs. Diagnostic helper is
-`/data/local/.stash/delta-inspect`; remove after use. Other comparison staging
-libraries/executables were removed. Original user's KittyInjector is preserved.
+After reconnect/unlock, another writer had changed `internal/zygisk/loader.cpp`
+and installed a different library on the phone. This turn did not make those
+loader changes or request the reboot. HEAD also advanced from fe0ae19 to e2453f8
+while working. Preserve the concurrent work; do not overwrite blindly.
+
+Current observed phone file SHA256:
+`bb66e001f8d17dfe3b3d2588556b8946edbcf504b0605d10dd35eca091d2057c`,
+125088 bytes, UID/GID 10556:10556, mode 0755, but file context
+`u:object_r:app_data_file:s0:c256,c556`. Parent app directory retains
+`u:object_r:app_data_file:s0:c44,c258,c512,c768`. No game PID was running at
+this observation. New loader code uses memfd and `unlink(lib_path)` before
+loading; deleting that fixed path prevents the next restart from loading it
+unless another component restages the file. Do not modify the other writer's
+loader without coordinating. User was asked which session controls deployment.
+
+The compact ray-debug revision remains built locally (hash below), not deployed.
+The earlier named-ray debug revision **was** installed and visually tested in
+range before the reboot. The latest successful cleanup removed our helper and
+regression preview/dex files. The reboot removed our trace instance (only the
+pre-existing wifi instance remains). `/data/local/tmp/delta-overlay-next.so`
+contains this turn's compact build staging file; remove after coordinated deploy.
+
+## Ray-debug build verified before concurrent changes (historical)
+
+
+**Previously verified phone build:** SHA256
+`5c798baea4c0c677886398317174f2f003a6b654df5deb753b2b58dc03ece09b`,
+125552 bytes, installed at approximately 11:32 UTC. Verified file inode 2261289
+and PID 18532 mapping the same inode, without deleted suffix. Fixed path
+`/data/data/com.proxima.dfm/libue4patch.so`; UID/GID 10556:10556, mode 0755,
+context `u:object_r:app_data_file:s0:c44,c258,c512,c768`. JNI marker:
+`jni: overlay-v3 ray-debug; plain-init`. Explicit restart already performed.
+
+**Locally built compact readout:** SHA256
+`5ca39c5904d5477b7f7599480408325bed6d2b760dfc9be3be6218120371265a`.
+This revision moves overlapping per-actor hit names into separate rows for up to
+12 nearest on-screen actors, while retaining rays/markers for 32 nearest actors
+within 100 m. **Not installed yet: ADB disconnected before any deployment or
+cleanup command could run.** It reconnected after a reboot (boot ID
+`c3f7dc4b-4751-44b7-b4ab-3a18823571a2`), primary user RUNNING_LOCKED.
+Private CE storage is unavailable until normal unlock. A deployment attempt
+failed before replacing the library; do not create replacement app-data dirs.
+User was asked to unlock and clarify whether the reboot was manual. Do not claim the
+compact revision was installed or that the old phone process was force-stopped.
+Reconnect and finish installation, restart, map/hash check and live readout check.
+Do not restore the old backed-up production library over the requested build.
+
+**Temporary trace to clean after reconnect:** isolated ftrace instance
+`/sys/kernel/debug/tracing/instances/delta_overlay_diag`, signal_generate filter
+for SIGBUS/SIGSEGV targeting PID 18532's initial 196 thread IDs, userstacktrace=1,
+512 KB per CPU. It showed zero events during the live debug check. Disable its
+signal event and userstacktrace, then rmdir only this instance. It was still
+active when ADB disconnected; the subsequent reboot removed this trace instance,
+confirmed by listing the instance directory. Do not re-enable tracing on reconnect.
+No ptrace, signal-handler changes or game writes were used. Also remove our `/data/local/.stash/delta-inspect`, temporary
+`/data/local/tmp/delta-ray-regression.dex` and delta-menu-{0,1,2,3}.png previews.
+The original user's KittyInjector must remain.
+
+Menu groups: Enemies, Teammates, NPCs, Bot Players, Loot. World AI/training targets
+share NPCs; simulated players from both teams share Bot Players. New AI groups
+have independent `.npc` and `.botPlayer` preference keys. Native ancestry plus
+PlayerState bIsABot distinguish them. Name fallback also validates matching
+1.202.37119.3601 native class/parent pairs (recheck after game updates).
+
+Status → Raycast debug contains enable, actor view rays (50 m), five camera LOS
+samples and hit-bound wireframes. Default off; **enabled on the phone during
+this live test** and persisted. Rays stop at the nearest collected bound, report
+hit component/object/class names, and use IDs when unresolved. NPCs generally
+have no actual camera; eye height plus validated controller rotation is used,
+otherwise explicitly labelled body rotation. Local ray uses actual CameraCache.
+Camera LOS links start at screen centre; cross markers are projected sample/hit
+points. LOS order: centre, upper, lower, side, side; X=hit, O=clear, ?=unknown.
+These are the existing bounds estimates, not Unreal physics traces.
+
+**Name lookup fix:** matching pool at UE4+0x20688100 contains a validated encoded
+None sentinel with a 2-byte header. Characters are complemented 7-bit ASCII
+(high bit varies between entries). Prior plaintext-only discovery selected an
+unrelated pool at UE4+0x1C186628 with an 8-byte prefix. Verified native
+DFMRangeTargetCharacter bytes and decoded names on the phone. New checked SDK
+pool probing precedes fallback discovery. Live debug displayed names including
+CollisionCylinder, range-target components and environment meshes. Wide names
+remain unresolved instead of displaying corrupted strings.
+
+Production JNI initializes reader/UI without legacy identity/config/GOT/code/
+report hooks. **Crashes are not fixed.** A full-build PID 7124 exited after a
+few minutes; PID 9711 (hash 175a90e3...) showed correct NPC labels/green exposed
+targets but exited at 11:09:43 UTC with SIGBUS and no fresh tombstone/backtrace.
+PID 10798 completed 603.1 seconds of confirmed range observation and the user
+confirmed movement/aim/shoot responsiveness near seven minutes. About 40 seconds
+after the window ended, it exited at 11:22:35 UTC; Zygote reported SIGSEGV.
+The bounded SIGBUS trace had already been stopped, so this exit has no stack.
+Do not describe the ten-minute result as a stability fix.
+
+Visibility is still incomplete: user reports some walls and characters block
+rays, glass/other walls can remain green, and tilting the camera can change
+classification while standing still. Live debug showed 4/5 blocked with one
+clear sample, explaining some green decisions but not validating all surfaces.
+Target-owned component Outer exclusion fixed the original exposed-target false
+red: attached trees included components owned by the target under another actor.
+The debug helper/renderer shares sample construction with visibility and does
+not mutate visibility state during debug traces.
+
+Host visibility, classification, projection and encoded-name fixtures pass.
+Android Canvas/menu regression passes including wired and persisted debug
+controls; DEX/native builds pass. The current phone debug build actually rendered
+named hits, rays, markers and wireframes in range. Compact layout remains to
+install/test after reconnect. Private logs/screens/results:
+`/tmp/delta-overlay-entity-test/`; do not commit these account-bearing captures.
+
+Actual model chams and rendering below the game's HUD remain unimplemented.
+The Android overlay window cannot interleave with internal game UI.
 
 ## Completed loader controls
 

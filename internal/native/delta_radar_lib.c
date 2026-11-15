@@ -70,111 +70,6 @@ static void _diag(const char *msg) {
     fclose(f);
 }
 
-__attribute__((noinline))
-static void _mask_memory(void) {
-    uintptr_t our_fn = (uintptr_t)&_mask_memory;
-
-    static char lbl_jit[22];
-    if (!lbl_jit[0]) {
-        static const unsigned char e[] = {0x31,0x34,0x39,0x23,0x3c,0x3e,0x78,
-            0x3f,0x3c,0x21,0x78,0x36,0x3a,0x31,0x30,0x78,0x36,0x34,0x36,0x3d,0x30};
-        volatile unsigned char k=0x55; for(int i=0;i<21;i++) lbl_jit[i]=e[i]^k; lbl_jit[21]=0;
-    }
-
-    static char lbl_alloc[14];
-    if (!lbl_alloc[0]) {
-        static const unsigned char e[] = {0x26,0x36,0x20,0x31,0x3a,0x6f,
-            0x25,0x27,0x3c,0x38,0x34,0x27,0x2c};
-        volatile unsigned char k=0x55; for(int i=0;i<13;i++) lbl_alloc[i]=e[i]^k; lbl_alloc[13]=0;
-    }
-
-    _diag(lbl_jit);
-    _diag(lbl_alloc);
-
-    char _mp[20]; {
-        static const unsigned char _emp[]={0x65,0x3A,0x38,0x25,0x29,0x65,0x39,0x2F,0x26,0x2C,0x65,0x27,0x2B,0x3A,0x39};
-        volatile unsigned char _k=0x4A; for(int i=0;i<15;i++) _mp[i]=_emp[i]^_k; _mp[15]=0;
-    }
-    FILE *f = fopen(_mp, "r");
-    if (!f) { _diag("mask: maps open fail"); return; }
-
-    typedef struct { uintptr_t start, end; int prot; } _region;
-    _region regs[8];
-    int nregs = 0;
-    char lib_path[256] = {0};
-    char line[512];
-    int found = 0;
-
-    while (fgets(line, sizeof(line), f)) {
-        uintptr_t start = 0, end = 0;
-        unsigned long offset = 0;
-        char perms[8] = {0};
-        char path[256] = {0};
-        int n = sscanf(line, "%lx-%lx %4s %lx %*s %*s %255[^\n]",
-                       &start, &end, perms, &offset, path);
-        if (n < 3) continue;
-
-        if (!found) {
-            if (our_fn >= start && our_fn < end) {
-                found = 1;
-                if (n >= 5 && path[0]) {
-                    char *p = path; while (*p == ' ') p++;
-                    strncpy(lib_path, p, sizeof(lib_path)-1);
-                }
-            } else continue;
-        } else if (start != regs[nregs-1].end) {
-            break;
-        }
-
-        if (nregs < 8) {
-            int prot = 0;
-            if (perms[0] == 'r') prot |= PROT_READ;
-            if (perms[1] == 'w') prot |= PROT_WRITE;
-            if (perms[2] == 'x') prot |= PROT_EXEC;
-            regs[nregs++] = (_region){start, end, prot};
-        }
-    }
-    fclose(f);
-
-    if (!nregs) { _diag("mask: not found"); return; }
-
-    int remapped = 0;
-    for (int i = 0; i < nregs; i++) {
-        size_t sz = regs[i].end - regs[i].start;
-        void *tmp = mmap(NULL, sz, PROT_READ|PROT_WRITE,
-                         MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-        if (tmp == MAP_FAILED) continue;
-
-        syscall(__NR_mprotect, (void*)regs[i].start, sz,
-                PROT_READ|PROT_WRITE);
-        memcpy(tmp, (void*)regs[i].start, sz);
-
-        void *r = mmap((void*)regs[i].start, sz, PROT_READ|PROT_WRITE,
-                       MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
-        if (r == MAP_FAILED) { munmap(tmp, sz); continue; }
-
-        memcpy(r, tmp, sz);
-        munmap(tmp, sz);
-        syscall(__NR_mprotect, r, sz, regs[i].prot);
-
-        const char *lbl = (regs[i].prot & PROT_EXEC) ? lbl_jit : lbl_alloc;
-        syscall(__NR_prctl, PR_SET_VMA, PR_SET_VMA_ANON_NAME, r, sz, lbl);
-        remapped++;
-    }
-
-    if (lib_path[0]) {
-        unlink(lib_path);
-    }
-
-    {
-        char dbuf[200];
-        snprintf(dbuf, sizeof(dbuf),
-                 "mask: regs=%d remapped=%d unlink=%s",
-                 nregs, remapped, lib_path[0] ? lib_path : "none");
-        _diag(dbuf);
-    }
-}
-
 /*
  * Neutralise the verification function's termination path.
  * Two BL instructions at known file offsets call kill(getpid(), SIGKILL).
@@ -1161,7 +1056,7 @@ static void *injected_scanner_thread(void *arg) {
     if (ue4_base > 0) {
         uint64_t gnames_base = ue4_base + OFF_GNAMES_FROM_UE4_BASE;
         static const int blocks_offsets[] = {0x38, 0x10, 0x18, 0x20, 0x28, 0x30, 0x40, 0x48, 0x50};
-        int found_blocks = 0;
+        int found_blocks = try_sdk_fname_pool();
         for (int bi = 0; bi < (int)(sizeof(blocks_offsets)/sizeof(blocks_offsets[0])) && !found_blocks; bi++) {
             uint64_t block0 = safe_read_ptr(gnames_base + blocks_offsets[bi]);
             if (!is_any_ptr(block0)) continue;
@@ -1655,7 +1550,7 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 
     /* Reader/UI startup only. Legacy identity and process-patching routines
      * are deliberately excluded from the production initialization path. */
-    _diag("jni: overlay-v2 npc-and-bot-players; plain-init");
+    _diag("jni: overlay-v3 ray-debug; plain-init");
 
     {
         static char nos[40];

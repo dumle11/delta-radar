@@ -448,6 +448,7 @@ static int is_character_class(uint64_t cls, uint64_t local_class);
 static uint64_t fname_pool_addr = 0;
 static int fname_blocks_off = OFF_FNAME_POOL_BLOCKS;
 static int fname_entry_hdr_size = 2; /* bytes before the ASCII string in FNameEntry */
+static int fname_encoded_ascii;
 
 /* Try to validate a UWorld pointer using SDK dump offsets.
  * Path 1 (SDK dump): UWorld+0xF8 -> ULevel, ULevel+0xC8 -> ActorCluster, ActorCluster+0x28 -> TArray
@@ -986,8 +987,40 @@ static int resolve_fname(int32_t idx, char *out, int out_size) {
     if (len <= 0 || len >= out_size) { out[0] = 0; return 0; }
 
     if (read_mem(block_ptr + entry_off + hdr_sz, out, len) != len) { out[0] = 0; return 0; }
+    if (fname_encoded_ascii) {
+        /* Matching live pool stores complemented 7-bit name characters. The
+         * high bit varies between entries; both 0xFF and 0x7F forms decode. */
+        if (hdr_buf[0] & 1) { out[0] = 0; return 0; } /* Wide: unresolved. */
+        for (int i = 0; i < len; i++) {
+            out[i] = (char)(~(unsigned char)out[i] & 0x7F);
+            if ((unsigned char)out[i] < 32 || (unsigned char)out[i] > 126) {
+                out[0] = 0; return 0;
+            }
+        }
+    }
     out[len] = 0;
     return len;
+}
+
+/* Prefer the matching SDK pool over unrelated plaintext None strings in data.
+ * Validate its header and sentinel before enabling its encoded name format. */
+static int try_sdk_fname_pool(void) {
+    uint64_t pool = ue4_base + OFF_GNAMES_FROM_UE4_BASE;
+    uint64_t block = read_ptr(pool + OFF_FNAME_POOL_BLOCKS);
+    unsigned char entry[6];
+    if (!is_any_ptr(block) || read_mem(block, entry, sizeof(entry)) != sizeof(entry)) return 0;
+    unsigned header = entry[0] | ((unsigned)entry[1] << 8);
+    if ((header >> 6) != 4 || (header & 1)) return 0;
+    int encoded = 0;
+    if (memcmp(entry + 2, "None", 4)) {
+        char decoded[4];
+        for (int i = 0; i < 4; i++) decoded[i] = (char)(~entry[i+2] & 0x7F);
+        if (memcmp(decoded, "None", 4)) return 0;
+        encoded = 1;
+    }
+    fname_pool_addr = pool; fname_blocks_off = OFF_FNAME_POOL_BLOCKS;
+    fname_entry_hdr_size = 2; fname_encoded_ascii = encoded;
+    return 1;
 }
 
 /* ========== RUNNING MODE: Read actors and POST to radar ========== */
@@ -3166,7 +3199,7 @@ int main(int argc, char **argv) {
     if (ue4_base > 0) {
         uint64_t gnames_base = ue4_base + OFF_GNAMES_FROM_UE4_BASE;
         static const int blocks_offsets[] = {0x38, 0x10, 0x18, 0x20, 0x28, 0x30, 0x40, 0x48, 0x50};
-        int found_blocks = 0;
+        int found_blocks = try_sdk_fname_pool();
         for (int bi = 0; bi < (int)(sizeof(blocks_offsets)/sizeof(blocks_offsets[0])) && !found_blocks; bi++) {
             uint64_t block0 = read_ptr(gnames_base + blocks_offsets[bi]);
             if (!is_any_ptr(block0)) continue;
