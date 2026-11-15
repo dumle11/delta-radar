@@ -124,14 +124,14 @@ static void ef_tick(void) {
     if (command.enabled) {
         if (!ev_pe_fn || !ef_same(&command.pawn) || !ef_same(&command.controller)) reject |= 8;
         if (ev_ptr(command.controller.object.address + 0x3f0) != command.pawn.object.address ||
-            !ea_alive(command.pawn.object.address)) reject |= 16;
+            !ea_alive_raw(command.pawn.object.address)) reject |= 16;
         if (!ef_same(&command.weapon) ||
             ev_ptr(ev_ptr(command.pawn.object.address + 0x3b18) + 0x218) != command.weapon.object.address) reject |= 32;
         if (!ef_same_function(&command.start) || !ef_same_function(&command.stop)) reject |= 64;
     }
     atomic_store(&ef_reject, reject);
     int ready = !reject;
-    int fire = ready && command.fire && ef_same(&command.target) && ea_alive(command.target.object.address);
+    int fire = ready && command.fire && ef_same(&command.target) && ea_alive_raw(command.target.object.address);
     if (ef_active.fire && (!fire || command.pawn.object.address != ef_active.pawn.object.address ||
         command.pawn.serial != ef_active.pawn.serial ||
         command.weapon.object.address != ef_active.weapon.object.address || command.weapon.serial != ef_active.weapon.serial || command.target.object.address != ef_active.target.object.address ||
@@ -186,42 +186,24 @@ static int ef_bind_thread(void) {
     return 1;
 }
 static int ef_hook(uint64_t object) {
-    const uint32_t signature[] = {0xd101c3ff, 0xa9067bfd, 0x910183fd, 0x3942e428};
-    uint32_t actual[4];
-    if (!ev_read(ue4_base + EF_ACTOR_PE_RVA, actual, sizeof(actual)) ||
-        memcmp(actual, signature, sizeof(actual))) return 0;
-    uint64_t table = ev_ptr(object), slot = table + EF_PE_SLOT * 8, value = ev_ptr(slot);
-    if (value == (uint64_t)(uintptr_t)ef_process_event) return 1;
-    if (!is_in_ue4(table) || value != ue4_base + EF_ACTOR_PE_RVA) return 0;
-    int protection = 0;
-    for (int i = 0; i < num_regions; i++) if (slot >= regions[i].start && slot + 8 <= regions[i].end) {
-        if (regions[i].perms[0] == 'r') protection |= PROT_READ;
-        if (regions[i].perms[1] == 'w') protection |= PROT_WRITE;
-        if (regions[i].perms[2] == 'x') protection |= PROT_EXEC;
-        break;
-    }
-    if (!(protection & PROT_READ) || (protection & PROT_EXEC)) return 0;
-    long size = sysconf(_SC_PAGESIZE);
-    if (size <= 0) return 0;
-    uintptr_t page = slot & ~((uintptr_t)size - 1);
-    ef_original = (EVProcessEvent)(uintptr_t)(ue4_base + EF_ACTOR_PE_RVA);
-    if (mprotect((void *)page, size, protection | PROT_WRITE)) return 0;
-    uint64_t expected = value;
-    int changed = __atomic_compare_exchange_n((uint64_t *)(uintptr_t)slot, &expected,
-        (uint64_t)(uintptr_t)ef_process_event, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
-    int restored = mprotect((void *)page, size, protection) == 0;
-    return changed && restored;
+    (void)object;
+    return 0;
 }
 static int ef_bind(uint64_t pawn) {
     uint64_t cls = ev_ptr(pawn + 8);
     if (cls == ef_bound_class && ef_same_function(&ef_start) && ef_same_function(&ef_stop)) return 1;
     memset(&ef_start, 0, sizeof(ef_start)); memset(&ef_stop, 0, sizeof(ef_stop));
+    static const unsigned char _ef_gcb[] = {0x12,0x05,0x16,0x3d,0x34,0x27,0x34,0x36,0x21,0x30,0x27,0x17,0x34,0x26,0x30};
+    static const unsigned char _ef_sf[] = {0x06,0x21,0x34,0x27,0x21,0x13,0x3c,0x27,0x30};
+    static const unsigned char _ef_xf[] = {0x06,0x21,0x3a,0x25,0x13,0x3c,0x27,0x30};
+    char w_gcb[16], w_sf[10], w_xf[10];
+    ev_decode(w_gcb, _ef_gcb, 15); ev_decode(w_sf, _ef_sf, 9); ev_decode(w_xf, _ef_xf, 8);
     for (uint64_t current = cls, n = 0; current && n < 32; n++, current = ev_ptr(current + 0x40)) {
         char name[80]; resolve_fname(read_i32(current + OFF_UOBJECT_NAME), name, sizeof(name));
-        if (strcmp(name, "GPCharacterBase")) continue;
+        if (strcmp(name, w_gcb)) continue;
         for (uint64_t field = ev_ptr(current + 0x50), i = 0; field && i < 512; i++, field = ev_ptr(field + 0x28)) {
             resolve_fname(read_i32(field + OFF_UOBJECT_NAME), name, sizeof(name));
-            int start = !strcmp(name, "StartFire"), stop = !strcmp(name, "StopFire");
+            int start = !strcmp(name, w_sf), stop = !strcmp(name, w_xf);
             if ((!start && !stop) || ev_ptr(field + 0x10) != current) continue;
             uint16_t bytes = 0; uint32_t flags = 0;
             if (!ev_read(field + 0xb2, &bytes, 2) || bytes != 4 ||
@@ -257,14 +239,26 @@ static int ef_bind_zoom(EFCommand *c) {
         c->zoom = ef_zoom_bindings;
         if (ef_zoom_valid(c)) return 1;
     }
+    static const unsigned char _wdcp[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x11,0x34,0x21,0x34,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21,0x05,0x27,0x3a,0x2d,0x2c};
+    static const unsigned char _gpim[] = {0x12,0x05,0x1c,0x3b,0x25,0x20,0x21,0x18,0x34,0x3b,0x34,0x32,0x30,0x27};
+    static const unsigned char _oika[] = {0x1a,0x3b,0x1c,0x3b,0x25,0x20,0x21,0x1e,0x30,0x2c,0x14,0x3c,0x38};
+    static const unsigned char _oiku[] = {0x1a,0x3b,0x1c,0x3b,0x25,0x20,0x21,0x1e,0x30,0x2c,0x00,0x3b,0x14,0x3c,0x38};
+    static const unsigned char _gzp[] = {0x12,0x30,0x21,0x0f,0x3a,0x3a,0x38,0x05,0x27,0x3a,0x32,0x27,0x30,0x26,0x26};
+    static const unsigned char _gpwdcp[] = {0x12,0x05,0x02,0x30,0x34,0x25,0x3a,0x3b,0x11,0x34,0x21,0x34,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21,0x05,0x27,0x3a,0x2d,0x2c};
+    static const unsigned char _iz[] = {0x1c,0x26,0x0f,0x3a,0x3a,0x38,0x3c,0x3b,0x32};
+    char s_wdcp[25], s_gpim[15], s_oika[14], s_oiku[16], s_gzp[16], s_gpwdcp[27], s_iz[10];
+    ev_decode(s_wdcp, _wdcp, 24); ev_decode(s_gpim, _gpim, 14);
+    ev_decode(s_oika, _oika, 13); ev_decode(s_oiku, _oiku, 15);
+    ev_decode(s_gzp, _gzp, 15); ev_decode(s_gpwdcp, _gpwdcp, 26);
+    ev_decode(s_iz, _iz, 9);
     EFZoomRefs *z = &c->zoom;
     uint64_t input = ev_ptr(c->controller.object.address + 0x960);
-    uint64_t proxy = ew_find_component_in(c->weapon.object.address, "WeaponDataComponentProxy", 0x878, 0xac8);
+    uint64_t proxy = ew_find_component_in(c->weapon.object.address, s_wdcp, 0x878, 0xac8);
     if (!ef_ref(input, &z->input) || !ef_ref(proxy, &z->proxy) ||
-        !ef_method(input, "GPInputManager", "OnInputKeyAim", 0, 0xc5e816c, &z->aim) ||
-        !ef_method(input, "GPInputManager", "OnInputKeyUnAim", 0, 0xc5e8604, &z->unaim) ||
-        !ef_method(proxy, "WeaponDataComponentProxy", "GetZoomProgress", 4, 0xc6f424c, &z->progress) ||
-        !ef_method(proxy, "GPWeaponDataComponentProxy", "IsZooming", 1, 0x9e9bd34, &z->is_on)) return 0;
+        !ef_method(input, s_gpim, s_oika, 0, 0xc5e816c, &z->aim) ||
+        !ef_method(input, s_gpim, s_oiku, 0, 0xc5e8604, &z->unaim) ||
+        !ef_method(proxy, s_wdcp, s_gzp, 4, 0xc6f424c, &z->progress) ||
+        !ef_method(proxy, s_gpwdcp, s_iz, 1, 0x9e9bd34, &z->is_on)) return 0;
     ef_zoom_weapon = c->weapon; ef_zoom_bindings = *z;
     return ef_zoom_valid(c);
 }

@@ -2709,12 +2709,13 @@ camera_done:
         uint8_t player_dead = 0;
         read_mem(actor_ptrs[i] + OFF_CHARACTER_LAST_IS_DEAD, &character_dead, 1);
         if (has_playerstate) read_mem(player_state + OFF_PLAYER_STATE_DEAD, &player_dead, 1);
-        /* Replicated actor/PlayerState death bits are authoritative. A health
-         * chain is accepted for drawing only; a bad regional-layout candidate
-         * must never hide a visibly alive pawn. */
-        e->dead = (character_dead & 1) != 0 || (player_dead & 1) != 0 ||
-            (health_layout && health_layout->death_trusted && e->health_known &&
-             is_alive < 0.5f && e->health <= 0.01f);
+        /* Replicated death bits + health. Firing range bots reuse actors on
+         * respawn: LastIsDead stays set after health is restored. */
+        int flag_dead = (character_dead & 1) != 0 || (player_dead & 1) != 0;
+        int health_dead = health_layout && health_layout->death_trusted &&
+            e->health_known && is_alive < 0.5f && e->health <= 0.01f;
+        int health_alive = e->health_known && e->health > 0.5f;
+        e->dead = health_dead || (flag_dead && !health_alive);
 
         /* RootComponent is the character capsule. Prefer the engine capsule's
          * actual scaled geometry; the mirrored character copy is version-sensitive. */

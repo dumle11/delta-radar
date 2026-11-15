@@ -1,14 +1,26 @@
 #ifndef INTERNAL_ENGINE_AIM_H
 #define INTERNAL_ENGINE_AIM_H
-/* Direct memory-write aim. No ProcessEvent calls for rotation — writes
- * ControlRotation directly on the controller. Runs on the scanner thread.
- * No vtable hooks, no game-thread interception. */
+/* Direct memory-write aim + direct ProcessEvent autoshoot.
+ * No vtable hooks, no mprotect, no game-thread interception. */
 static _Atomic unsigned ea_config, ea_status, ea_corrections;
 static _Atomic uint64_t ea_locked_actor;
 static _Atomic int ea_ready;
 static _Atomic int ea_autoshoot_active;
 static _Atomic int ea_screen_w, ea_screen_h;
 static EVObject ea_controller_obj, ea_target, ea_world_obj, ea_pawn_obj;
+
+static EVObject ea_fire_start_fn, ea_fire_stop_fn;
+static uint64_t ea_fire_bound_class;
+static _Atomic unsigned ea_fire_starts, ea_fire_stops;
+static int64_t ea_fire_last_send;
+
+static EVObject ea_zoom_aim_fn, ea_zoom_unaim_fn, ea_zoom_progress_fn, ea_zoom_is_on_fn;
+static EVObject ea_zoom_input_obj, ea_zoom_proxy_obj;
+static uint64_t ea_zoom_bound_weapon;
+static int ea_zoom_owned;
+static _Atomic int ea_zoom_progress_val;
+static _Atomic unsigned ea_zooms, ea_unzooms;
+static uint64_t ew_find_component_in(uint64_t weapon, const char *name, uint32_t size, uint32_t list_offset);
 
 /* SetIgnoreLookInput offset: APlayerController::bIgnoreLookInput is a
  * counter-style flag. We write ControlRotation directly each frame instead
@@ -18,16 +30,19 @@ static EVObject ea_controller_obj, ea_target, ea_world_obj, ea_pawn_obj;
 #define EA_OFF_CONTROL_PITCH 0x3D8
 #define EA_OFF_CONTROL_YAW   0x3DC
 
-static int ea_alive(uint64_t actor) {
+static int ea_alive_raw(uint64_t actor) {
     uint8_t dead = 1;
     return is_any_ptr(actor) &&
         ev_read(actor + OFF_CHARACTER_LAST_IS_DEAD, &dead, 1) && !(dead & 1);
+}
+static int ea_alive_entity(const Entity *e) {
+    if (e->health_known && e->health > 0.5f) return 1;
+    return ea_alive_raw(e->actor_address);
 }
 
 static void ea_bind_controller(uint64_t controller) {
     if (atomic_load(&ea_ready)) return;
     if (!is_any_ptr(controller)) return;
-    /* Walk the class hierarchy to verify this is actually a controller. */
     char want[16];
     static const unsigned char ec[] = {0x16,0x3a,0x3b,0x21,0x27,0x3a,0x39,0x39,0x30,0x27};
     ev_decode(want, ec, 10);
@@ -38,7 +53,140 @@ static void ea_bind_controller(uint64_t controller) {
     }
 }
 
+static int ea_bind_fire(uint64_t pawn) {
+    uint64_t cls = ev_ptr(pawn + 8);
+    if (cls == ea_fire_bound_class && ea_fire_start_fn.address && ea_fire_stop_fn.address)
+        return ev_same(&ea_fire_start_fn) && ev_same(&ea_fire_stop_fn);
+    memset(&ea_fire_start_fn, 0, sizeof(ea_fire_start_fn));
+    memset(&ea_fire_stop_fn, 0, sizeof(ea_fire_stop_fn));
+    ea_fire_bound_class = 0;
+    static const unsigned char _ea_gcb[] = {0x12,0x05,0x16,0x3d,0x34,0x27,0x34,0x36,0x21,0x30,0x27,0x17,0x34,0x26,0x30};
+    static const unsigned char _ea_sf[] = {0x06,0x21,0x34,0x27,0x21,0x13,0x3c,0x27,0x30};
+    static const unsigned char _ea_xf[] = {0x06,0x21,0x3a,0x25,0x13,0x3c,0x27,0x30};
+    char want_gcb[16], want_sf[10], want_xf[10];
+    ev_decode(want_gcb, _ea_gcb, 15);
+    ev_decode(want_sf, _ea_sf, 9);
+    ev_decode(want_xf, _ea_xf, 8);
+    for (uint64_t cur = cls, n = 0; cur && n < 32; n++, cur = ev_ptr(cur + 0x40)) {
+        char name[80]; resolve_fname(read_i32(cur + OFF_UOBJECT_NAME), name, sizeof(name));
+        if (strcmp(name, want_gcb)) continue;
+        for (uint64_t field = ev_ptr(cur + 0x50), i = 0; field && i < 512; i++, field = ev_ptr(field + 0x28)) {
+            resolve_fname(read_i32(field + OFF_UOBJECT_NAME), name, sizeof(name));
+            int is_start = !strcmp(name, want_sf), is_stop = !strcmp(name, want_xf);
+            if (!is_start && !is_stop) continue;
+            if (ev_ptr(field + 0x10) != cur) continue;
+            uint16_t bytes = 0; uint32_t flags = 0;
+            if (!ev_read(field + 0xb2, &bytes, 2) || bytes != 4) continue;
+            if (!ev_read(field + 0xb8, &flags, 4) || !(flags & 0x400)) continue;
+            ev_object(field, is_start ? &ea_fire_start_fn : &ea_fire_stop_fn);
+        }
+        break;
+    }
+    ea_fire_bound_class = cls;
+    return ea_fire_start_fn.address && ea_fire_stop_fn.address;
+}
+
+static void ea_fire_stop(uint64_t pawn) {
+    if (atomic_load(&ea_autoshoot_active) && ev_pe_fn &&
+        ea_fire_stop_fn.address && ev_same(&ea_fire_stop_fn) &&
+        ea_alive_raw(pawn)) {
+        int32_t fire_index = 0;
+        ev_pe_fn((void *)(uintptr_t)pawn,
+                 (void *)(uintptr_t)ea_fire_stop_fn.address, &fire_index);
+        atomic_fetch_add(&ea_fire_stops, 1);
+    }
+    atomic_store(&ea_autoshoot_active, 0);
+}
+
+static int ea_find_method(uint64_t object, const unsigned char *owner_enc, int owner_len,
+                          const unsigned char *wanted_enc, int wanted_len,
+                          uint16_t expected_size, uint64_t exec_rva, EVObject *out) {
+    memset(out, 0, sizeof(*out));
+    char owner[40], wanted[40];
+    ev_decode(owner, owner_enc, owner_len);
+    ev_decode(wanted, wanted_enc, wanted_len);
+    for (uint64_t cls = ev_ptr(object + 8), n = 0; cls && n < 32; n++, cls = ev_ptr(cls + 0x40)) {
+        char name[80]; resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name));
+        if (strcmp(name, owner)) continue;
+        for (uint64_t field = ev_ptr(cls + 0x50), i = 0; field && i < 512; i++, field = ev_ptr(field + 0x28)) {
+            resolve_fname(read_i32(field + OFF_UOBJECT_NAME), name, sizeof(name));
+            if (strcmp(name, wanted) || ev_ptr(field + 0x10) != cls) continue;
+            uint16_t size = 0; uint32_t flags = 0;
+            return ev_read(field + 0xb2, &size, 2) && size == expected_size &&
+                ev_read(field + 0xb8, &flags, 4) && (flags & 0x400) &&
+                ev_ptr(field + 0xd8) == ue4_base + exec_rva && ev_object(field, out);
+        }
+        break;
+    }
+    return 0;
+}
+
+static int ea_zoom_bind(uint64_t controller, uint64_t weapon) {
+    if (ea_zoom_bound_weapon == weapon && ea_zoom_aim_fn.address &&
+        ev_same(&ea_zoom_aim_fn) && ev_same(&ea_zoom_unaim_fn) &&
+        ev_same(&ea_zoom_progress_fn) && ev_same(&ea_zoom_is_on_fn) &&
+        ev_same(&ea_zoom_input_obj) && ev_same(&ea_zoom_proxy_obj)) return 1;
+    memset(&ea_zoom_aim_fn, 0, sizeof(ea_zoom_aim_fn));
+    memset(&ea_zoom_unaim_fn, 0, sizeof(ea_zoom_unaim_fn));
+    memset(&ea_zoom_progress_fn, 0, sizeof(ea_zoom_progress_fn));
+    memset(&ea_zoom_is_on_fn, 0, sizeof(ea_zoom_is_on_fn));
+    memset(&ea_zoom_input_obj, 0, sizeof(ea_zoom_input_obj));
+    memset(&ea_zoom_proxy_obj, 0, sizeof(ea_zoom_proxy_obj));
+    ea_zoom_bound_weapon = 0;
+    static const unsigned char _gpim[] = {0x12,0x05,0x1c,0x3b,0x25,0x20,0x21,0x18,0x34,0x3b,0x34,0x32,0x30,0x27};
+    static const unsigned char _oika[] = {0x1a,0x3b,0x1c,0x3b,0x25,0x20,0x21,0x1e,0x30,0x2c,0x14,0x3c,0x38};
+    static const unsigned char _oiku[] = {0x1a,0x3b,0x1c,0x3b,0x25,0x20,0x21,0x1e,0x30,0x2c,0x00,0x3b,0x14,0x3c,0x38};
+    static const unsigned char _wdcp[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x11,0x34,0x21,0x34,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21,0x05,0x27,0x3a,0x2d,0x2c};
+    static const unsigned char _gzp[] = {0x12,0x30,0x21,0x0f,0x3a,0x3a,0x38,0x05,0x27,0x3a,0x32,0x27,0x30,0x26,0x26};
+    static const unsigned char _gpwdcp[] = {0x12,0x05,0x02,0x30,0x34,0x25,0x3a,0x3b,0x11,0x34,0x21,0x34,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21,0x05,0x27,0x3a,0x2d,0x2c};
+    static const unsigned char _iz[] = {0x1c,0x26,0x0f,0x3a,0x3a,0x38,0x3c,0x3b,0x32};
+    char s_wdcp[25]; ev_decode(s_wdcp, _wdcp, 24);
+    uint64_t input = ev_ptr(controller + 0x960);
+    uint64_t proxy = ew_find_component_in(weapon, s_wdcp, 0x878, 0xac8);
+    if (!input || !proxy) return 0;
+    if (!ev_object(input, &ea_zoom_input_obj) || !ev_object(proxy, &ea_zoom_proxy_obj)) return 0;
+    if (!ea_find_method(input, _gpim, 14, _oika, 13, 0, 0xc5e816c, &ea_zoom_aim_fn) ||
+        !ea_find_method(input, _gpim, 14, _oiku, 15, 0, 0xc5e8604, &ea_zoom_unaim_fn) ||
+        !ea_find_method(proxy, _wdcp, 24, _gzp, 15, 4, 0xc6f424c, &ea_zoom_progress_fn) ||
+        !ea_find_method(proxy, _gpwdcp, 26, _iz, 9, 1, 0x9e9bd34, &ea_zoom_is_on_fn)) return 0;
+    ea_zoom_bound_weapon = weapon;
+    return 1;
+}
+
+static void ea_zoom_release(void) {
+    if (ea_zoom_owned && ev_pe_fn && ea_zoom_unaim_fn.address &&
+        ev_same(&ea_zoom_input_obj) && ev_same(&ea_zoom_unaim_fn)) {
+        ev_pe_fn((void *)(uintptr_t)ea_zoom_input_obj.address,
+                 (void *)(uintptr_t)ea_zoom_unaim_fn.address, NULL);
+        atomic_fetch_add(&ea_unzooms, 1);
+    }
+    ea_zoom_owned = 0;
+    atomic_store(&ea_zoom_progress_val, 0);
+}
+
+static int ea_zoom_gate(uint64_t controller, uint64_t weapon) {
+    if (!ea_zoom_bind(controller, weapon)) return 0;
+    uint8_t on = 0xff;
+    float progress = NAN;
+    ev_pe_fn((void *)(uintptr_t)ea_zoom_proxy_obj.address,
+             (void *)(uintptr_t)ea_zoom_is_on_fn.address, &on);
+    ev_pe_fn((void *)(uintptr_t)ea_zoom_proxy_obj.address,
+             (void *)(uintptr_t)ea_zoom_progress_fn.address, &progress);
+    if (on > 1 || !isfinite(progress) || progress < 0 || progress > 1.01f) return 0;
+    atomic_store(&ea_zoom_progress_val, (int)(progress * 1000));
+    if (!on && !ea_zoom_owned) {
+        ev_pe_fn((void *)(uintptr_t)ea_zoom_input_obj.address,
+                 (void *)(uintptr_t)ea_zoom_aim_fn.address, NULL);
+        ea_zoom_owned = 1;
+        atomic_fetch_add(&ea_zooms, 1);
+        return 0;
+    }
+    return on && progress >= 0.99f;
+}
+
 static void ea_release(void) {
+    ea_fire_stop(ea_pawn_obj.address);
+    ea_zoom_release();
     memset(&ea_controller_obj, 0, sizeof(ea_controller_obj));
     memset(&ea_target, 0, sizeof(ea_target));
     atomic_store(&ea_locked_actor, 0);
@@ -128,7 +276,7 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
         choices[choice_count] = (AimChoice){
             e->actor_address,
             aim_screen_distance(camera_cm, cam_yaw, cam_pitch, aim_point),
-            eligible && aim_clear && ea_alive(e->actor_address)
+            eligible && aim_clear && ea_alive_entity(e)
         };
         choice_entity[choice_count] = i;
         choice_count++;
@@ -170,5 +318,34 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
     /* Write rotation directly to controller memory. */
     ea_write_rotation(controller, rotation[0], rotation[1]);
 
+    int autoshoot = (aim_config >> 24) & 1;
+    int auto_zoom = (aim_config >> 25) & 1;
+    int was_shooting = atomic_load(&ea_autoshoot_active);
+    if (autoshoot && choices[chosen].eligible && ev_pe_fn && ea_bind_fire(pawn)) {
+        int zoom_ready = 1;
+        if (auto_zoom) {
+            uint64_t weapon = ev_ptr(ev_ptr(pawn + 0x3b18) + 0x218);
+            zoom_ready = weapon && ea_zoom_gate(controller, weapon);
+        }
+        if (zoom_ready) {
+            struct timespec _now; clock_gettime(CLOCK_MONOTONIC, &_now);
+            int64_t now_ms = (int64_t)_now.tv_sec * 1000 + _now.tv_nsec / 1000000;
+            if (!was_shooting || (now_ms - ea_fire_last_send > 150)) {
+                int32_t fire_index = 0;
+                ev_pe_fn((void *)(uintptr_t)pawn,
+                         (void *)(uintptr_t)ea_fire_start_fn.address, &fire_index);
+                ea_fire_last_send = now_ms;
+                if (!was_shooting) {
+                    atomic_store(&ea_autoshoot_active, 1);
+                    atomic_fetch_add(&ea_fire_starts, 1);
+                }
+            }
+        } else if (was_shooting) {
+            ea_fire_stop(pawn);
+        }
+    } else {
+        if (was_shooting) ea_fire_stop(pawn);
+        if (ea_zoom_owned) ea_zoom_release();
+    }
 }
 #endif

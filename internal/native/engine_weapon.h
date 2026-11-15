@@ -27,6 +27,44 @@ static EWGroup ew_recoil_group, ew_shake_group, ew_kick_group, ew_sway_group, ew
 static EWGroup ew_camera_groups[3];
 static EWGroup ew_spread_gate_group;
 
+static const unsigned char _ew_WMC[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x18,0x34,0x3b,0x34,0x32,0x30,0x27,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21};
+static const unsigned char _ew_WB[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x17,0x34,0x26,0x30};
+static const unsigned char _ew_WFCFS[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x13,0x20,0x3b,0x36,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21,0x13,0x3c,0x27,0x30,0x06,0x3d,0x34,0x3e,0x30};
+static const unsigned char _ew_GPWDCF[] = {0x12,0x05,0x02,0x30,0x34,0x25,0x3a,0x3b,0x11,0x34,0x21,0x34,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21,0x13,0x3c,0x27,0x3c,0x3b,0x32};
+static const unsigned char _ew_WFRD[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x13,0x3c,0x27,0x30,0x07,0x30,0x36,0x3a,0x3c,0x39,0x11,0x13,0x18};
+static const unsigned char _ew_WFRP[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x13,0x3c,0x27,0x30,0x07,0x30,0x36,0x3a,0x3c,0x39,0x05,0x00,0x17,0x12,0x18};
+static const unsigned char _ew_WFCGK[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x13,0x20,0x3b,0x36,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21,0x12,0x20,0x3b,0x1e,0x3c,0x36,0x3e};
+static const unsigned char _ew_WFCGS[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x13,0x20,0x3b,0x36,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21,0x12,0x20,0x3b,0x06,0x22,0x34,0x2c};
+static const unsigned char _ew_WFCS[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x13,0x20,0x3b,0x36,0x16,0x3a,0x38,0x25,0x3a,0x3b,0x30,0x3b,0x21,0x06,0x25,0x27,0x30,0x34,0x31};
+static const unsigned char _ew_WFSD[] = {0x02,0x30,0x34,0x25,0x3a,0x3b,0x13,0x3c,0x27,0x30,0x06,0x25,0x27,0x30,0x34,0x31,0x11,0x13,0x18};
+static const unsigned char _ew_PCM[] = {0x05,0x39,0x34,0x2c,0x30,0x27,0x16,0x34,0x38,0x30,0x27,0x34,0x18,0x34,0x3b,0x34,0x32,0x30,0x27};
+static const unsigned char _ew_GCMWR[] = {0x12,0x05,0x16,0x34,0x38,0x30,0x27,0x34,0x18,0x3a,0x31,0x3c,0x33,0x3c,0x30,0x27,0x0a,0x02,0x30,0x34,0x25,0x3a,0x3b,0x07,0x30,0x36,0x3a,0x3c,0x39};
+static const unsigned char _ew_GCMWGS[] = {0x12,0x05,0x16,0x34,0x38,0x30,0x27,0x34,0x18,0x3a,0x31,0x3c,0x33,0x3c,0x30,0x27,0x0a,0x02,0x30,0x34,0x25,0x3a,0x3b,0x12,0x20,0x3b,0x06,0x22,0x34,0x2c};
+static const unsigned char _ew_GCMF[] = {0x12,0x05,0x16,0x34,0x38,0x30,0x27,0x34,0x18,0x3a,0x31,0x3c,0x33,0x3c,0x30,0x27,0x0a,0x13,0x3c,0x27,0x30};
+static __attribute__((noinline)) const char *ew_d(const unsigned char *enc, int n) {
+    static __thread char _ew_buf[4][96];
+    static __thread int _ew_idx;
+    char *out = _ew_buf[_ew_idx++ & 3];
+    volatile unsigned char k = 0x55;
+    for (int i = 0; i < n; i++) out[i] = enc[i] ^ k;
+    out[n] = 0;
+    return out;
+}
+#define EW_WMC ew_d(_ew_WMC,22)
+#define EW_WB ew_d(_ew_WB,10)
+#define EW_WFCFS ew_d(_ew_WFCFS,28)
+#define EW_GPWDCF ew_d(_ew_GPWDCF,27)
+#define EW_WFRD ew_d(_ew_WFRD,19)
+#define EW_WFRP ew_d(_ew_WFRP,21)
+#define EW_WFCGK ew_d(_ew_WFCGK,26)
+#define EW_WFCGS ew_d(_ew_WFCGS,26)
+#define EW_WFCS ew_d(_ew_WFCS,25)
+#define EW_WFSD ew_d(_ew_WFSD,19)
+#define EW_PCM ew_d(_ew_PCM,19)
+#define EW_GCMWR ew_d(_ew_GCMWR,29)
+#define EW_GCMWGS ew_d(_ew_GCMWGS,30)
+#define EW_GCMF ew_d(_ew_GCMF,21)
+
 /* Kernel-checked destination copy instead of dereferencing a retired object. */
 static int ew_write(uint64_t address, const void *data, size_t size) {
     if (!data || !size || size>4 || address<0x10000 || address>UINTPTR_MAX-size) return 0;
@@ -127,7 +165,7 @@ static uint64_t ew_get_current_weapon(uint64_t pawn) {
     EVObject ref; uint8_t dead=1;
     if (!ev_object(pawn,&ref) || !ev_read(pawn+OFF_CHARACTER_LAST_IS_DEAD,&dead,1) || (dead&1)) return 0;
     uint64_t wm=ev_ptr(pawn+WM_OFF_FROM_PAWN);
-    if (!ew_is_a(wm,"WeaponManagerComponent",0x248) || ev_ptr(wm+0x148)!=pawn) return 0;
+    if (!ew_is_a(wm,EW_WMC,0x248) || ev_ptr(wm+0x148)!=pawn) return 0;
     EVArray list={0};
     if (!ev_read(wm+WM_OFF_WEAPON_LIST,&list,sizeof(list)) ||
         !is_any_ptr(list.data) || list.count<1 || list.count>16 ||
@@ -136,7 +174,7 @@ static uint64_t ew_get_current_weapon(uint64_t pawn) {
     int listed=0;
     for (int i=0;i<list.count;i++) if (ev_ptr(list.data+(uint64_t)i*8)==weapon) listed=1;
     /* Never substitute a holstered weapon for an empty active slot. */
-    if (!listed || !weapon || weapon==ev_ptr(wm+0x1d0) || !ew_is_a(weapon,"WeaponBase",0xbe8) ||
+    if (!listed || !weapon || weapon==ev_ptr(wm+0x1d0) || !ew_is_a(weapon,EW_WB,0xbe8) ||
         ev_ptr(weapon+0xa60)!=pawn) return 0;
     return weapon;
 }
@@ -197,18 +235,18 @@ static int ew_flag(EWGroup *group, uint32_t offset, uint8_t mask) { return ew_se
 static int ew_apply_no_recoil(uint64_t weapon) {
     ew_bad_field=0;
     uint64_t shake=ev_ptr(weapon+WB_OFF_FIRESHAKE_CACHE);
-    if (!ew_is_a(shake,"WeaponFuncComponentFireShake",0x9c0) || !ew_owned_by(shake,weapon))
-        shake=ew_find_component(weapon,"WeaponFuncComponentFireShake",0x9c0);
+    if (!ew_is_a(shake,EW_WFCFS,0x9c0) || !ew_owned_by(shake,weapon))
+        shake=ew_find_component(weapon,EW_WFCFS,0x9c0);
     uint64_t recoil=shake ? ev_ptr(shake+FS_OFF_FIRE_RECOIL) : 0;
     uint64_t source=shake; uint32_t link=FS_OFF_FIRE_RECOIL;
     /* FireShake caches only the DFM implementation. Other weapons keep their
      * actual recoil strategy on GPWeaponDataComponentFiring.FireRecoilMethod. */
     if (shake) {
         uint64_t firing=ev_ptr(shake+0x960);
-        if (!ew_is_a(firing,"GPWeaponDataComponentFiring",0xa08) || !ew_owned_by(firing,weapon))
-            firing=ew_find_component_in(weapon,"GPWeaponDataComponentFiring",0xa08,0xac8);
+        if (!ew_is_a(firing,EW_GPWDCF,0xa08) || !ew_owned_by(firing,weapon))
+            firing=ew_find_component_in(weapon,EW_GPWDCF,0xa08,0xac8);
         ew_firing_seen=firing;
-        if (ew_is_a(firing,"GPWeaponDataComponentFiring",0xa08) && ew_owned_by(firing,weapon)) {
+        if (ew_is_a(firing,EW_GPWDCF,0xa08) && ew_owned_by(firing,weapon)) {
             uint64_t method=ev_ptr(firing+0x578);
             if (method) { recoil=method; source=firing; link=0x578; }
         }
@@ -221,8 +259,8 @@ static int ew_apply_no_recoil(uint64_t weapon) {
         if (ev_object(recoil,&ref)) resolve_fname(read_i32(ref.cls+OFF_UOBJECT_NAME),type,sizeof(type));
         snprintf(line,sizeof(line),"weapon implementation: %s object=%lx",type,(unsigned long)recoil); _diag(line);
     }
-    int dfm=ew_is_a(recoil,"WeaponFireRecoilDFM",0x1db0);
-    int pubgm=!dfm && ew_is_a(recoil,"WeaponFireRecoilPUBGM",0xb8);
+    int dfm=ew_is_a(recoil,EW_WFRD,0x1db0);
+    int pubgm=!dfm && ew_is_a(recoil,EW_WFRP,0xb8);
     if (!shake || (!dfm && !pubgm)) {
         ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); ew_restore_group(&ew_sway_group); return 0;
     }
@@ -268,7 +306,7 @@ static int ew_apply_no_recoil(uint64_t weapon) {
      * rotation and arrays remain intact. Flags do not clear a running shake. */
     const unsigned roll_outputs[]={0x470,0x474,0x478,0x47c,0x480,0x48c,0x490,0x498,0x49c,0x4a0,0x4a4,0x4a8};
     for (unsigned i=0;i<12;i++) ok &= ew_float(&ew_shake_group,0x288+roll_outputs[i]);
-    uint64_t kick=ew_find_component(weapon,"WeaponFuncComponentGunKick",0x360);
+    uint64_t kick=ew_find_component(weapon,EW_WFCGK,0x360);
     if (kick) {
         ok &= ew_begin(&ew_kick_group,kick,kick,0);
         /* Native camera/weapon transform outputs multiply by these scalars
@@ -276,7 +314,7 @@ static int ew_apply_no_recoil(uint64_t weapon) {
         ok &= ew_float(&ew_kick_group,0x25c);
         ok &= ew_float(&ew_kick_group,0x260);
     } else ew_restore_group(&ew_kick_group);
-    uint64_t sway=ew_find_component(weapon,"WeaponFuncComponentGunSway",0x1690);
+    uint64_t sway=ew_find_component(weapon,EW_WFCGS,0x1690);
     if (sway) {
         ok &= ew_begin(&ew_sway_group,sway,sway,0);
         /* Native sway scale cache (+0xB9DCE58), scale propagation
@@ -290,9 +328,9 @@ static int ew_apply_no_recoil(uint64_t weapon) {
     return 1;
 }
 static int ew_apply_no_spread(uint64_t weapon) {
-    uint64_t component=ew_find_component(weapon,"WeaponFuncComponentSpread",0x518);
+    uint64_t component=ew_find_component(weapon,EW_WFCS,0x518);
     uint64_t method=component ? ev_ptr(component+FC_SPREAD_OFF_METHOD) : 0;
-    if (!ew_is_a(method,"WeaponFireSpreadDFM",0x7d8)) { ew_restore_group(&ew_spread_group); ew_restore_group(&ew_spread_gate_group); return 0; }
+    if (!ew_is_a(method,EW_WFSD,0x7d8)) { ew_restore_group(&ew_spread_group); ew_restore_group(&ew_spread_gate_group); return 0; }
     if (!ew_begin(&ew_spread_group,method,component,FC_SPREAD_OFF_METHOD)) return 0;
     int ok=1; const unsigned configs[]={0x50,0x1d0};
     for (unsigned c=0;c<2;c++) {
@@ -339,12 +377,14 @@ static void ew_camera_release(void) {
 static void ew_camera_update(uint64_t pawn) {
     uint64_t controller=ev_ptr(pawn+0x3a8),manager=ev_ptr(controller+0x408);
     EVArray list={0};
-    if (!ew_is_a(manager,"PlayerCameraManager",0x4270) || ev_ptr(manager+0x370)!=controller ||
+    if (!ew_is_a(manager,EW_PCM,0x4270) || ev_ptr(manager+0x370)!=controller ||
         !ev_read(manager+0x4260,&list,sizeof(list)) || !is_any_ptr(list.data) ||
         list.count<0 || list.count>64 || list.capacity<list.count || list.capacity>256) {
         ew_camera_release();return;
     }
-    const char *names[]={"GPCameraModifier_WeaponRecoil","GPCameraModifier_WeaponGunSway","GPCameraModifier_Fire"};
+    char n0[30],n1[31],n2[22];
+    ev_decode(n0,_ew_GCMWR,29); ev_decode(n1,_ew_GCMWGS,30); ev_decode(n2,_ew_GCMF,21);
+    const char *names[]={n0,n1,n2};
     for(unsigned k=0;k<3;k++) {
         uint64_t found=0;
         for(int i=0;i<list.count;i++) {
@@ -365,7 +405,7 @@ static void ew_release(void) {
 static void ew_log_shot(uint64_t weapon) {
     static uint64_t last_source,last_id; static unsigned logged;
     uint64_t source=ew_firing_seen;
-    if (!ew_is_a(source,"GPWeaponDataComponentFiring",0xa08) || !ew_owned_by(source,weapon)) return;
+    if (!ew_is_a(source,EW_GPWDCF,0xa08) || !ew_owned_by(source,weapon)) return;
     uint64_t id=ev_ptr(source+0x4b0);
     if (last_source!=source) { last_source=source;last_id=0;logged=0; }
     if (!id || id==last_id || logged>=256) return;

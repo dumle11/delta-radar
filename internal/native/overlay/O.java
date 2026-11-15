@@ -320,7 +320,7 @@ public class O extends View {
     static int gaf() { return aimFov; }
     static int gas() { return aimStrength; }
     static int gab() { return aimBone; }
-    static boolean gaa() { return autoShoot && !menuShown; }
+    static boolean gaa() { return autoShoot; }
     static boolean gaz() { return autoZoom; }
     static int gam() { return aimTargetMask; }
 
@@ -714,7 +714,7 @@ public class O extends View {
 
             section("Trigger bot", "Holds fire while a visible, living enemy is under the crosshair. Works with Aim off.");
             toggle("Auto shoot", -3, autoShoot);
-            toggle("Auto zoom before shooting", -6, autoZoom);
+            toggle("Auto zoom before shooting", -10, autoZoom);
 
             section("Target types", null);
             aimTargetToggle("Enemy players", AIM_ENEMIES);
@@ -812,7 +812,7 @@ public class O extends View {
                         case -1: espEnabled = checked; break;
                         case -2: aimEnabled = checked; break;
                         case -3: autoShoot = checked; break;
-                        case -6: autoZoom = checked; break;
+                        case -10: autoZoom = checked; break;
                         case -4: rayDebug = checked; break;
                         case -5: rayViews = checked; break;
                         case -6: rayLos = checked; break;

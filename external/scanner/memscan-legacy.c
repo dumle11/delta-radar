@@ -1894,9 +1894,20 @@ static int class_is_world_npc(uint64_t cls) {
             (index == 0x1C49 && parent_index == 0xFDC)) { npc = 1; break; }
         if (!resolve_fname(read_i32(cls + OFF_UOBJECT_NAME), name, sizeof(name)))
             names_complete = 0;
-        if (!strcmp(name, "DFMPlayerCharacter")) break;
-        if (!strcmp(name, "DFMAICharacter") || !strcmp(name, "DFMNPCCharacter") ||
-            !strcmp(name, "DFMRangeTargetCharacter")) { npc = 1; break; }
+        {
+            static const unsigned char _pc[] = {0x11,0x13,0x18,0x05,0x39,0x34,0x2c,0x30,0x27,0x16,0x3d,0x34,0x27,0x34,0x36,0x21,0x30,0x27};
+            static const unsigned char _ai[] = {0x11,0x13,0x18,0x14,0x1c,0x16,0x3d,0x34,0x27,0x34,0x36,0x21,0x30,0x27};
+            static const unsigned char _npc[] = {0x11,0x13,0x18,0x1b,0x05,0x16,0x16,0x3d,0x34,0x27,0x34,0x36,0x21,0x30,0x27};
+            static const unsigned char _rt[] = {0x11,0x13,0x18,0x07,0x34,0x3b,0x32,0x30,0x01,0x34,0x27,0x32,0x30,0x21,0x16,0x3d,0x34,0x27,0x34,0x36,0x21,0x30,0x27};
+            volatile unsigned char xk = 0x55;
+            char d0[19],d1[15],d2[16],d3[24];
+            for(int i=0;i<18;i++) d0[i]=_pc[i]^xk; d0[18]=0;
+            for(int i=0;i<14;i++) d1[i]=_ai[i]^xk; d1[14]=0;
+            for(int i=0;i<15;i++) d2[i]=_npc[i]^xk; d2[15]=0;
+            for(int i=0;i<23;i++) d3[i]=_rt[i]^xk; d3[23]=0;
+            if (!strcmp(name, d0)) break;
+            if (!strcmp(name, d1) || !strcmp(name, d2) || !strcmp(name, d3)) { npc = 1; break; }
+        }
         if (parent == cls) break;
         cls = parent;
     }
@@ -2720,10 +2731,13 @@ camera_done:
         uint8_t player_dead = 0;
         read_mem(actor_ptrs[i] + OFF_CHARACTER_LAST_IS_DEAD, &character_dead, 1);
         if (has_playerstate) read_mem(player_state + OFF_PLAYER_STATE_DEAD, &player_dead, 1);
-        /* Replicated death bits and the validated actor-owned health set. */
-        e->dead = (character_dead & 1) != 0 || (player_dead & 1) != 0 ||
-            (e->health_known &&
-             is_alive < 0.5f && e->health <= 0.01f);
+        /* Replicated death bits and the validated actor-owned health set.
+         * Firing range bots reuse actors on respawn: LastIsDead stays set
+         * even after health is restored, so health overrides the flag. */
+        int flag_dead = (character_dead & 1) != 0 || (player_dead & 1) != 0;
+        int health_dead = e->health_known && is_alive < 0.5f && e->health <= 0.01f;
+        int health_alive = e->health_known && e->health > 0.5f;
+        e->dead = health_dead || (flag_dead && !health_alive);
 
         /* RootComponent is the character capsule. Prefer the engine capsule's
          * actual scaled geometry; the mirrored character copy is version-sensitive. */

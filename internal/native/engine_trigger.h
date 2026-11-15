@@ -19,7 +19,7 @@ static int et_enemy(const Entity *e, uint64_t pawn) {
         isfinite(e->health) && e->health > 0.01f &&
         e->visibility_known && e->visible_from_camera &&
         (e->kind[0] == 'a' || (e->kind[0] == 'p' && e->team != 1)) &&
-        ea_alive(e->actor_address);
+        ea_alive_entity(e);
 }
 static void et_frame(int count, float x, float y, float z, float yaw, float pitch,
                      unsigned config, uint64_t world, uint64_t controller, uint64_t pawn) {

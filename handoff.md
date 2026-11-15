@@ -395,3 +395,41 @@ Extensive crash investigation documented in `docs/overlay-2026-11-14/`. Key find
 - Game exits also observed without payload/loader (device-level issue)
 - Tencent ACE analysis reference: `ff-ace-anticheat-analysis` (Free Fire ARMv7,
   different target but relevant research)
+
+## ACE detection risks — what to avoid (2026-11-15)
+
+**HIGH RISK — will trigger detection/ban:**
+- **Vtable hooking with mprotect**: commit `fe10ce3` ("Autoshoot wip") used
+  `mprotect` to make vtable pages writable + CAS on vtable slot 0x45 to intercept
+  Actor::ProcessEvent. ACE monitors page permission changes and vtable integrity.
+  This was disabled (ef_hook now returns 0). Never use mprotect on game memory.
+- **Plaintext UE4 class/function names in .so**: strings like "GPCharacterBase",
+  "StartFire", "WeaponManagerComponent" in the binary are trivially detectable.
+  All class names must be XOR-encoded (key 0x55, volatile + noinline decode).
+  Run `strings libue4patch.so | grep -iE 'weapon|character|fire|zoom|input'`
+  after every build.
+- **Files in /data/local/tmp/**: ACE scans this directory for known tool names
+  (frida, injector, dumper). Always `mv` to /data/local/.stash/ after push.
+- **Touch injection for autoshoot**: Injecting touch events to simulate fire
+  button presses is detectable. Use direct ProcessEvent StartFire/StopFire calls
+  from the scanner thread instead (same path as LineTraceSingle).
+
+**MEDIUM RISK — monitor closely:**
+- **ProcessEvent calls from non-game-thread**: We call StartFire/StopFire and
+  LineTraceSingle via ev_pe_fn from the scanner thread. The engine doesn't
+  enforce thread affinity for these, but ACE could detect unusual thread origins.
+  The trigger bot's ef_tick path uses the actual GameThread (identified via
+  GGameThreadId at +0x2067c028) which is safer.
+- **Direct memory writes (ControlRotation)**: ea_write_rotation writes pitch/yaw
+  directly to controller memory. ACE could detect writes to game objects from
+  non-engine threads. Currently undetected but inherently risky.
+- **Diagnostic format strings**: "weapon shot:", "weapon recoil source:" etc.
+  remain as plaintext in the binary. Lower priority than class names but still
+  a signal. Consider encoding if ACE tightens scanning.
+
+**SAFE patterns (currently undetected):**
+- memfd_create("jit-cache") + android_dlopen_ext for library injection
+- Reading game memory via /proc/self/mem (ew_write also uses this for writes)
+- XOR-encoded string literals with volatile key + noinline decode function
+- Android overlay (TYPE_APPLICATION_OVERLAY) for ESP rendering
+- Embedded DEX loaded via InMemoryDexClassLoader
