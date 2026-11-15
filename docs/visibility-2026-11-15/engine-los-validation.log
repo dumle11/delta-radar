@@ -1,0 +1,60 @@
+[12220.519]   e[3] eng=1 blocked=0x04 vis=1 vk=1 B3
+[12220.519]   e[4] eng=1 blocked=0x04 vis=1 vk=1 B4
+[12220.519]   e[5] eng=1 blocked=0x04 vis=1 vk=1 B5
+[12220.519]   e[6] eng=1 blocked=0x04 vis=1 vk=1 B6
+[12220.519]   e[7] eng=0 blocked=0x1F vis=0 vk=1 B7
+[12220.519]   e[8] eng=0 blocked=0x1F vis=0 vk=1 B8
+[12220.519]   e[9] eng=0 blocked=0x1F vis=0 vk=1 B9
+[12220.519]   e[10] eng=0 blocked=0x1F vis=0 vk=1 B10
+[12220.519]   e[11] eng=0 blocked=0x1F vis=0 vk=1 B11
+[12220.519]   e[12] eng=0 blocked=0x1F vis=0 vk=1 B12
+[12220.519]   e[13] eng=0 blocked=0x1F vis=0 vk=1 B13
+[12220.519]   e[14] eng=0 blocked=0x1F vis=0 vk=1 B14
+[12220.519]   e[15] eng=0 blocked=0x1F vis=0 vk=1 B15
+[12220.520]   e[16] eng=0 blocked=0x1F vis=0 vk=1 B16
+[12222.676] engine LOS: ready=1 tid=27303 callbacks=16085 batches=5307 traces=422910
+[12222.676] frame 8800: read end n=17 camera=1 occ=119 visible=4 read_ms=3
+[12224.825] engine LOS: ready=1 tid=27303 callbacks=16278 batches=5383 traces=428990
+[12224.825] frame 8900: read end n=17 camera=1 occ=119 visible=4 read_ms=5
+[12227.019] engine LOS: ready=1 tid=27303 callbacks=16476 batches=5451 traces=434430
+[12227.020] frame 9000: read end n=17 camera=1 occ=119 visible=4 read_ms=5
+[12227.020]   e[0] eng=-1 blocked=0x00 vis=0 vk=0 SeanDougla94
+[12227.020]   e[1] eng=0 blocked=0x1F vis=0 vk=1 B1
+[12227.020]   e[2] eng=0 blocked=0x1F vis=0 vk=1 B2
+[12227.020]   e[3] eng=1 blocked=0x04 vis=1 vk=1 B3
+[12227.020]   e[4] eng=1 blocked=0x04 vis=1 vk=1 B4
+[12227.020]   e[5] eng=1 blocked=0x04 vis=1 vk=1 B5
+[12227.020]   e[6] eng=1 blocked=0x04 vis=1 vk=1 B6
+[12227.020]   e[7] eng=0 blocked=0x1F vis=0 vk=1 B7
+[12227.020]   e[8] eng=0 blocked=0x1F vis=0 vk=1 B8
+[12227.020]   e[9] eng=0 blocked=0x1F vis=0 vk=1 B9
+[12227.020]   e[10] eng=0 blocked=0x1F vis=0 vk=1 B10
+[12227.020]   e[11] eng=0 blocked=0x1F vis=0 vk=1 B11
+[12227.020]   e[12] eng=0 blocked=0x1F vis=0 vk=1 B12
+[12227.020]   e[13] eng=0 blocked=0x1F vis=0 vk=1 B13
+[12227.020]   e[14] eng=0 blocked=0x1F vis=0 vk=1 B14
+[12227.020]   e[15] eng=0 blocked=0x1F vis=0 vk=1 B15
+[12227.020]   e[16] eng=0 blocked=0x1F vis=0 vk=1 B16
+[12229.241] engine LOS: ready=1 tid=27303 callbacks=16674 batches=5523 traces=440190
+[12229.241] frame 9100: read end n=17 camera=1 occ=119 visible=4 read_ms=4
+[12231.408] engine LOS: ready=1 tid=27303 callbacks=16869 batches=5587 traces=445310
+[12231.408] frame 9200: read end n=17 camera=1 occ=119 visible=4 read_ms=5
+[12233.607] engine LOS: ready=1 tid=27303 callbacks=17067 batches=5656 traces=450830
+[12233.607] frame 9300: read end n=17 camera=1 occ=119 visible=4 read_ms=4
+[12233.607]   e[0] eng=-1 blocked=0x00 vis=0 vk=0 SeanDougla94
+[12233.607]   e[1] eng=0 blocked=0x1F vis=0 vk=1 B1
+[12233.607]   e[2] eng=0 blocked=0x1F vis=0 vk=1 B2
+[12233.607]   e[3] eng=1 blocked=0x04 vis=1 vk=1 B3
+[12233.607]   e[4] eng=1 blocked=0x04 vis=1 vk=1 B4
+[12233.607]   e[5] eng=1 blocked=0x04 vis=1 vk=1 B5
+[12233.607]   e[6] eng=1 blocked=0x04 vis=1 vk=1 B6
+[12233.607]   e[7] eng=0 blocked=0x1F vis=0 vk=1 B7
+[12233.607]   e[8] eng=0 blocked=0x1F vis=0 vk=1 B8
+[12233.607]   e[9] eng=0 blocked=0x1F vis=0 vk=1 B9
+[12233.607]   e[10] eng=0 blocked=0x1F vis=0 vk=1 B10
+[12233.607]   e[11] eng=0 blocked=0x1F vis=0 vk=1 B11
+[12233.607]   e[12] eng=0 blocked=0x1F vis=0 vk=1 B12
+[12233.607]   e[13] eng=0 blocked=0x1F vis=0 vk=1 B13
+[12233.607]   e[14] eng=0 blocked=0x1F vis=0 vk=1 B14
+[12233.607]   e[15] eng=0 blocked=0x1F vis=0 vk=1 B15
+[12233.607]   e[16] eng=0 blocked=0x1F vis=0 vk=1 B16

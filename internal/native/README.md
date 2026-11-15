@@ -1,3 +1,7 @@
+Current internal visibility and aim work is documented in the workspace
+[handoff](../../handoff.md). The library has since been rebuilt and deployed;
+the original artifact notes below are historical.
+
 # Existing internal library artifacts
 
 This folder contains the existing library sources, build script, and shared

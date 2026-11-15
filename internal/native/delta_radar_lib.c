@@ -70,6 +70,8 @@ static void _diag(const char *msg) {
     fclose(f);
 }
 
+#include "engine_visibility.h"
+
 /*
  * Neutralise the verification function's termination path.
  * Two BL instructions at known file offsets call kill(getpid(), SIGKILL).
@@ -1248,7 +1250,22 @@ static void *injected_scanner_thread(void *arg) {
         }
         int n = read_entities_sdk(
             use_gworld, use_actor_src, use_root_off, use_pos_off, use_ctw);
+        if ((seq == 1 || seq % 300 == 0) && !atomic_load(&ev_ready)) {
+            int bound = ev_initialize();
+            _diag(bound ? "visibility: engine query bound on GameThread" : "visibility: engine query unavailable; colors unknown");
+        }
+        atomic_store(&ea_config, _ov_aim_config());
+        ev_update(n);
         if (seq <= 5 || seq % 100 == 0) {
+            char vis_diag[160];
+            snprintf(vis_diag, sizeof(vis_diag), "engine LOS: ready=%d tid=%d callbacks=%u batches=%u traces=%u",
+                atomic_load(&ev_ready), atomic_load(&ev_game_tid), atomic_load(&ev_callbacks),
+                atomic_load(&ev_batches), atomic_load(&ev_traces));
+            _diag(vis_diag);
+            snprintf(vis_diag,sizeof(vis_diag),"aim: enabled=%d ready=%d state=%u target=%lx corrections=%u",
+                (atomic_load(&ea_config)&1)!=0,atomic_load(&ea_ready),atomic_load(&ea_status),
+                (unsigned long)atomic_load(&ea_locked_actor),atomic_load(&ea_corrections));
+            _diag(vis_diag);
             int visible = 0;
             for (int vi = 0; vi < n; vi++) visible += entities[vi].visible_from_camera != 0;
             char dbuf[144];
@@ -1259,6 +1276,17 @@ static void *injected_scanner_thread(void *arg) {
 
         {
             static int pd_logged = 0;
+            if (seq <= 5 || seq % 300 == 0) {
+                for (int ei = 0; ei < n && ei < 18; ei++) {
+                    char evbuf[120];
+                    snprintf(evbuf, sizeof(evbuf), "  e[%d] eng=%d blocked=0x%02X vis=%d vk=%d %s",
+                        ei, entities[ei].engine_visible, entities[ei].visibility_ray_mask,
+                        entities[ei].visible_from_camera, entities[ei].visibility_known,
+                        entities[ei].name);
+                    _diag(evbuf);
+
+                }
+            }
             if (seq <= 5 || seq % 100 == 0) {
                 char counts[160];
                 snprintf(counts, sizeof(counts),
@@ -1266,6 +1294,54 @@ static void *injected_scanner_thread(void *arg) {
                     occ_dbg_calls, occ_dbg_no_mesh, occ_dbg_no_pos, occ_dbg_no_bounds,
                     occ_dbg_too_small, occ_dbg_added);
                 _diag(counts);
+                if (occ_dbg_nocol || occ_dbg_nochan || occ_dbg_badread) {
+                    char rej_info[160];
+                    snprintf(rej_info, sizeof(rej_info), "occ_rej: badread=%d nocol=%d(wall=%d,floor=%d) nochan=%d",
+                        occ_dbg_badread, occ_dbg_nocol, occ_dbg_nocol_wall, occ_dbg_nocol_floor, occ_dbg_nochan);
+                    _diag(rej_info);
+                    for (int si = 0; si < occ_rej_sample_count; si++) {
+                        char rn[64] = "";
+                        uint64_t rc = occ_rej_samples[si].comp;
+                        uint64_t ro = read_ptr(rc + OFF_UOBJECT_OUTER);
+                        if (is_any_ptr(ro)) {
+                            int32_t ri = read_i32(ro + OFF_UOBJECT_NAME);
+                            resolve_fname(ri, rn, sizeof(rn));
+                        }
+                        snprintf(rej_info, sizeof(rej_info), "  rej[%d] r=%d qm=%d ch=[%d,%d,%d,%d,%d] %s",
+                            si, occ_rej_samples[si].reason, occ_rej_samples[si].qm,
+                            occ_rej_samples[si].ch[0], occ_rej_samples[si].ch[1],
+                            occ_rej_samples[si].ch[2], occ_rej_samples[si].ch[3],
+                            occ_rej_samples[si].ch[4], rn);
+                        _diag(rej_info);
+                    }
+                }
+                for (int ai = 0; ai < occ_accepted_sample_count; ai++) {
+                    char an[64] = "";
+                    uint64_t ac = occ_accepted_samples[ai].comp;
+                    uint64_t ao = read_ptr(ac + OFF_UOBJECT_OUTER);
+                    if (is_any_ptr(ao)) {
+                        int32_t ani = read_i32(ao + OFF_UOBJECT_NAME);
+                        resolve_fname(ani, an, sizeof(an));
+                    }
+                    char ainfo[200];
+                    snprintf(ainfo, sizeof(ainfo), "  occ[%d] org=%.0f,%.0f,%.0f ext=%.0f,%.0f,%.0f %s",
+                        ai, occ_accepted_samples[ai].org[0], occ_accepted_samples[ai].org[1],
+                        occ_accepted_samples[ai].org[2],
+                        occ_accepted_samples[ai].ext[0], occ_accepted_samples[ai].ext[1],
+                        occ_accepted_samples[ai].ext[2], an);
+                    _diag(ainfo);
+                }
+                if (occ_nonprim_class_count > 0) {
+                    char npinfo[80];
+                    snprintf(npinfo, sizeof(npinfo), "nonprim classes: %d types", occ_nonprim_class_count);
+                    _diag(npinfo);
+                    for (int ni = 0; ni < occ_nonprim_class_count && ni < 16; ni++) {
+                        char cn[64] = "";
+                        resolve_fname(read_i32(occ_nonprim_classes[ni].cls + OFF_UOBJECT_NAME), cn, sizeof(cn));
+                        snprintf(npinfo, sizeof(npinfo), "  np[%d] n=%d %s", ni, occ_nonprim_classes[ni].count, cn);
+                        _diag(npinfo);
+                    }
+                }
             }
             if (pd_logged < 3 && n > 0) {
                 char dbuf[80];
@@ -1483,6 +1559,9 @@ static void *injected_scanner_thread(void *arg) {
     }
 
 cleanup:
+    atomic_store(&ea_config, 0);
+    atomic_store(&ev_ready, 0);
+    self_memory_close(&ev_reader);
     _diag("scanner stopped");
     atomic_store(&_rcam_ok, 0);
     LOGI("Scanner thread stopping");

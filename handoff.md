@@ -1,13 +1,90 @@
 # Delta Radar — Handoff (2026-11-15)
 
+## Internal aim assistance (2026-11-15)
+
+The internal overlay's previously unused aim settings now drive native
+GameThread aim control. This is separate from the external touch servo.
+
+- Enable Aim in the Aim tab. A centered outlined FOV circle uses the same
+  angular radius as acquisition (5–45 degrees; default 15). It turns green
+  while locked. It also renders when entity ESP is disabled.
+- Acquire the nearest allowed target point inside the circle. Targets require
+  validated position, known positive health, no death state, and a fresh engine
+  visibility result. The default mask includes enemy players and bots/NPCs.
+- Retain the acquired identity while eligible, including when another actor
+  becomes closer to the center. The radius gates acquisition, not retention.
+- `engine_aim.h` resolves Controller.SetControlRotation (12-byte parameters)
+  and SetIgnoreLookInput (1 byte) through the live class hierarchy and checks
+  their native flags and parameter extents. It calls them only from the
+  previously validated UE GameThread callback.
+- While locked, set the controller's rotation directly and own one increment
+  of SetIgnoreLookInput. Camera drags cannot yield control to manual look.
+  Movement input is unaffected. Disabling Aim releases this one increment;
+  the host's other input locks are preserved.
+- Release for loss of eligibility/cover, death, stale data (>100ms), possession
+  changes, object recycling, scanner stop or disabled Aim. Missing data does
+  not leave a permanent input block.
+- Aim points are capsule-relative Head/Chest/Body samples. The preferred point
+  gets its own collision trace. If it is covered while another body sample is
+  clear, use an exposed sample instead. These are not name-resolved bone joints.
+- Removed the unused strength and auto-shoot controls from this internal menu;
+  this path implements hard locking and does not fire automatically.
+
+Live validation in the firing range: acquisition centered a dummy, and a
+380px horizontal / 150px vertical camera drag retained the same actor with
+corrections continuing. Disabling Aim cleared the target/corrections and the
+same drag visibly moved the camera to the ceiling. Re-enabling reacquired;
+a short joystick movement left aim tracking active. Screenshots and logs are
+in `docs/aim-internal-2026-11-15/`. Physical-device user confirmation is pending.
+All seven native fixtures and the Android bitmap/menu regression passed.
+
+Files: `internal/native/aim_math.h`, `internal/native/engine_aim.h`,
+`internal/native/engine_visibility.h`, `internal/native/esp_overlay.h`,
+`internal/native/overlay/O.java`. Deployed library SHA256:
+`b3a9092223e62d5d9e7a6b83ded184dedaad394586b04a1bf45d49140cd94961`.
+Long-duration input ownership and moving live-player scenarios are not yet
+validated; the runtime checks above do not establish zero-error aiming.
+
+## Visibility fix verified (2026-11-15)
+
+The internal overlay now uses actual `GPPhysics.LineTraceSingle` collision queries
+on the UE GameThread. This supersedes the earlier bounds-based visibility notes.
+The unverified `mesh+0x858` classifier and its override were removed.
+
+- Implementation: `internal/native/engine_visibility.h`, called after scanner
+  sampling and before rendering. Worker requests contain copied coordinates and
+  validated object identities; engine queries never run on the scanner thread.
+- Dispatch: validated Actor::ProcessEvent native signature at RVA `0x107e2070`,
+  vtable slot `0x45`; the query receiver uses UObject::ProcessEvent `0x107e4460`.
+  GPPhysics class/function/CDO are resolved and checked against runtime metadata.
+  Runtime parameter extent is `0xC1` (aligned C storage `0xC8`), return at `0xC0`.
+- Visibility channel: explicit `ECC_Visibility=3`, complex tracing, local pawn and
+  target ignored. Five body samples: any clear = green, all blocked = red.
+- Unavailable, stale (>100ms), recycled, destroyed, different-world/possession,
+  or significantly moved observations remain unknown (amber). No render flag or
+  coarse bound can override an internal engine result.
+- Debug LOS rows and body markers now report engine query results. Camera/actor
+  view rays and bound wireframes are still labelled bounds estimates.
+- Live firing-range validation: 17 entities, valid camera; a captured log showed
+  572 query batches / 44,110 rays and both full-cover and partial-cover results.
+  The user confirmed: "Colors now match visibility" while moving across cover.
+- All six host regressions passed, including the new synthetic engine bridge
+  fixture. The existing visibility fixture was repaired to include current
+  collector diagnostics; query-only/channel semantics were restored.
+
+Collision LOS is not exact rendered pixel coverage. Five samples can miss tiny
+exposed regions, and collision can differ from transparent/masked materials,
+foliage or smoke. Renderer depth/coverage validation would be separate work.
+Long-session and complete session-transition stability remain unverified.
+
 ## Current status
 
 Game is running stably in Firing Range with full ESP overlay. Memfd-based
 anonymous library loading is confirmed working — library appears as
 `/memfd:jit-cache (deleted)` in `/proc/self/maps`, blending with Android ART
 JIT cache entries. Anti-cheat (`libanogs.so`) no longer detects the library
-in maps. Scanner reads 17 entities with a valid camera, 119 occluder bounds
-collected, 14/17 entities classified as visible, 3-5ms read time per frame.
+in maps. Scanner reads 17 entities with a valid camera. See the visibility fix above for
+the current classifier; earlier visible counts used an unverified classifier.
 
 ### Crash fix summary
 
@@ -31,15 +108,13 @@ Two root causes were identified and fixed:
 
 Debug visualization enabled in Status → Raycast debug. Shows:
 - Camera view ray (cyan=clear, red=hit, amber=unknown)
-- Per-entity LOS: 5 sample rays (centre/upper/lower/side/side)
+- Per-entity LOS: 5 engine-query samples (centre/upper/lower/side/side)
 - Hit bound wireframes
 - Named hit components
 
-**Current limitation:** Visibility uses bounds-based estimation, not engine
-collision traces. If ANY of 5 rays is clear, the entity is considered visible
-(green). Only when ALL 5 are blocked is it occluded (red). Unknown state
-(incomplete occluder data or camera inside a bound) is amber. Some walls may
-not be collected as occluders, causing false "visible" results.
+**Current limitation:** Internal visibility uses engine collision traces on five
+body samples. View-ray hit bounds remain diagnostic estimates. Collision and
+sample coverage can differ from rendered pixels; see the verified fix above.
 
 ## Device and deployment state
 
@@ -141,7 +216,8 @@ strings libue4patch.so | grep -iE 'serial|imei|proxima|delta|fingerprint|radar'
 | `internal/native/overlay/O.java` | Overlay menu, frame presentation, preferences |
 | `internal/native/build_lib.sh` | Native arm64 build |
 | `internal/native/overlay/build_overlay.sh` | DEX/header generation |
-| `external/scanner/memscan-legacy.c` | Camera/entity reading, visibility raycasting |
+| `external/scanner/memscan-legacy.c` | Camera/entity reading, external bounds estimates |
+| `internal/native/engine_visibility.h` | Game-thread collision visibility bridge |
 | `external/scanner/skeleton-reader.h` | Validated animated pose and bone selection |
 | `external/scanner/self-memory.h` | Pipe-based checked memory copies |
 
@@ -186,9 +262,9 @@ Read diag log: `adb shell "su -c 'cat /data/data/com.proxima.dfm/cache/d'"`
 
 ## Remaining work
 
-1. **Raycast visibility accuracy**: bounds-based estimation misses some walls.
-   Consider collecting more scene components, or adding engine-internal
-   collision trace integration.
+1. **Visibility follow-up**: engine collision traces are integrated and confirmed
+   in the firing range. Tiny exposed regions, material/depth differences and
+   broader scene/session coverage still need dedicated validation.
 2. **Long-term crash stability**: memfd loading resolved the immediate crash
    but extended play testing is needed.
 3. **Live skeleton verification**: toggle present, getter signature validated,

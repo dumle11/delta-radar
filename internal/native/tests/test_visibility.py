@@ -22,9 +22,6 @@ static int num_occluders, occlusion_incomplete;
 #define OFF_COMPONENT_BOUNDS 0x148
 static unsigned char heap[16384];
 static uint64_t verified_uworld = 1;
-static int occ_dbg_calls, occ_dbg_no_root, occ_dbg_no_bounds;
-static int occ_dbg_no_mesh, occ_dbg_no_pos;
-static int occ_dbg_too_small, occ_dbg_too_far, occ_dbg_added;
 static int is_telemetry_ptr(uint64_t p) {
     return p >= (uint64_t)heap && p < (uint64_t)(heap + sizeof(heap));
 }
@@ -49,6 +46,8 @@ static int position_decode_component(uint64_t component, float out[3]) {
 static void put_ptr(uint64_t p, uint64_t v) { memcpy((void *)p, &v, 8); }
 static void put_int(uint64_t p, int v) { memcpy((void *)p, &v, 4); }
 """ + source[start:end] + source[
+    source.index("static int occ_dbg_calls,"):source.index("static void try_add_child_occluders(")
+] + source[
     source.index("static uint64_t occ_cur_actor = 0;"):
     source.index("static uint64_t cached_local_class = 0;")
 ] + r"""

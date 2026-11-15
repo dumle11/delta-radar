@@ -127,11 +127,11 @@ public class O extends View {
                         entityRenderDist[i] = prefs.getInt(entityKey("rdist", i), 500);
                     }
                     aimEnabled = prefs.getBoolean("aim", false);
-                    aimFov = prefs.getInt("aimFov", 15);
+                    aimFov = Math.max(5, Math.min(45, prefs.getInt("aimFov", 15)));
                     aimStrength = prefs.getInt("aimStr", 100);
-                    aimBone = prefs.getInt("aimBone", 2);
+                    aimBone = Math.max(0, Math.min(2, prefs.getInt("aimBone", 2)));
                     autoShoot = prefs.getBoolean("autoShoot", false);
-                    aimTargetMask = prefs.getInt("aimMask", AIM_ENEMIES | AIM_BOTS);
+                    aimTargetMask = prefs.getInt("aimMask", AIM_ENEMIES | AIM_BOTS) & AIM_ALL;
 
                     wm = (WindowManager) a.getSystemService(Context.WINDOW_SERVICE);
                     sh = a.getResources().getDisplayMetrics().heightPixels;
@@ -200,7 +200,7 @@ public class O extends View {
     }
 
     @Override protected void onDraw(Canvas c) {
-        if (!espEnabled || frameAt == 0) return;
+        if ((!espEnabled && !aimEnabled) || frameAt == 0) return;
         for (int attempt = 0; attempt < 4; attempt++) {
             Frame f = publishedFrame;
             if (f == null) return;
@@ -247,6 +247,11 @@ public class O extends View {
         if (cv == null) return; ps.setColor(c);
         float ow = ps.getStrokeWidth(); ps.setStrokeWidth(w * lineWidth / 2.5f);
         cv.drawLine(x1, y1, x2, y2, ps); ps.setStrokeWidth(ow);
+    }
+    static void cr(float x, float y, float radius, int color) {
+        if (cv == null || !Float.isFinite(radius) || radius <= 0) return;
+        float old = ps.getStrokeWidth(); ps.setStrokeWidth(2.0f); ps.setColor(color);
+        cv.drawCircle(x, y, radius, ps); ps.setStrokeWidth(old);
     }
     static void t(String txt, float x, float y, int c) {
         if (cv == null) return; pt.setColor(c); cv.drawText(txt, x, y, pt);
@@ -689,15 +694,14 @@ public class O extends View {
 
         /* ---- Aim tab ---- */
         void buildAimTab() {
-            section("Aim assist", "Touch-based camera correction toward targets.");
+            section("Aim assist", "Locks onto a live, visible target inside the circle. Disable Aim to release.");
             toggle("Enable aim", -2, aimEnabled);
-            toggle("Auto shoot", -3, autoShoot);
 
             section("Target types", null);
             aimTargetToggle("Enemies", AIM_ENEMIES);
             aimTargetToggle("Bots", AIM_BOTS);
 
-            section("Aim bone", null);
+            section("Aim point", null);
             buildBonePicker();
 
             section("FOV radius", aimFov + "°");
@@ -706,23 +710,13 @@ public class O extends View {
             body.addView(fov, new LayoutParams(-1, 42));
             fov.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                 public void onProgressChanged(SeekBar bar, int value, boolean user) {
-                    if (user) { aimFov = value + 5; selectTab(2); }
+                    if (user) aimFov = value + 5;
                 }
                 public void onStartTrackingTouch(SeekBar bar) {}
-                public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
+                public void onStopTrackingTouch(SeekBar bar) { saveSettings(); selectTab(2); }
             });
 
-            section("Strength", aimStrength + "%");
-            SeekBar str = new SeekBar(getContext()); str.setMax(90); str.setProgress(aimStrength - 10);
-            styleSlider(str);
-            body.addView(str, new LayoutParams(-1, 42));
-            str.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                public void onProgressChanged(SeekBar bar, int value, boolean user) {
-                    if (user) { aimStrength = value + 10; selectTab(2); }
-                }
-                public void onStartTrackingTouch(SeekBar bar) {}
-                public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
-            });
+
         }
 
         void aimTargetToggle(String name, final int flag) {

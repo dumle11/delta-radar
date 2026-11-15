@@ -4,6 +4,8 @@ Run host regressions from the repository root:
 python3 internal/native/tests/test_safe_reads.py
 python3 internal/native/tests/test_projection.py
 python3 internal/native/tests/test_visibility.py
+python3 internal/native/tests/test_engine_visibility.py
+python3 internal/native/tests/test_engine_aim.py
 python3 internal/native/tests/test_entity_types.py
 python3 internal/native/tests/test_fnames.py
 ```
@@ -58,3 +60,23 @@ missing geometry and origin-containing bounds without mutating LOS state.
 The FName fixture covers the live encoded ASCII format, plaintext compatibility,
 false sentinel rejection and unresolved wide names. The Android fixture checks
 that debug controls reach native flags and persist independently.
+
+The engine visibility fixture exercises the production request executor against
+synthetic GObjects and a mock engine dispatcher. It checks the trace ABI,
+centimetre inputs, explicit Visibility channel, self/target exclusion, all-five
+blocked versus partial cover, failed dispatch, age and camera movement,
+world/possession changes, recycled/pending-kill actors, and nonblocking locking.
+It does not prove the native dispatch profile; that was verified against the
+matching SDK, live metadata/native bytes and a firing-range run on 2026-11-15.
+
+Internal body LOS colors now consume GameThread collision queries. Debug body
+sample markers/LOS rows report those results. View-direction rays and optional
+wireframes remain bounds estimates. Unknown or stale engine results are amber.
+
+The internal aim fixture runs the production selector and GameThread controller
+against a mock dispatcher. It checks the shared angular FOV/radius calculation,
+zoom and boundary behavior, nearest eligible acquisition, sticky target identity,
+rotation math, and one balanced SetIgnoreLookInput increment/decrement. It also
+checks release on covered aim points, death, disable, expiry, possession change,
+object recycling and scanner stop. The Android bitmap fixture checks an outlined,
+centered acquisition circle and its presentation with ESP disabled.

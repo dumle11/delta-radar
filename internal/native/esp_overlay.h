@@ -9,6 +9,7 @@ static jmethodID _ov_z, _ov_b, _ov_r, _ov_f, _ov_l, _ov_t, _ov_e, _ov_gw, _ov_gh
 static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt;
+static jmethodID _ov_circle;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam;
 static int _ov_ready;
 static int _ov_w, _ov_h;
@@ -115,6 +116,7 @@ static int _ov_load_dex(void) {
     _ov_gf = (*env)->GetStaticMethodID(env, _ov_cls, "gf", "(I)I");
     _ov_gr = (*env)->GetStaticMethodID(env, _ov_cls, "gr", "(I)I");
     _ov_gso = (*env)->GetStaticMethodID(env, _ov_cls, "gso", "()I");
+    _ov_circle = (*env)->GetStaticMethodID(env, _ov_cls, "cr", "(FFFI)V");
     _ov_ga = (*env)->GetStaticMethodID(env, _ov_cls, "ga", "()Z");
     _ov_gaf = (*env)->GetStaticMethodID(env, _ov_cls, "gaf", "()I");
     _ov_gas = (*env)->GetStaticMethodID(env, _ov_cls, "gas", "()I");
@@ -500,7 +502,7 @@ static void _ov_draw_ray_debug(JNIEnv *env,const float cam[6],int flags) {
         int end=count<32?count:31;for(int j=end;j>at;j--){nearest[j]=nearest[j-1];distances[j]=distances[j-1];}
         nearest[at]=i;distances[at]=d;if(count<32)count++;
     }
-    char caption[220];snprintf(caption,sizeof(caption),"RAY DEBUG: bounds estimate | actors %d/32 | bounds %d%s",count,num_occluders,occlusion_incomplete?" INCOMPLETE":"");
+    char caption[220];snprintf(caption,sizeof(caption),"RAY DEBUG: engine LOS; view rays = bounds estimates | actors %d/32 | bounds %d%s",count,num_occluders,occlusion_incomplete?" INCOMPLETE":"");
     _ov_debug_text(env,caption,20,72,(int)0xFFFFB300);
     snprintf(caption,sizeof(caption),"cam %.2f %.2f %.2f | yaw %.1f pitch %.1f | view cyan / hit red / LOS green / unknown amber",cam[0],cam[1],cam[2],cam[3],cam[4]);
     _ov_debug_text(env,caption,20,96,(int)0xFFFFFFFF);
@@ -551,6 +553,22 @@ static void _ov_draw_ray_debug(JNIEnv *env,const float cam[6],int flags) {
             }
         }
         if(flags&4){
+#ifdef BUILD_AS_LIBRARY
+            char states[6] = {0}; int blocked = 0;
+            for (int r = 0; r < 5; r++) {
+                int hit = (e->visibility_ray_mask >> r) & 1;
+                states[r] = !e->visibility_known ? '?' : hit ? 'X' : 'O';
+                blocked += hit;
+                float target[3]; visibility_sample_point(cam[0], cam[1], e->x, e->y, e->z, e->half_height, r, target);
+                int color = !e->visibility_known ? (int)0xFFFFB300 : hit ? (int)0xFFFF5555 : (int)0xFF00FF00;
+                _ov_debug_marker(env, target, cam, color, 1);
+            }
+            if(detail){
+                snprintf(label,sizeof(label),"%s ENGINE LOS %s (%d/5 blocked)%s", e->name, states, blocked,
+                    e->visibility_known ? "" : " awaiting fresh query");
+                _ov_debug_text(env,label,20,row_y+21,(int)0xFFFFFFFF);
+            }
+#else
             int blocked=0,inside=0;char states[6]={0};int first=-1;float nearest_hit=1e9;
             for(int r=0;r<5;r++){
                 float target[3];visibility_sample_point(cam[0],cam[1],e->x,e->y,e->z,e->half_height,r,target);
@@ -563,6 +581,7 @@ static void _ov_draw_ray_debug(JNIEnv *env,const float cam[6],int flags) {
             _ov_debug_hit_name(first,hit_name,sizeof(hit_name));
             if(detail){snprintf(label,sizeof(label),"%s LOS %s (%d/5 blocked; inside %d): %s",e->name,states,blocked,inside,hit_name);_ov_debug_text(env,label,20,row_y+21,(int)0xFFFFFFFF);}
             if(first>=0 && box_count<64)boxes[box_count++]=first;
+#endif
         }
     }
     snprintf(caption,sizeof(caption),"Details: %d nearest on-screen actors | LOS order: centre / upper / lower / side / side | X hit, O clear, ? unknown",detail_rows);
@@ -573,6 +592,30 @@ static void _ov_draw_ray_debug(JNIEnv *env,const float cam[6],int flags) {
     }
 }
 
+static unsigned _ov_aim_config(void) {
+    if (!_ov_ready || !_ov_cls) return 0;
+    JNIEnv *env = _ov_env(); if (!env) return 0;
+    int enabled = (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_ga);
+    int fov = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gaf);
+    int bone = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gab);
+    int mask = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gam) & 5;
+    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return 0; }
+    if (fov<5) fov=5; if (fov>45) fov=45;
+    if (bone<0 || bone>2) bone=2;
+    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16);
+}
+static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {
+    unsigned config = atomic_load(&ea_config);
+    if (!(config&1)) return;
+    float radius=aim_radius_pixels((float)_ov_w,cam[5],(config>>8)&255);
+    if (!(radius>0)) return;
+    unsigned status=atomic_load(&ea_status);
+    int color=status==2 ? (int)0xFF00FF00 : (int)0xDDFFFFFF;
+    (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_circle,_ov_w*0.5f,_ov_h*0.5f,radius,color);
+    const char *text=status==2 ? "Aim: locked" : status==3 ? "Aim: unavailable" : "Aim: searching";
+    _ov_debug_text(env,text,20,(float)_ov_h-28,color);
+}
+
 static void _ov_draw_esp(void) {
     if (!_ov_ready || !_ov_cls) return;
 
@@ -580,13 +623,9 @@ static void _ov_draw_esp(void) {
     if (!env) return;
 
     jboolean esp_on = _ov_ge ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_ge) : 1;
-    if (esp_on && !atomic_load(&_rcam_ok)) return;
+    if (!atomic_load(&_rcam_ok)) return;
     jboolean ok = (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_b);
     if (!ok) return;
-    if (!esp_on) {
-        (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_e);
-        return;
-    }
 
     _ov_w = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gw);
     _ov_h = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gh);
@@ -607,6 +646,9 @@ static void _ov_draw_esp(void) {
 
     float cam[6];
     for (int i = 0; i < 6; i++) cam[i] = _rcam[i];
+
+    _ov_draw_aim(env,cam);
+    if (!esp_on) { (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_e); return; }
 
     static int _esp_dbg = 0;
     int drawn = 0;

@@ -81,6 +81,14 @@ public class OverlayRegression {
             check(reused, "canvas reused");
         }
 
+        check(O.b(), "begin FOV circle frame");
+        O.ps.setStyle(Paint.Style.STROKE);
+        O.cr(160, 90, 30, 0xFF00FF00); O.e();
+        O.espEnabled = false; O.aimEnabled = true;
+        canvas.drawColor(0, PorterDuff.Mode.CLEAR); view.onDraw(canvas);
+        check(result.getPixel(190, 90) == 0xFF00FF00, "FOV circle centered and visible with ESP disabled");
+        check(result.getPixel(160, 90) == 0, "FOV circle leaves crosshair clear");
+        O.aimEnabled = false;
         O.espEnabled = false;
         canvas.drawColor(0, PorterDuff.Mode.CLEAR);
         view.onDraw(canvas);

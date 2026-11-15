@@ -1058,6 +1058,7 @@ typedef struct {
     PositionObservation position_observation;
     int rendered_on_screen;
     int engine_visible;
+    uint8_t visibility_ray_mask; /* Engine trace: one blocked bit per body sample. */
     int visible_from_camera;
     int visibility_known;
     int dead;
@@ -1364,18 +1365,6 @@ static int actor_rendered_on_screen(uint64_t actor) {
     return read_mem(mesh + 0x8B8, &flags, 1) == 1 && (flags & 1) != 0;
 }
 
-/* Engine internal occlusion state at mesh+0x858 (Pad_858 in SDK dump).
- * Value 2 = actually rendered/visible, 1 = occluded or not rendered.
- * Returns: 1=visible, 0=occluded, -1=no mesh (flag unavailable).
- * More reliable than bRecentlyRenderedOnScreen which is frustum-only on mobile. */
-static int actor_engine_visible(uint64_t actor) {
-    uint64_t mesh = read_ptr(actor + 0x3D0);
-    if (!is_telemetry_ptr(mesh)) return -1;
-    uint8_t state = 0;
-    if (read_mem(mesh + 0x858, &state, 1) != 1) return -1;
-    return state >= 2 ? 1 : 0;
-}
-
 /* --- Software occlusion ray-AABB test (slab method) --- */
 
 /* inv_d == 0 denotes an exactly parallel slab. Avoid 0 * infinity and
@@ -1511,6 +1500,15 @@ static BoundsRayHit trace_debug_bounds(const float origin[3], const float target
 static int occ_dbg_calls, occ_dbg_no_root, occ_dbg_no_mesh, occ_dbg_no_bounds;
 static int occ_dbg_too_small, occ_dbg_too_far, occ_dbg_added;
 static int occ_dbg_no_pos, occ_dbg_fallback;
+static int occ_dbg_nocol, occ_dbg_nochan, occ_dbg_badread;
+static int occ_dbg_nocol_wall, occ_dbg_nocol_floor;
+static struct { uint64_t comp; float ext[3]; float org[3]; } occ_accepted_samples[16];
+static int occ_accepted_sample_count;
+static struct { uint64_t cls; int count; } occ_nonprim_classes[32];
+static int occ_nonprim_class_count;
+/* Sample up to 8 rejected primitives for diagnosis. */
+static struct { uint64_t comp; uint8_t qm; uint8_t ch[5]; int reason; } occ_rej_samples[8];
+static int occ_rej_sample_count;
 
 static void try_add_child_occluders(uint64_t actor, uint64_t root, float cam_x, float cam_y, float cam_z);
 
@@ -1550,16 +1548,52 @@ static int component_is_primitive(uint64_t component) {
 static int try_add_occluder_from_component(uint64_t comp,
                                             float cam_x, float cam_y, float cam_z) {
     if (num_occluders >= MAX_OCCLUDERS) { occlusion_incomplete = 1; return 0; }
-    if (!component_is_primitive(comp)) { occ_dbg_no_mesh++; return 0; }
-    /* Rendering occluder hints do not define line of sight. Matching SDK:
-     * BodyInstance +0x340, query mode +8, Visibility response +0x30+3.
-     * QueryOnly/QueryAndPhysics and ECR_Block participate, even if hidden. */
-    uint8_t query_mode = 0, response = 0;
-    if (read_mem(comp + 0x348, &query_mode, 1) != 1 ||
-        read_mem(comp + 0x373, &response, 1) != 1 || query_mode > 3 || response > 2) {
-        occlusion_incomplete = 1; occ_dbg_no_pos++; return 0;
+    if (!component_is_primitive(comp)) {
+        occ_dbg_no_mesh++;
+        uint64_t ncls = read_ptr(comp + OFF_UOBJECT_CLASS);
+        if (is_any_ptr(ncls)) {
+            int found = 0;
+            for (int i = 0; i < occ_nonprim_class_count; i++) {
+                if (occ_nonprim_classes[i].cls == ncls) { occ_nonprim_classes[i].count++; found = 1; break; }
+            }
+            if (!found && occ_nonprim_class_count < 32) {
+                occ_nonprim_classes[occ_nonprim_class_count].cls = ncls;
+                occ_nonprim_classes[occ_nonprim_class_count++].count = 1;
+            }
+        }
+        return 0;
     }
-    if (!(query_mode & 1) || response != 2) { occ_dbg_no_pos++; return 0; }
+    /* Visibility queries require QueryOnly/QueryAndPhysics and Block on
+     * ECC_Visibility. PhysicsOnly and Camera/WorldStatic responses do not
+     * establish visibility-channel cover. */
+    uint8_t query_mode = 0;
+    uint8_t channels[5] = {0};
+    int r1 = read_mem(comp + 0x348, &query_mode, 1);
+    int r2 = read_mem(comp + 0x370, channels, 5);
+    if (r1 != 1 || query_mode > 3 || r2 != 5) {
+        occlusion_incomplete = 1; occ_dbg_no_pos++; occ_dbg_badread++;
+        if (occ_rej_sample_count < 8) {
+            occ_rej_samples[occ_rej_sample_count].comp = comp;
+            occ_rej_samples[occ_rej_sample_count].qm = query_mode;
+            for (int i = 0; i < 5; i++) occ_rej_samples[occ_rej_sample_count].ch[i] = channels[i];
+            occ_rej_samples[occ_rej_sample_count].reason = 1;
+            occ_rej_sample_count++;
+        }
+        return 0;
+    }
+    if (!(query_mode & 1)) { occ_dbg_no_pos++; occ_dbg_nocol++; return 0; }
+    int blocks = channels[3] == 2;
+    if (!blocks) {
+        occ_dbg_no_pos++; occ_dbg_nochan++;
+        if (occ_rej_sample_count < 8) {
+            occ_rej_samples[occ_rej_sample_count].comp = comp;
+            occ_rej_samples[occ_rej_sample_count].qm = query_mode;
+            for (int i = 0; i < 5; i++) occ_rej_samples[occ_rej_sample_count].ch[i] = channels[i];
+            occ_rej_samples[occ_rej_sample_count].reason = 2;
+            occ_rej_sample_count++;
+        }
+        return 0;
+    }
 
     /* Cached world-space bounds at +0x148:
      * Origin(12) + enc_tag(4) + BoxExtent(12) + SphereRadius(4) = 32 bytes */
@@ -1589,6 +1623,15 @@ static int try_add_occluder_from_component(uint64_t comp,
     (void)cam_x; (void)cam_y; (void)cam_z;
 
     occ_dbg_added++;
+    if (occ_accepted_sample_count < 16) {
+        int si = occ_accepted_sample_count;
+        occ_accepted_samples[si].comp = comp;
+        for (int i = 0; i < 3; i++) {
+            occ_accepted_samples[si].ext[i] = extent[i];
+            occ_accepted_samples[si].org[i] = origin[i];
+        }
+        occ_accepted_sample_count++;
+    }
     OccluderAABB *o = &occluders[num_occluders++];
     o->actor_addr = occ_cur_actor;
     o->owner_addr = read_ptr(occ_cur_actor + 0x120);
@@ -2289,9 +2332,30 @@ camera_done:
                 }
             }
             fprintf(stderr, "  [occ] %d occluders within 50m of camera\n", near_count);
+            if (occ_dbg_nocol || occ_dbg_nochan)
+                fprintf(stderr, "  [occ] rejected: nocol=%d(wall=%d,floor=%d) nochan=%d\n",
+                        occ_dbg_nocol, occ_dbg_nocol_wall, occ_dbg_nocol_floor, occ_dbg_nochan);
+            for (int si = 0; si < occ_rej_sample_count; si++) {
+                char rn[64] = "";
+                uint64_t rc = occ_rej_samples[si].comp;
+                uint64_t ro = read_ptr(rc + OFF_UOBJECT_OUTER);
+                if (is_any_ptr(ro)) {
+                    int32_t ri = read_i32(ro + OFF_UOBJECT_NAME);
+                    resolve_fname(ri, rn, sizeof(rn));
+                }
+                fprintf(stderr, "  [occ] rej[%d] qm=%d ch=[%d,%d,%d,%d,%d] actor=%s\n",
+                        si, occ_rej_samples[si].qm,
+                        occ_rej_samples[si].ch[0], occ_rej_samples[si].ch[1],
+                        occ_rej_samples[si].ch[2], occ_rej_samples[si].ch[3],
+                        occ_rej_samples[si].ch[4], rn);
+            }
         }
         occ_dbg_calls = occ_dbg_no_root = occ_dbg_no_mesh = occ_dbg_no_pos = occ_dbg_no_bounds = 0;
         occ_dbg_too_small = occ_dbg_too_far = occ_dbg_fallback = occ_dbg_added = 0;
+        occ_dbg_nocol = occ_dbg_nochan = occ_dbg_badread = 0;
+        occ_dbg_nocol_wall = occ_dbg_nocol_floor = 0;
+        occ_accepted_sample_count = 0; occ_nonprim_class_count = 0;
+        occ_rej_sample_count = 0;
         num_occluders = 0;
         occlusion_incomplete = 0;
         /* Prioritize actual player/teammate pawns before scanning loot-heavy
@@ -2675,15 +2739,16 @@ camera_done:
         int visibility = is_visible_from_camera(camera_x, camera_y, camera_z, mx, my, mz, e->half_height, e->actor_address);
         int raw_raycast = visibility > 0;
         e->visibility_known = camera_valid && visibility >= 0;
-        e->engine_visible = actor_engine_visible(actor_ptrs[i]);
+        e->engine_visible = -1;
+        e->visibility_ray_mask = 0;
 #ifdef BUILD_AS_LIBRARY
-        /* Frustum/render flags are not a substitute for camera-to-body rays. */
+        /* The worker cannot call engine physics. Its frame is completed by
+         * the game-thread query bridge before rendering. Bounds and render
+         * hints do not certify visibility; missing/stale queries stay unknown. */
         raw_ros = camera_valid;
-        raw_raycast = camera_valid && raw_raycast;
+        raw_raycast = 0;
+        e->visibility_known = 0;
 #endif
-        if (vis_dbg_enabled && num_occluders > 0)
-            fprintf(stderr, "  [vis] %s ros=%d ray=%d eng=%d cam(%.1f,%.1f)->tgt(%.1f,%.1f)\n",
-                    e->name, raw_ros, raw_raycast, e->engine_visible, camera_x, camera_y, mx, my);
 #ifndef BUILD_AS_LIBRARY
         vis_smooth_update(actor_ptrs[i], &raw_ros, &raw_raycast);
 #endif

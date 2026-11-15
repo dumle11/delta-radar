@@ -1,0 +1,246 @@
+[15920.676] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[15922.424] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[15924.279] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[15924.540] cam: -692,102,1 y=-171.3 p=7.2 f=55.0 n=4 pt=0
+[15924.543] cam: -692,102,1 y=-171.3 p=7.2 f=55.0 n=4 pt=0
+[15926.161] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[15926.463] cam: -692,102,1 y=-171.3 p=7.2 f=55.0 n=4 pt=0
+[15928.080] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15930.043] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15930.898] cam: -692,102,1 y=-171.3 p=7.2 f=55.0 n=4 pt=0
+[15932.262] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15934.373] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15936.421] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15937.146] cam: -692,102,1 y=-171.3 p=7.2 f=55.0 n=2 pt=0
+[15938.322] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15940.376] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15942.407] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15943.320] cam: -692,102,1 y=-171.3 p=7.2 f=55.0 n=2 pt=0
+[15944.649] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15946.826] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15948.933] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15949.735] cam: -692,102,1 y=-171.3 p=7.2 f=55.0 n=2 pt=0
+[15951.054] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15953.067] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15953.173] cam: -710,90,-9 y=0.0 p=-90.0 f=60.0 n=2 pt=0
+[15953.339] cam: -199,187,101 y=-140.0 p=-10.0 f=90.0 n=2 pt=0
+[15954.945] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15955.811] cam: -199,186,101 y=-160.0 p=-15.0 f=90.0 n=2 pt=0
+[15957.188] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15959.617] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15961.832] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15962.775] cam: -199,186,101 y=-160.0 p=-15.0 f=90.0 n=2 pt=0
+[15964.058] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15966.156] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15968.319] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15969.117] cam: -199,186,101 y=-160.0 p=-15.0 f=90.0 n=2 pt=0
+[15970.476] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15972.381] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15974.598] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15975.559] cam: -200,186,100 y=-115.0 p=-5.0 f=90.0 n=2 pt=0
+[15976.924] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15979.182] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15981.467] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15982.419] cam: -200,186,100 y=-115.0 p=-5.0 f=90.0 n=2 pt=0
+[15983.693] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15985.878] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15987.993] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15988.857] cam: -200,186,100 y=-115.0 p=-5.0 f=90.0 n=2 pt=0
+[15990.173] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15992.485] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15994.710] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15995.678] cam: -200,186,100 y=-115.0 p=-5.0 f=90.0 n=2 pt=0
+[15997.083] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[15999.364] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16001.770] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16002.761] cam: -200,186,100 y=-115.0 p=-5.0 f=90.0 n=2 pt=0
+[16004.135] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16006.297] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16008.597] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16009.557] cam: -200,186,100 y=-115.0 p=-5.0 f=90.0 n=2 pt=0
+[16010.943] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16013.300] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16015.152] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16015.888] cam: -200,186,100 y=-115.0 p=-5.0 f=90.0 n=2 pt=0
+[16016.936] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16018.768] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16020.561] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16021.274] cam: -200,186,100 y=-115.0 p=-5.0 f=90.0 n=2 pt=0
+[16022.333] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16024.128] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16025.969] aim: enabled=1 ready=0 state=1 target=0 corrections=0
+[16026.722] cam: 15,-87,0 y=-153.8 p=0.0 f=90.0 n=17 pt=1
+[16026.918] cam: 15,-87,0 y=-153.8 p=0.0 f=90.0 n=17 pt=1
+[16028.267] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16030.382] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16032.368] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16033.198] cam: 15,-87,2 y=-31.9 p=0.0 f=90.0 n=17 pt=1
+[16034.352] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16036.360] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16038.352] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16039.220] cam: 15,-87,2 y=-31.9 p=0.0 f=90.0 n=17 pt=1
+[16040.391] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16042.418] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16044.606] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16045.521] cam: 15,-87,2 y=-31.9 p=0.0 f=90.0 n=17 pt=1
+[16046.802] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16049.057] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16051.355] aim: enabled=1 ready=1 state=1 target=0 corrections=0
+[16052.290] cam: 15,-87,2 y=-31.9 p=0.0 f=90.0 n=17 pt=1
+[16053.551] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=34
+[16055.613] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=220
+[16057.858] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=421
+[16058.800] cam: 15,-87,2 y=-71.5 p=-0.8 f=90.0 n=17 pt=1
+[16060.166] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=628
+[16062.408] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=831
+[16064.677] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=1036
+[16065.652] cam: 15,-87,2 y=-71.5 p=-0.8 f=90.0 n=17 pt=1
+[16066.966] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=1240
+[16069.137] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=1435
+[16071.180] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=1618
+[16072.093] cam: 15,-87,2 y=-71.5 p=-0.8 f=90.0 n=17 pt=1
+[16073.398] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=1819
+[16075.633] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=2020
+[16077.877] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=2221
+[16078.856] cam: 15,-87,2 y=-71.5 p=-0.8 f=90.0 n=17 pt=1
+[16080.223] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=2431
+[16082.486] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=2635
+[16084.759] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=2839
+[16085.712] cam: 15,-87,2 y=-71.5 p=-0.8 f=90.0 n=17 pt=1
+[16087.025] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=3043
+[16089.238] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=3243
+[16091.398] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=3436
+[16092.415] cam: 15,-87,2 y=-71.5 p=-0.8 f=90.0 n=17 pt=1
+[16093.746] aim: enabled=1 ready=1 state=2 target=7320b6aab0 corrections=3649
+[16095.808] aim: enabled=0 ready=1 state=0 target=0 corrections=3784
+[16097.914] aim: enabled=0 ready=1 state=0 target=0 corrections=3784
+[16098.755] cam: 15,-87,2 y=2.4 p=26.4 f=90.0 n=17 pt=1
+[16100.064] aim: enabled=0 ready=1 state=0 target=0 corrections=3784
+[16102.259] aim: enabled=0 ready=1 state=0 target=0 corrections=3784
+[16104.583] aim: enabled=0 ready=1 state=0 target=0 corrections=3784
+[16105.515] cam: 15,-87,2 y=2.4 p=26.4 f=90.0 n=17 pt=1
+[16106.857] aim: enabled=0 ready=1 state=0 target=0 corrections=3784
+[16109.162] aim: enabled=0 ready=1 state=0 target=0 corrections=3784
+[16111.340] aim: enabled=0 ready=1 state=0 target=0 corrections=3784
+[16112.206] cam: 15,-87,2 y=-76.0 p=-0.4 f=90.0 n=17 pt=1
+[16113.501] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=3960
+[16115.544] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=4144
+[16117.772] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=4345
+[16118.704] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16119.983] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=4543
+[16122.210] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=4742
+[16124.489] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=4948
+[16125.434] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16126.818] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=5158
+[16129.074] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=5359
+[16131.284] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=5559
+[16132.225] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16133.555] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=5764
+[16135.770] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=5962
+[16138.093] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=6171
+[16139.042] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16140.345] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=6373
+[16142.571] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=6574
+[16144.857] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=6778
+[16145.810] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16147.125] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=6982
+[16149.474] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=7194
+[16151.689] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=7393
+[16152.610] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16153.908] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=7593
+[16156.117] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=7792
+[16158.408] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=7993
+[16159.374] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16160.703] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=8200
+[16162.891] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=8395
+[16165.098] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=8593
+[16166.065] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16167.363] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=8797
+[16169.626] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=9001
+[16171.874] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=9202
+[16172.852] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16174.177] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=9409
+[16176.435] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=9613
+[16178.729] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=9820
+[16179.697] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16181.095] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=10033
+[16183.344] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=10234
+[16185.562] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=10432
+[16186.515] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16187.841] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=10639
+[16190.082] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=10840
+[16192.389] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=11047
+[16193.306] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16194.583] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=11245
+[16196.751] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=11440
+[16198.961] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=11638
+[16199.932] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16201.244] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=11842
+[16203.541] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=12049
+[16205.810] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=12253
+[16206.737] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16208.000] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=12451
+[16210.208] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=12649
+[16212.381] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=12844
+[16213.349] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16214.663] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=13049
+[16216.927] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=13252
+[16219.237] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=13460
+[16220.155] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16221.445] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=13660
+[16223.630] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=13855
+[16225.847] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=14056
+[16226.789] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16228.095] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=14257
+[16230.337] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=14458
+[16232.486] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=14652
+[16233.407] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16234.686] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=14849
+[16236.834] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=15043
+[16239.035] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=15241
+[16239.953] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16241.243] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=15439
+[16243.417] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=15634
+[16245.743] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=15844
+[16246.727] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16247.970] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=16040
+[16250.229] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=16243
+[16252.478] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=16446
+[16253.422] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16254.731] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=16648
+[16256.997] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=16852
+[16259.246] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=17053
+[16260.176] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16261.463] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=17254
+[16263.740] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=17458
+[16266.054] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=17666
+[16267.000] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16268.336] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=17872
+[16270.561] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=18072
+[16272.817] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=18274
+[16273.750] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16275.051] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=18475
+[16277.274] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=18673
+[16279.576] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=18880
+[16280.544] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16281.856] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=19084
+[16284.137] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=19290
+[16286.401] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=19492
+[16287.346] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16288.655] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=19696
+[16290.912] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=19900
+[16293.132] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=20098
+[16294.071] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16295.371] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=20299
+[16297.678] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=20506
+[16299.922] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=20709
+[16300.908] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16302.282] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=20920
+[16304.472] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=21118
+[16306.713] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=21319
+[16307.624] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16308.940] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=21520
+[16311.130] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=21716
+[16313.437] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=21924
+[16314.388] cam: 17,-87,2 y=-79.1 p=-0.3 f=90.0 n=17 pt=1
+[16315.695] aim: enabled=1 ready=1 state=2 target=73214a5560 corrections=22126
