@@ -85,6 +85,7 @@ static int ev_same(const EVObject *expected) {
 }
 
 /* Bind the UGPPhysics CDO and LineTraceSingle UFunction via GObjects. */
+#include "engine_frame.h"
 __attribute__((noinline))
 static void ev_decode(char *dst, const unsigned char *src, int n) {
     volatile unsigned char k = 0x55;
@@ -153,6 +154,7 @@ static void ev_execute_traces(int count, float cam_x, float cam_y, float cam_z,
 
     for (int i = 0; i < count; i++) {
         Entity *e = &entities[i];
+        if(e->kind[0]=='l') continue;
         if (!e->visibility_known && !e->visible_from_camera) continue;
         if (!strcmp(e->id, self_entity_id) || e->dead) continue;
         if (!e->position_plaintext && (e->x == 0 && e->y == 0 && e->z == 0)) continue;
@@ -179,6 +181,7 @@ static void ev_execute_traces(int count, float cam_x, float cam_y, float cam_z,
             params.ignore = (EVArray){(uint64_t)(uintptr_t)ignored, 2, 2};
             params.result = 0xff;
 
+            if (!ev_native_frame_current() || !ev_actor_present(e->actor_address)) return;
             ev_pe_fn((void *)(uintptr_t)ev_receiver.address,
                      (void *)(uintptr_t)ev_function.address, &params);
             atomic_fetch_add(&ev_traces, 1);
@@ -205,7 +208,7 @@ static void ev_update(int count) {
         entities[i].engine_visible = -1;
         entities[i].visibility_ray_mask = 0;
     }
-    if (!atomic_load(&ev_ready) || !camera_frame_valid || count <= 0) {
+    if (!atomic_load(&ev_ready) || !camera_frame_valid || !ev_native_frame_current() || count <= 0) {
         ea_release(); et_release(); return;
     }
 
@@ -225,7 +228,7 @@ static void ev_update(int count) {
     /* Mark all non-self live entities as candidates. */
     for (int i = 0; i < count; i++) {
         Entity *e = &entities[i];
-        if (e == self || e->dead || !e->actor_address) continue;
+        if (e == self || e->dead || !e->actor_address || e->kind[0]=='l') continue;
         if (!e->position_plaintext && (e->x == 0 && e->y == 0 && e->z == 0)) continue;
         e->visibility_known = 1; /* placeholder: ev_execute_traces will fill */
     }
@@ -233,6 +236,7 @@ static void ev_update(int count) {
     ev_execute_traces(count, cam_x, cam_y, cam_z, world, pawn);
 
     /* Aim integration: compute and apply on scanner thread. */
+    if (!ev_native_frame_current()) { ea_release(); et_release(); return; }
     unsigned aim_config = atomic_load(&ea_config);
     if (self->dead || !local_player_controlled) aim_config = 0;
     et_frame(count, cam_x, cam_y, cam_z, self->yaw, self->pitch, aim_config, world, pc, pawn);

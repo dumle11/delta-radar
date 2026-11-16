@@ -65,7 +65,7 @@ static int ef_zoom_valid(const EFCommand *c) {
         ef_same_function(&z->progress) && ef_same_function(&z->is_on);
 }
 static void ef_zoom_release(void) {
-    if (ef_zoom_owned && ev_pe_fn && ef_same(&ef_zoom_session.controller) &&
+    if (ef_zoom_owned && ev_native_frame_current() && ev_pe_fn && ef_same(&ef_zoom_session.controller) &&
         ef_same(&ef_zoom_session.pawn) && ef_same(&ef_zoom_session.zoom.input) &&
         ev_ptr(ef_zoom_session.controller.object.address + 0x960) == ef_zoom_session.zoom.input.object.address &&
         ev_ptr(ef_zoom_session.controller.object.address + 0x3f0) == ef_zoom_session.pawn.object.address &&
@@ -99,7 +99,7 @@ static int ef_zoom_gate(const EFCommand *c) {
     return on && progress >= 0.99f;
 }
 static void ef_stop_active(void) {
-    if (ef_active.fire && ef_same(&ef_active.pawn) && ef_same_function(&ef_active.stop)) {
+    if (ef_active.fire && ev_native_frame_current() && ef_same(&ef_active.pawn) && ef_same_function(&ef_active.stop)) {
         int32_t fire_index = 0;
         ev_pe_fn((void *)(uintptr_t)ef_active.pawn.object.address,
                  (void *)(uintptr_t)ef_active.stop.object.address, &fire_index);

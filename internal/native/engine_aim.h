@@ -1,5 +1,6 @@
 #ifndef INTERNAL_ENGINE_AIM_H
 #define INTERNAL_ENGINE_AIM_H
+#include "aim_target.h"
 /* Direct memory-write aim + direct ProcessEvent autoshoot.
  * No vtable hooks, no mprotect, no game-thread interception. */
 static _Atomic unsigned ea_config, ea_status, ea_corrections;
@@ -32,7 +33,7 @@ static uint64_t ew_find_component_in(uint64_t weapon, const char *name, uint32_t
 
 static int ea_alive_raw(uint64_t actor) {
     uint8_t dead = 1;
-    return is_any_ptr(actor) &&
+    return ev_native_frame_current() && ev_actor_present(actor) && is_any_ptr(actor) &&
         ev_read(actor + OFF_CHARACTER_LAST_IS_DEAD, &dead, 1) && !(dead & 1);
 }
 static int ea_alive_entity(const Entity *e) {
@@ -154,7 +155,7 @@ static int ea_zoom_bind(uint64_t controller, uint64_t weapon) {
 }
 
 static void ea_zoom_release(void) {
-    if (ea_zoom_owned && ev_pe_fn && ea_zoom_unaim_fn.address &&
+    if (ea_zoom_owned && ev_native_frame_current() && ev_pe_fn && ea_zoom_unaim_fn.address &&
         ev_same(&ea_zoom_input_obj) && ev_same(&ea_zoom_unaim_fn)) {
         ev_pe_fn((void *)(uintptr_t)ea_zoom_input_obj.address,
                  (void *)(uintptr_t)ea_zoom_unaim_fn.address, NULL);
@@ -204,6 +205,16 @@ static void ea_write_rotation(uint64_t controller, float pitch, float yaw) {
     atomic_fetch_add(&ea_corrections, 1);
 }
 
+typedef struct {uint64_t world,pawn,target;float start[3];} EAAimTrace;
+static int ea_trace_aim_point(void *context,const float *point) {
+    if (!ev_native_frame_current()) return -1;
+    EAAimTrace *trace=context;uint64_t ignored[]={trace->pawn,trace->target};
+    EVTraceParams params={0};params.world=trace->world;
+    memcpy(params.start,trace->start,sizeof(params.start));memcpy(params.end,point,sizeof(params.end));
+    params.channel=3;params.complex=1;params.ignore=(EVArray){(uint64_t)(uintptr_t)ignored,2,2};params.result=0xff;
+    ev_pe_fn((void *)(uintptr_t)ev_receiver.address,(void *)(uintptr_t)ev_function.address,&params);
+    atomic_fetch_add(&ev_traces,1);return params.result;
+}
 static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
                             float cam_yaw, float cam_pitch, unsigned aim_config,
                             uint64_t world, uint64_t controller, uint64_t pawn) {
@@ -226,7 +237,6 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
     float aim_points[EV_MAX][3];
     unsigned mask = (aim_config >> 1) & 7;
     int bone = (aim_config >> 16) & 3;
-    float height = bone == 0 ? 0.65f : bone == 1 ? 0.3f : 0.0f;
 
     for (int i = 0; i < count && choice_count < EV_MAX; i++) {
         Entity *e = &entities[i];
@@ -236,57 +246,15 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
         int allowed = e->kind[0] == 'a' ? (mask & 4) != 0 :
             e->kind[0] == 'p' && ((e->team != 1 && (mask & 1) != 0) ||
                                    (e->team == 1 && (mask & 2) != 0));
-        int eligible = allowed && e->health_known && isfinite(e->health) && e->health > 0.01f
-            && e->visibility_known && e->visible_from_camera;
+        int eligible = allowed && e->health_known && isfinite(e->health) && e->health > 0.01f;
 
-        float aim_point[3] = {
-            e->x * 100.0f,
-            e->y * 100.0f,
-            (e->z + e->half_height * height) * 100.0f
-        };
+        float aim_point[3];
+        if(!aim_entity_point(e,bone,aim_point)) continue;
 
-        /* Trace preferred aim point; if blocked, trace fallback samples. */
-        int aim_clear = 0;
-        if (eligible && ev_pe_fn && ev_same(&ev_function) && ev_same(&ev_receiver)) {
-            uint64_t ignored[2] = {pawn, e->actor_address};
-            EVTraceParams params = {0};
-            params.world = world;
-            params.start[0] = camera_cm[0]; params.start[1] = camera_cm[1]; params.start[2] = camera_cm[2];
-            params.end[0] = aim_point[0]; params.end[1] = aim_point[1]; params.end[2] = aim_point[2];
-            params.channel = 3; params.complex = 1;
-            params.ignore = (EVArray){(uint64_t)(uintptr_t)ignored, 2, 2};
-            params.result = 0xff;
-            ev_pe_fn((void *)(uintptr_t)ev_receiver.address,
-                     (void *)(uintptr_t)ev_function.address, &params);
-            atomic_fetch_add(&ev_traces, 1);
-            if (params.result == 0) {
-                aim_clear = 1;
-            } else if (params.result == 1) {
-                /* Preferred bone blocked — trace each body sample for a visible one. */
-                const int preference[5] = {1, 0, 3, 4, 2};
-                for (int k = 0; k < 5; k++) {
-                    float sample[3];
-                    visibility_sample_point(cam_x, cam_y, e->x, e->y, e->z, e->half_height, preference[k], sample);
-                    EVTraceParams fp = {0};
-                    fp.world = world;
-                    fp.start[0] = camera_cm[0]; fp.start[1] = camera_cm[1]; fp.start[2] = camera_cm[2];
-                    fp.end[0] = sample[0] * 100.0f; fp.end[1] = sample[1] * 100.0f; fp.end[2] = sample[2] * 100.0f;
-                    fp.channel = 3; fp.complex = 1;
-                    fp.ignore = (EVArray){(uint64_t)(uintptr_t)ignored, 2, 2};
-                    fp.result = 0xff;
-                    ev_pe_fn((void *)(uintptr_t)ev_receiver.address,
-                             (void *)(uintptr_t)ev_function.address, &fp);
-                    atomic_fetch_add(&ev_traces, 1);
-                    if (fp.result == 0) {
-                        aim_point[0] = sample[0] * 100.0f;
-                        aim_point[1] = sample[1] * 100.0f;
-                        aim_point[2] = sample[2] * 100.0f;
-                        aim_clear = 1;
-                        break;
-                    }
-                }
-            }
-        }
+        EAAimTrace trace={.world=world,.pawn=pawn,.target=e->actor_address};
+        memcpy(trace.start,camera_cm,sizeof(trace.start));
+        int aim_clear=eligible && ev_pe_fn && ev_same(&ev_function) && ev_same(&ev_receiver) &&
+            aim_visible_entity_point(e,bone,aim_point,ea_trace_aim_point,&trace);
 
         aim_points[choice_count][0] = aim_point[0];
         aim_points[choice_count][1] = aim_point[1];
@@ -332,9 +300,9 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
     Entity *target_entity = &entities[choice_entity[chosen]];
     if (target_entity->actor_address != previous) {
         char ad[128];
-        snprintf(ad,sizeof(ad),"aim lock: kind=%s team=%d name=%.30s mask=%u act=%lx",
+        snprintf(ad,sizeof(ad),"aim lock: kind=%s team=%d name=%.20s mask=%u act=%lx bone=%d joint=%d",
             target_entity->kind, target_entity->team, target_entity->name, mask,
-            (unsigned long)target_entity->actor_address);
+            (unsigned long)target_entity->actor_address,bone,target_entity->aim_bone_index[bone]);
         _diag(ad);
     }
     float rotation[3];

@@ -104,6 +104,13 @@ public class O extends View {
     static volatile boolean infiniteStamina = false;
     static volatile int cameraFov = 0; // 0 = game default, 10-170 = override
 
+    // Loot values are the game's reference unit prices, not live market quotes.
+    static volatile int lootRarityMask = 255;
+    static volatile int lootMinValue = 0;
+    static volatile boolean lootShowValue = true, lootShowContainers = true;
+    static volatile int[] lootGameColors = {0xffdedede,0xffdedede,0xffdedede,0xffdedede,0xffdedede,0xffdedede,0xffdedede,0xffdedede};
+    static final String[] LOOT_RARITIES = {"Unknown / unclassified", "White", "Green", "Blue", "Purple", "Gold", "Red", "Special"};
+
     static final int AIM_ENEMIES = 1, AIM_TEAMMATES = 2, AIM_BOTS = 4;
     static final int AIM_ALL = AIM_ENEMIES | AIM_TEAMMATES | AIM_BOTS;
 
@@ -151,7 +158,12 @@ public class O extends View {
                     noRecoil = prefs.getBoolean("noRecoil", false);
                     noSpread = prefs.getBoolean("noSpread", false);
                     infiniteStamina = prefs.getBoolean("infiniteStamina", false);
+                    lootRarityMask = prefs.getInt("lootRarityMask", 255) & 255;
+                    lootMinValue = Math.max(0, Math.min(1000000, prefs.getInt("lootMinValue", 0)));
+                    lootShowValue = prefs.getBoolean("lootShowValue", true);
+                    lootShowContainers = prefs.getBoolean("lootShowContainers", true);
                     cameraFov = prefs.getInt("cameraFov", 0);
+                    if(cameraFov!=0) cameraFov=Math.max(10,Math.min(170,cameraFov));
 
                     wm = (WindowManager) a.getSystemService(Context.WINDOW_SERVICE);
                     sh = a.getResources().getDisplayMetrics().heightPixels;
@@ -351,6 +363,23 @@ public class O extends View {
     static boolean gns() { return noSpread; }
     static boolean gis() { return infiniteStamina; }
     static int gcf() { return cameraFov; }
+    static int glr() { return lootRarityMask; }
+    static int glm() { return lootMinValue; }
+    static int glf() { return (lootShowValue ? 1 : 0) | (lootShowContainers ? 2 : 0); }
+    static void lc(final int quality, final int color) {
+        if (quality < 0 || quality > 7 || lootGameColors[quality] == color) return;
+        int[] next = lootGameColors.clone(); next[quality] = color; lootGameColors = next;
+        if (uiHandler != null) uiHandler.post(new Runnable() {
+            public void run() {
+                if (menu == null || menu.selectedTab != 5) return;
+                for (int i=0;i<menu.body.getChildCount();i++) {
+                    View child=menu.body.getChildAt(i);
+                    if (child instanceof Switch && Integer.valueOf(quality).equals(child.getTag()))
+                        ((Switch)child).setTextColor(color);
+                }
+            }
+        });
+    }
 
     static void setColor(int slot, int color) {
         if (slot >= 0 && slot < ET_COUNT) entityColors[slot] = color;
@@ -366,7 +395,9 @@ public class O extends View {
             .putBoolean("rayDebug", rayDebug).putBoolean("rayViews", rayViews)
             .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds)
             .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread).putBoolean("infiniteStamina", infiniteStamina)
-            .putInt("cameraFov", cameraFov);
+            .putInt("cameraFov", cameraFov)
+            .putInt("lootRarityMask", lootRarityMask).putInt("lootMinValue", lootMinValue)
+            .putBoolean("lootShowValue", lootShowValue).putBoolean("lootShowContainers", lootShowContainers);
         for (int i = 0; i < ET_COUNT; i++) {
             edit.putInt(entityKey("color", i), entityColors[i]);
             edit.putInt(entityKey("visibleColor", i), visibleColors[i]);
@@ -591,7 +622,7 @@ public class O extends View {
         }
         void selectTab(int tab) {
             selectedTab = tab; nav.removeAllViews(); body.removeAllViews(); status = null;
-            String[] titles = {"Visuals", "Colors", "Aim", "Misc", "Status"};
+            String[] titles = {"Visuals", "Colors", "Aim", "Misc", "Status", "Loot"};
             for (int i = 0; i < titles.length; i++) {
                 final int target = i;
                 TextView item = text(titles[i], 20, i == tab ? 0xFF0C201A : MUTED);
@@ -607,6 +638,7 @@ public class O extends View {
                 case 2: buildAimTab(); break;
                 case 3: buildMiscTab(); break;
                 case 4: buildStatusTab(); break;
+                case 5: buildLootTab(); break;
             }
         }
 
@@ -618,6 +650,9 @@ public class O extends View {
             section("Per-entity settings", selectedEntityType == ET_NPC ? "World NPCs and training targets." :
                 selectedEntityType == ET_BOT_PLAYER ? "Simulated players from either team." : "Configure what each entity type shows.");
             buildEntityTypePicker();
+            if (selectedEntityType == ET_LOOT) {
+                lootSettingsLink(); return;
+            }
             if (selectedEntityType >= 0 && selectedEntityType < ET_COUNT) {
                 int feat = entityFeatures[selectedEntityType];
                 etToggle("Enabled", F_ENABLED, (feat & F_ENABLED) != 0);
@@ -715,6 +750,8 @@ public class O extends View {
                 });
             }
             body.addView(targets);
+            if (colorSlot == ET_LOOT) { lootSettingsLink(); return; }
+
             LinearLayout states = row();
             for (int state = 0; state < 2; state++) {
                 final boolean visible = state == 0;
@@ -766,6 +803,63 @@ public class O extends View {
                 public void onStartTrackingTouch(SeekBar bar) {}
                 public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
             });
+        }
+
+        void lootSettingsLink() {
+            section("Loot rarity colors", "Loot uses the game's item colors. Configure filters in Loot.");
+            TextView link = text("Open loot settings", 20, ACCENT);
+            link.setPadding(12, 14, 12, 14); body.addView(link, new LayoutParams(-1, 56));
+            link.setOnClickListener(new OnClickListener() { public void onClick(View v) { selectTab(5); } });
+        }
+        void buildLootTab() {
+            section("Loot", "Names and colors come from the game's item data.");
+            final int oldType = selectedEntityType; selectedEntityType = ET_LOOT;
+            etToggle("Show loot", F_ENABLED, (entityFeatures[ET_LOOT] & F_ENABLED) != 0);
+            etToggle("Item names & stack counts", F_NAMES, (entityFeatures[ET_LOOT] & F_NAMES) != 0);
+            etToggle("Distance labels", F_DISTANCE, (entityFeatures[ET_LOOT] & F_DISTANCE) != 0);
+            etToggle("Item markers", F_BOXES, (entityFeatures[ET_LOOT] & F_BOXES) != 0);
+            selectedEntityType = oldType;
+            toggle("Show reference value per item", -15, lootShowValue);
+            toggle("Include containers, stashes & death boxes", -16, lootShowContainers);
+            section("Rarity", "Selected rarities and minimum value both apply. Unknown values fail a positive threshold.");
+            for (int q = 0; q < LOOT_RARITIES.length; ++q) {
+                final int quality = q;
+                Switch control = new Switch(getContext()); control.setText(LOOT_RARITIES[q]);
+                control.setTag(Integer.valueOf(q)); control.setTextColor(lootGameColors[q]);
+                control.setTextSize(TypedValue.COMPLEX_UNIT_PX, 20);
+                control.setChecked((lootRarityMask & (1 << q)) != 0);
+                control.setPadding(12,0,14,0); control.setShowText(false); control.setSplitTrack(false);
+                styleSwitch(control); body.addView(control, new LayoutParams(-1,50));
+                control.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    public void onCheckedChanged(CompoundButton button, boolean checked) {
+                        if (checked) lootRarityMask |= 1 << quality; else lootRarityMask &= ~(1 << quality);
+                        saveSettings();
+                    }
+                });
+            }
+            final TextView minimum = text("Minimum reference value / item: " + lootMinValue, 20, INK);
+            body.addView(minimum, new LayoutParams(-1,48));
+            SeekBar value = new SeekBar(getContext()); value.setMax(1000); value.setProgress(lootMinValue / 1000);
+            styleSlider(value); body.addView(value, new LayoutParams(-1,42));
+            value.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar b,int n,boolean user) {
+                    if (user) { lootMinValue=n*1000; minimum.setText("Minimum reference value / item: " + lootMinValue); }
+                }
+                public void onStartTrackingTouch(SeekBar b) {}
+                public void onStopTrackingTouch(SeekBar b) { saveSettings(); }
+            });
+            final TextView distance = text("Loot render distance: " + entityRenderDist[ET_LOOT] + "m", 20, INK);
+            body.addView(distance, new LayoutParams(-1,48));
+            SeekBar range = new SeekBar(getContext()); range.setMax(100); range.setProgress(entityRenderDist[ET_LOOT] / 10);
+            styleSlider(range); body.addView(range, new LayoutParams(-1,42));
+            range.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar b,int n,boolean user) {
+                    if (user) { entityRenderDist[ET_LOOT]=Math.max(10,n*10); distance.setText("Loot render distance: " + entityRenderDist[ET_LOOT] + "m"); }
+                }
+                public void onStartTrackingTouch(SeekBar b) {}
+                public void onStopTrackingTouch(SeekBar b) { saveSettings(); }
+            });
+            section("Value source", "Game reference unit value. Live market quotes and container contents are not inferred.");
         }
 
         /* ---- Aim tab ---- */
@@ -868,7 +962,7 @@ public class O extends View {
             toggle("Infinite stamina", -14, infiniteStamina);
 
             section("Camera FOV", cameraFov == 0 ? "Default" : cameraFov + "°");
-            SeekBar fovSlider = new SeekBar(getContext()); fovSlider.setMax(190); fovSlider.setProgress(cameraFov == 0 ? 80 : cameraFov - 10);
+            SeekBar fovSlider = new SeekBar(getContext()); fovSlider.setMax(160); fovSlider.setProgress(cameraFov == 0 ? 80 : cameraFov - 10);
             styleSlider(fovSlider);
             body.addView(fovSlider, new LayoutParams(-1, 42));
             fovSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -923,6 +1017,8 @@ public class O extends View {
                         case -9: noSpread = checked; break;
                         case -12: aim360 = checked; break;
                         case -14: infiniteStamina = checked; break;
+                        case -15: lootShowValue = checked; break;
+                        case -16: lootShowContainers = checked; break;
                         case -13: cameraFov = checked ? 0 : 90; saveSettings(); selectTab(3); break;
                     }
                     saveSettings(); if (inst != null) inst.invalidate();

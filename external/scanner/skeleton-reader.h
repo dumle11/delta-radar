@@ -17,7 +17,22 @@ typedef struct {
     uint64_t asset, info, class_address;
     int32_t count, object_name;
     int16_t parents[MAX_SKELETON_BONES];
+    int16_t aim_indices[3];
+    long long attempted_at;
 } SkeletonHierarchy;
+static int skeleton_aim_name_rank(const char *name,int region) {
+    char normalized[96];unsigned length=0;
+    for(unsigned i=0;name[i] && length<sizeof(normalized)-1;i++)
+        if(isalnum((unsigned char)name[i])) normalized[length++]=(char)tolower((unsigned char)name[i]);
+    normalized[length]=0;
+    static const char *names[3][8]={
+        {"head","bhead","headm","bip001head","bip01head",NULL},
+        {"chest","spine03","spine3","spine02","spine2","bip001spine2","bip01spine2",NULL},
+        {"pelvis","hips","hip","bip001pelvis","bip01pelvis",NULL}
+    };
+    for(int i=0;names[region][i];i++) if(!strcmp(normalized,names[region][i])) return 8-i;
+    return 0;
+}
 /* Supported rig identified by its complete raw parent topology. These are
  * measured body joints ending at the ankles. Omit toes/foot segments,
  * finger/IK/weapon helper chains. */
@@ -94,23 +109,32 @@ static const SkeletonHierarchy *skeleton_hierarchy(const SkeletonState *s) {
     for (unsigned i = 0; i < 16; i++) {
         SkeletonHierarchy *c = &skeleton_hierarchies[i];
         if (c->pid == game_pid && c->asset == s->asset && c->info == s->info.data &&
-            c->count == s->info.count && c->class_address == cls && c->object_name == name) return c;
+            c->count == s->info.count && c->class_address == cls && c->object_name == name &&
+            (c->aim_indices[0]>=0 || sample_time_ms()-c->attempted_at<1000)) return c;
     }
     unsigned char info[MAX_SKELETON_BONES * 12];
     size_t bytes = (size_t)s->info.count * 12;
     if (read_mem(s->info.data, info, bytes) != (ssize_t)bytes) return NULL;
     SkeletonHierarchy candidate = {.pid = game_pid, .asset = s->asset, .info = s->info.data,
-        .class_address = cls, .count = s->info.count, .object_name = name};
+        .class_address = cls, .count = s->info.count, .object_name = name,.aim_indices={-1,-1,-1},.attempted_at=sample_time_ms()};
+    int ranks[3]={0};
     for (int i = 0; i < s->info.count; i++) {
         int32_t parent; memcpy(&parent, info + i * 12 + 8, 4);
         if ((i == 0 && parent != -1) || (i > 0 && (parent < 0 || parent >= i))) return NULL;
         candidate.parents[i] = (int16_t)parent;
+        int32_t id;memcpy(&id,info+i*12,4);char bone_name[96]={0};resolve_fname(id,bone_name,sizeof(bone_name));
+        uint32_t number;memcpy(&number,info+i*12+4,4);
+        if(number && number<1000000) {size_t length=strlen(bone_name);snprintf(bone_name+length,sizeof(bone_name)-length,"_%u",number-1);}
+        for(int region=0;region<3;region++) {
+            int rank=skeleton_aim_name_rank(bone_name,region);
+            if(rank>ranks[region]) {ranks[region]=rank;candidate.aim_indices[region]=(int16_t)i;}
+        }
     }
     SkeletonHierarchy *c = &skeleton_hierarchies[skeleton_next_cache++ % 16];
     *c = candidate; return c;
 }
 static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root) {
-    e->has_bones = 0; e->bone_count = 0;
+    e->has_bones = 0; e->bone_count = 0;e->aim_bone_mask=0;
     if (!e->position_plaintext || e->dead || !skeleton_profile_supported()) return;
     for (unsigned attempt = 0; attempt < 2; attempt++) {
         SkeletonState state, after;
@@ -119,15 +143,24 @@ static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root) {
         const SkeletonHierarchy *hierarchy = skeleton_hierarchy(&state);
         size_t bytes = (size_t)state.pose.count * sizeof(*pose);
         if (!hierarchy || read_mem(state.pose.data, pose, bytes) != (ssize_t)bytes) return;
-        if (state.info.count < (int)(sizeof(skeleton_rig_parents)/sizeof(*skeleton_rig_parents)) ||
-            memcmp(hierarchy->parents, skeleton_rig_parents, sizeof(skeleton_rig_parents))) return;
+        int body_supported=state.info.count >= (int)(sizeof(skeleton_rig_parents)/sizeof(*skeleton_rig_parents)) &&
+            !memcmp(hierarchy->parents,skeleton_rig_parents,sizeof(skeleton_rig_parents));
         SkeletonTransform parent = state.root_world, world = state.mesh_world;
         float relative[3]; memcpy(relative, state.relative, sizeof(relative));
         parent.translation[0] = e->x * 100;
         parent.translation[1] = e->y * 100;
         parent.translation[2] = e->z * 100;
         skeleton_transform_point(&parent, relative, world.translation);
-        for (int i = 0; i < SKELETON_BODY_COUNT; i++) {
+        unsigned aim_mask=0;
+        for(int region=0;region<3;region++) {
+            int source=hierarchy->aim_indices[region];if(source<0 || source>=state.pose.count || !skeleton_transform_valid(&pose[source])) continue;
+            float point[3];skeleton_transform_point(&world,pose[source].translation,point);
+            int valid=1;float distance=0;const float center[]={e->x,e->y,e->z};
+            for(int j=0;j<3;j++) {point[j]/=100;float delta=point[j]-center[j];if(!isfinite(point[j])) valid=0;distance+=delta*delta;}
+            if(!valid || distance>9) continue;
+            memcpy(e->aim_bone_pos[region],point,sizeof(point));e->aim_bone_index[region]=(int16_t)source;aim_mask|=1u<<region;
+        }
+        for (int i = 0; body_supported && i < SKELETON_BODY_COUNT; i++) {
             int source = skeleton_body_indices[i];
             if (!skeleton_transform_valid(&pose[source])) return;
             for (int j = 0; j < 3; j++) if (fabsf(pose[source].translation[j]) > 2000) return;
@@ -141,7 +174,8 @@ static void read_entity_bones(Entity *e, uint64_t actor, uint64_t root) {
         if (read_mem(state.pose.data, verify, bytes) != (ssize_t)bytes ||
             memcmp(pose, verify, bytes) || !skeleton_read_state(actor, root, &after) ||
             memcmp(&state, &after, sizeof(state))) continue;
-        e->bone_count = SKELETON_BODY_COUNT; e->has_bones = 1; return;
+        e->aim_bone_mask=aim_mask;
+        e->bone_count = body_supported?SKELETON_BODY_COUNT:0; e->has_bones = body_supported; return;
     }
 }
 #endif

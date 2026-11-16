@@ -73,7 +73,9 @@ static void _diag(const char *msg) {
 
 #include "engine_visibility.h"
 #include "engine_weapon.h"
+#include "engine_position.h"
 #include "engine_stamina.h"
+#include "engine_loot.h"
 
 /*
  * Neutralise the verification function's termination path.
@@ -1000,50 +1002,8 @@ static int try_dl_iterate(void) {
 
 #include "esp_overlay.h"
 
-static _Atomic uint64_t _fov_cm_addr = 0;
-static _Atomic int _fov_target = 0;
-
-static uint32_t _fov_extra_offsets[16];
-static int _fov_extra_count = 0;
-
-static void *_fov_write_thread(void *arg) {
-    (void)arg;
-    static int _fov_scan_done = 0;
-    for (;;) {
-        int val = atomic_load(&_fov_target);
-        uint64_t cm = atomic_load(&_fov_cm_addr);
-        if (val >= 10 && val <= 200 && cm > 0x10000) {
-            float f = (float)val;
-            if (!_fov_scan_done) {
-                _fov_scan_done = 1;
-                char dbuf[256];
-                int found = 0;
-                for (uint32_t off = 0; off < 0x4000 && found < 16; off += 4) {
-                    float v = *(volatile float *)(uintptr_t)(cm + off);
-                    if (v > 54.5f && v < 55.5f) {
-                        int known = (off == 0x18cc || off == 0x2dcc || off == 0x382c);
-                        snprintf(dbuf, sizeof(dbuf), "fov scan: off=0x%x val=%.1f %s",
-                            off, v, known ? "(known)" : "(NEW)");
-                        _diag(dbuf);
-                        if (!known && _fov_extra_count < 16) {
-                            _fov_extra_offsets[_fov_extra_count++] = off;
-                        }
-                        found++;
-                    }
-                }
-                snprintf(dbuf, sizeof(dbuf), "fov scan done: %d total, %d new", found, _fov_extra_count);
-                _diag(dbuf);
-            }
-            *(volatile float *)(uintptr_t)(cm + 0x18cc) = f;
-            *(volatile float *)(uintptr_t)(cm + 0x2dcc) = f;
-            *(volatile float *)(uintptr_t)(cm + 0x382c) = f;
-            for (int i = 0; i < _fov_extra_count; i++)
-                *(volatile float *)(uintptr_t)(cm + _fov_extra_offsets[i]) = f;
-        }
-        sched_yield();
-    }
-    return NULL;
-}
+#include "engine_camera_fov.h"
+#include "entity_watch.h"
 
 static void *injected_scanner_thread(void *arg) {
     (void)arg;
@@ -1259,11 +1219,10 @@ static void *injected_scanner_thread(void *arg) {
 
     int sentinel_check_counter = 0;
     int diag_counter = 0;
-    unsigned world_poll_counter = 0;
     while (atomic_load(&lib_running_flag)) {
         /* Follow viewport world changes promptly, even if the old preview
          * world still has actors and would never trigger failure recovery. */
-        if (world_poll_counter++ % 15 == 0) {
+        {
             uint64_t slot = 0;
             int source = 0;
             if (get_world_slot_via_engine(&slot, &source) &&
@@ -1302,23 +1261,21 @@ static void *injected_scanner_thread(void *arg) {
             int bound = ev_initialize();
             _diag(bound ? "visibility: engine trace ready" : "visibility: engine trace unavailable");
         }
+        if (!ev_frame_begin()) {
+            camera_frame_valid=0;
+            local_player_controlled=0;
+        }
         atomic_store(&ea_config, _ov_aim_config());
         _ov_misc_config();
         {
             int fov_val = atomic_load(&_ov_camera_fov_override);
-            static int _fov_thread_started = 0;
-            atomic_store(&_fov_target, fov_val);
-            atomic_store(&_fov_cm_addr, resolved_camera_owner);
-            if (!_fov_thread_started && fov_val >= 10) {
-                _fov_thread_started = 1;
-                pthread_t fov_tid;
-                pthread_create(&fov_tid, NULL, _fov_write_thread, NULL);
-                pthread_detach(fov_tid);
-            }
+            fov_publish(camera_frame_valid && local_player_controlled ? resolved_camera_owner : 0, fov_val);
         }
         ev_update(n);
         ew_update(atomic_load(&ev_local_pawn));
         es_update(atomic_load(&ev_local_pawn));
+        if(n>=0) {n=el_update(n);num_entities=n;}
+        entity_watch_update(n);
         if (seq <= 5 || seq % 100 == 0) {
             char vis_diag[160];
             snprintf(vis_diag, sizeof(vis_diag), "engine LOS: ready=%d batches=%u traces=%u",
@@ -1343,7 +1300,6 @@ static void *injected_scanner_thread(void *arg) {
         }
 
         {
-            static int pd_logged = 0;
             if (seq <= 5 || seq % 300 == 0) {
                 for (int ei = 0; ei < n && ei < 18; ei++) {
                     char evbuf[200];
@@ -1415,50 +1371,76 @@ static void *injected_scanner_thread(void *arg) {
                     }
                 }
             }
-            if (pd_logged < 3 && n > 0) {
-                char dbuf[80];
-                snprintf(dbuf, sizeof(dbuf), "pd s=%d c=%d n=%d",
-                    position_decoder_fail_step, position_decode_calls, n);
+            if (seq <= 5 || seq % 100 == 0) {
+                char dbuf[224];
+                snprintf(dbuf, sizeof(dbuf), "position: step=%d calls=%d decoded=%u native=%u SDKcalls=%u SDKreturns=%u native_stage=%d world_fallback=%u rejected=%u entities=%d",
+                    position_decoder_fail_step, position_decode_calls, position_decode_successes, position_native_successes, ep_native_calls, ep_native_returns, ep_stage,
+                    position_world_fallbacks, position_unverified_rejections, n);
                 _diag(dbuf);
-                pd_logged++;
             }
         }
 
         /* Camera validity belongs to this frame, never a previous world. */
         int had_camera = atomic_exchange(&_rcam_ok, 0);
-        if (n > 0 && camera_frame_valid && self_entity_id[0]) {
-            for (int ci = 0; ci < n; ci++) {
-                if (strcmp(entities[ci].id, self_entity_id) == 0) {
-                    if (!isfinite(entities[ci].x) || !isfinite(entities[ci].y) ||
-                        !isfinite(entities[ci].z) || !isfinite(entities[ci].yaw) ||
-                        !isfinite(entities[ci].pitch) || !isfinite(entities[ci].fov) ||
-                        entities[ci].fov < 5 || entities[ci].fov >= 180) break;
-                    if (entities[ci].x == 0 && entities[ci].y == 0 && entities[ci].z == 0)
+        if (n > 0 && self_entity_id[0]) {
+            int cam_updated = 0;
+            /* Try to get camera from self entity (normal gameplay) */
+            if (camera_frame_valid) {
+                for (int ci = 0; ci < n; ci++) {
+                    if (strcmp(entities[ci].id, self_entity_id) == 0) {
+                        if (!isfinite(entities[ci].x) || !isfinite(entities[ci].y) ||
+                            !isfinite(entities[ci].z) || !isfinite(entities[ci].yaw) ||
+                            !isfinite(entities[ci].pitch) || !isfinite(entities[ci].fov) ||
+                            entities[ci].fov < 5 || entities[ci].fov >= 180) break;
+                        if (entities[ci].x == 0 && entities[ci].y == 0 && entities[ci].z == 0)
+                            break;
+                        _rcam[0] = entities[ci].x; _rcam[1] = entities[ci].y;
+                        _rcam[2] = entities[ci].z; _rcam[3] = entities[ci].yaw;
+                        _rcam[4] = entities[ci].pitch; _rcam[5] = entities[ci].fov;
+                        cam_updated = 1;
                         break;
-                    _rcam[0] = entities[ci].x; _rcam[1] = entities[ci].y;
-                    _rcam[2] = entities[ci].z; _rcam[3] = entities[ci].yaw;
-                    _rcam[4] = entities[ci].pitch; _rcam[5] = entities[ci].fov;
-                    {
-                        static float last_log_x = 0, last_log_y = 0;
-                        static int cam_log_count = 0;
-                        int first = !had_camera;
-                        float dx = entities[ci].x - last_log_x;
-                        float dy = entities[ci].y - last_log_y;
-                        int moved = (dx*dx + dy*dy) > 4.0f;
-                        if (first || moved || (cam_log_count++ % 300 == 0)) {
-                            char cbuf[160];
-                            snprintf(cbuf, sizeof(cbuf), "cam: %.0f,%.0f,%.0f y=%.1f p=%.1f f=%.1f n=%d pt=%d",
-                                entities[ci].x, entities[ci].y, entities[ci].z,
-                                entities[ci].yaw, entities[ci].pitch, entities[ci].fov,
-                                n, entities[ci].position_plaintext);
-                            _diag(cbuf);
-                            last_log_x = entities[ci].x;
-                            last_log_y = entities[ci].y;
-                        }
                     }
-                    atomic_store(&_rcam_ok, 1);
-                    break;
                 }
+            }
+            /* Spectating fallback: camera manager cache is stale but we can read it
+             * directly via resolved_camera_owner + resolved_camera_cache_off. */
+            if (!cam_updated && resolved_camera_owner > 0x10000) {
+                int coff = resolved_camera_cache_off >= 0 ? resolved_camera_cache_off : 0x2D60;
+                uint64_t pov = resolved_camera_owner + (uint64_t)coff + 0x10;
+                float cx = *(volatile float *)(uintptr_t)(pov) / 100.0f;
+                float cy = *(volatile float *)(uintptr_t)(pov + 4) / 100.0f;
+                float cz = *(volatile float *)(uintptr_t)(pov + 8) / 100.0f;
+                float cp = *(volatile float *)(uintptr_t)(pov + 0x10);
+                float cyw = *(volatile float *)(uintptr_t)(pov + 0x14);
+                float cf = *(volatile float *)(uintptr_t)(pov + 0x1C);
+                if (isfinite(cx) && isfinite(cy) && isfinite(cz) &&
+                    isfinite(cp) && isfinite(cyw) && isfinite(cf) &&
+                    cf >= 5 && cf < 180 && (cx != 0 || cy != 0 || cz != 0)) {
+                    _rcam[0] = cx; _rcam[1] = cy; _rcam[2] = cz;
+                    _rcam[3] = cyw; _rcam[4] = cp; _rcam[5] = cf;
+                    cam_updated = 1;
+                }
+            }
+            /* Keep last good camera if nothing updated (brief transition) */
+            if (!cam_updated && had_camera) cam_updated = 1;
+            if (cam_updated) {
+                {
+                    static float last_log_x = 0, last_log_y = 0;
+                    static int cam_log_count = 0;
+                    int first = !had_camera;
+                    float dx = _rcam[0] - last_log_x;
+                    float dy = _rcam[1] - last_log_y;
+                    int moved = (dx*dx + dy*dy) > 4.0f;
+                    if (first || moved || (cam_log_count++ % 300 == 0)) {
+                        char cbuf[160];
+                        snprintf(cbuf, sizeof(cbuf), "cam: %.0f,%.0f,%.0f y=%.1f p=%.1f f=%.1f n=%d",
+                            _rcam[0], _rcam[1], _rcam[2], _rcam[3], _rcam[4], _rcam[5], n);
+                        _diag(cbuf);
+                        last_log_x = _rcam[0];
+                        last_log_y = _rcam[1];
+                    }
+                }
+                atomic_store(&_rcam_ok, 1);
             }
         }
         if (!_ov_ready) {
@@ -1468,7 +1450,7 @@ static void *injected_scanner_thread(void *arg) {
             }
             _ov_check_ready();
         }
-        if (_ov_ready && n > 0) {
+        if (_ov_ready && (n > 0 || (position_frame_failures && camera_frame_valid && local_player_controlled))) {
             _ov_draw_esp();
         } else if (_ov_ready &&
                    ((n == 0 && zero_entity_frames >= 2) ||
@@ -1485,6 +1467,7 @@ static void *injected_scanner_thread(void *arg) {
             char dbuf[64];
             snprintf(dbuf, sizeof(dbuf), "frame %u: render end", seq);
             _diag(dbuf);
+            snprintf(dbuf,sizeof(dbuf),"projection state: ready=%d stage=%d",rp_frame.valid,rp_frame.stage);_diag(dbuf);
         }
         if (_ov_ready && (diag_counter < 5 || diag_counter % 50 == 0)) {
             char fn_buf[64];
@@ -1529,6 +1512,20 @@ static void *injected_scanner_thread(void *arg) {
         }
 
         int need_rescan = consecutive_failures > 5 || zero_entity_frames > 1800;
+        if (need_rescan && ev_viewport_registered()) {
+            /* Reconnect normally clears viewport.World/PersistentLevel. The
+             * Engine still owns discovery: don't reset UE4 module globals or
+             * sweep transitional heaps while the engine is unloading them. */
+            atomic_store(&_rcam_ok,0);
+            consecutive_failures=zero_entity_frames=0;
+            static int64_t next_transition_report;
+            if(ef_now()>=next_transition_report) {
+                _diag("world: viewport registered; waiting for travel completion");
+                next_transition_report=ef_now()+5000;
+            }
+            usleep(50000);
+            continue;
+        }
         if (need_rescan) {
             /* Before doing an expensive full scan, check if the GWorld
              * pointer still resolves to a valid UWorld with actors.
@@ -1631,6 +1628,7 @@ static void *injected_scanner_thread(void *arg) {
     }
 
 cleanup:
+    fov_publish(0, 0);
     es_release();
     et_release();
     ea_release();

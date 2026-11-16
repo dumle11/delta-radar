@@ -25,6 +25,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <ctype.h>
 
 /* Forward declarations for safe_read functions defined after regions */
 #ifdef BUILD_AS_LIBRARY
@@ -126,6 +127,9 @@ static int game_pid = -1;
 static _Atomic uint64_t camera_stream_cache;
 static _Atomic uint64_t camera_stream_world;
 static _Atomic unsigned camera_stream_version;
+#ifdef BUILD_AS_LIBRARY
+static _Atomic int internal_collect_occluders;
+#endif
 static long long sample_time_ms(void) { struct timespec t; clock_gettime(CLOCK_REALTIME,&t);return (long long)t.tv_sec*1000+t.tv_nsec/1000000; }
 static int mem_fd = -1;
 static uint64_t ue4_base = 0, ue4_end = 0;
@@ -352,8 +356,9 @@ static int is_telemetry_ptr(uint64_t p) {
 #define OFF_CHARACTER_LAST_IS_DEAD 0xE5D
 #define OFF_PLAYER_STATE_DEAD 0x4AC
 #define OFF_PLAYER_STATE_FINISHED 0x4C0
-#define OFF_CHARACTER_CAPSULE_HALF_HEIGHT 0xCD8
-#define OFF_CAPSULE_COMPONENT_HALF_HEIGHT 0x580
+#include "entity-life.h"
+#define OFF_CHARACTER_CAPSULE_HALF_HEIGHT 0xE90
+#define OFF_CAPSULE_COMPONENT_HALF_HEIGHT 0x5C0
 
 static int read_fstring(uint64_t addr, char *out, int out_size) {
     out[0] = 0;
@@ -1044,6 +1049,10 @@ typedef struct {
     float x, y, z, yaw, pitch, fov;
     char name[64];
     char kind[16];
+    int loot_kind, loot_quality, loot_metadata_known, loot_value_known, loot_color_known, loot_stack, loot_line, loot_in_container;
+    uint64_t loot_unit_value;
+    uint32_t loot_color;
+    char loot_name[256];
     int is_player_bot; /* AI-controlled player character, distinct from world NPCs. */
     int64_t operator_id;
     uint64_t hero_id;
@@ -1066,6 +1075,9 @@ typedef struct {
     int native_team;
     float bone_pos[MAX_SKELETON_BONES][3]; /* world-space bone positions in meters */
     int has_bones, bone_count;
+    unsigned aim_bone_mask;
+    float aim_bone_pos[3][3];
+    int16_t aim_bone_index[3];
     long long sampled_at_ms;
     int16_t bone_parent[MAX_SKELETON_BONES];
 } Entity;
@@ -1203,7 +1215,7 @@ static int _icc_diag_done = 0;
 static char _icc_diag_buf[512];
 static int _icc_diag_len = 0;
 
-static int is_character_class(uint64_t cls, uint64_t local_class) {
+static int is_character_class_uncached(uint64_t cls, uint64_t local_class) {
     (void)local_class;
     int do_diag = !_icc_diag_done;
     if (do_diag) _icc_diag_len = 0;
@@ -1212,12 +1224,18 @@ static int is_character_class(uint64_t cls, uint64_t local_class) {
         uint64_t next = 0;
         if (read_mem(cls + 0x24, &index, sizeof(index)) != sizeof(index) ||
             read_mem(cls + 0x40, &next, sizeof(next)) != sizeof(next)) return 0;
+        char name[80]={0};resolve_fname(read_i32(cls+OFF_UOBJECT_NAME),name,sizeof(name));
+        int character_name=!strcmp(name,"CHARACTER") || !strcmp(name,"Character");
+        if(character_name && is_any_ptr(next)) {
+            char parent_name[40]={0};resolve_fname(read_i32(next+OFF_UOBJECT_NAME),parent_name,sizeof(parent_name));
+            if(!strcmp(parent_name,"Pawn")) {_icc_diag_done=1;return 1;}
+        }
         if (do_diag && _icc_diag_len < 480) {
             _icc_diag_len += snprintf(_icc_diag_buf + _icc_diag_len,
                 sizeof(_icc_diag_buf) - _icc_diag_len,
                 "%d:0x%X ", depth, index);
         }
-        if (index == 0xDA && is_any_ptr(next) &&
+        if (!name[0] && index == 0xDA && is_any_ptr(next) &&
             read_mem(next + 0x24, &parent_index, sizeof(parent_index)) == sizeof(parent_index) &&
             parent_index == 0xD8) { _icc_diag_done = 1; return 1; }
         if (next == cls) break;
@@ -1225,6 +1243,17 @@ static int is_character_class(uint64_t cls, uint64_t local_class) {
     }
     if (do_diag) _icc_diag_done = 1;
     return 0;
+}
+
+static int is_character_class(uint64_t cls,uint64_t local_class) {
+    static struct {uint64_t cls,name,world;int32_t index;int result;} cache[512];
+    uint64_t name=0;int32_t index=0;
+    if(!is_any_ptr(cls) || read_mem(cls+OFF_UOBJECT_NAME,&name,8)!=8 || read_mem(cls+0x24,&index,4)!=4) return 0;
+    unsigned slot=(unsigned)(cls>>4)&511u;
+    if(cache[slot].cls==cls && cache[slot].name==name && cache[slot].index==index && cache[slot].world==verified_uworld) return cache[slot].result;
+    int result=is_character_class_uncached(cls,local_class);
+    cache[slot].cls=cls;cache[slot].name=name;cache[slot].index=index;cache[slot].world=verified_uworld;cache[slot].result=result;
+    return result;
 }
 
 static int pawn_is_controlled(uint64_t pawn, uint64_t pc) {
@@ -1252,6 +1281,12 @@ static int loot_kind_from_class(uint64_t cls) {
         {8192, 59, LOOT_ITEM}
     };
     for (int depth = 0; depth < 16 && is_any_ptr(cls); depth++) {
+        char name[80]={0};resolve_fname(read_i32(cls+OFF_UOBJECT_NAME),name,sizeof(name));
+        if(!strcmp(name,"InventoryPickup_DeadBody")) return LOOT_DEATH_BOX;
+        if(!strcmp(name,"InventoryPickup_Container")) return LOOT_CONTAINER;
+        if(!strcmp(name,"InventoryPickup") || !strcmp(name,"PickupBase")) return LOOT_ITEM;
+        if(!strcmp(name,"Interactor_SingleItemContainer") || !strcmp(name,"ChangeableContainer")) return LOOT_STASH;
+        if(!strcmp(name,"PlunderPickup")) return LOOT_NONE; /* Visual mesh actor, no item ID. */
         int32_t index, parent_index;
         uint64_t parent;
         if (read_mem(cls + 0x24, &index, sizeof(index)) != sizeof(index) ||
@@ -1262,7 +1297,9 @@ static int loot_kind_from_class(uint64_t cls) {
             if (!is_any_ptr(parent) ||
                 read_mem(parent + 0x24, &parent_index, sizeof(parent_index)) != sizeof(parent_index))
                 return -1;
-            if (parent_index == anchors[i].parent) return anchors[i].kind;
+            /* Numeric anchors are only a fallback when the name can't be read;
+             * initialization order can change registration indices. */
+            if (!name[0] && parent_index == anchors[i].parent) return anchors[i].kind;
         }
         if (parent == cls) break;
         cls = parent;
@@ -1280,6 +1317,12 @@ static int enc_handler_unmanaged(const uint8_t handler[4]) {
 #include "position-decoder.h"
 #include "skeleton-reader.h"
 
+static unsigned position_unverified_rejections, position_world_fallbacks, position_decode_successes;
+static unsigned position_frame_failures;
+#ifdef BUILD_AS_LIBRARY
+static int internal_actor_position(uint64_t actor,uint64_t root,float out[3]);
+static unsigned position_native_successes;
+#endif
 static int read_plain_world_position(uint64_t root, float out[3], PositionObservation *observation) {
     float transform[12];
     if (read_mem(root + 0x210, transform, sizeof(transform)) != sizeof(transform)) {
@@ -1355,6 +1398,38 @@ static int read_actor_position(uint64_t root, int offset, float out[3], int *pla
             if (distance_squared > 50.0f * 50.0f) *plaintext = 0;
         }
     }
+    return 1;
+}
+
+/* Shared position acceptance path: never publish unverified internal data. */
+static int resolve_actor_position(uint64_t actor, uint64_t root, int offset,
+                                  float out[3], int *plaintext, PositionObservation *observation) {
+    int raw_position_read = read_actor_position(root, offset, out, plaintext, observation);
+    if (!*plaintext && offset == OFF_PROXIMA_ROOT_WORLD_LOCATION) {
+        /* Bounds and world translation have independent encryption tags.
+         * Prefer a verified plain transform to stale/protected bounds. */
+        if (read_plain_world_position(root, out, observation)) {
+            *plaintext = 1;
+            position_world_fallbacks++;
+        } else if (position_decode_actor(actor, root, out)) {
+            *plaintext = 1;
+            observation->decoded = 1;
+            position_decode_successes++;
+        }
+#ifdef BUILD_AS_LIBRARY
+        else if (internal_actor_position(actor,root,out)) {
+            *plaintext=1;
+            observation->decoded=1;
+            position_native_successes++;
+        }
+        if (!*plaintext) {
+            position_unverified_rejections++;
+            position_frame_failures++;
+            return 0; /* Ciphertext can look like finite coordinates. */
+        }
+#endif
+    }
+    if (!raw_position_read && !*plaintext) return 0;
     return 1;
 }
 
@@ -1830,6 +1905,23 @@ static int actor_is_active_participant(uint64_t actor, uint64_t state) {
         read_mem(state + OFF_PLAYER_STATE_FINISHED, &finished, 1) != 1) return 0;
     return pawn == actor && finished == 0 && (flags & ((1 << 1) | (1 << 2) | (1 << 5))) == 0;
 }
+static int read_player_life_status(uint64_t state,int *life,int *death_box) {
+    if(!is_telemetry_ptr(state)) return 0;
+    uint64_t cls=read_ptr(state+8);
+    static uint64_t known[32];static unsigned next;
+    int valid=0;
+    for(unsigned i=0;i<32;i++) if(known[i] && known[i]==cls) {valid=1;break;}
+    if(!valid) for(uint64_t c=cls,n=0;is_telemetry_ptr(c) && n<32;c=read_ptr(c+0x40),n++) {
+        char name[80]={0};resolve_fname(read_i32(c+OFF_UOBJECT_NAME),name,sizeof(name));
+        if(!strcmp(name,"GPPlayerState") && read_i32(c+0x3c)>=0xa58) {
+            valid=1;known[next++%32]=cls;break;
+        }
+    }
+    int32_t status=0;uint8_t box=0;
+    if(!valid || read_mem(state+0x9d4,&status,4)!=4 || status<1 || status>3 ||
+        read_mem(state+0xa24,&box,1)!=1) return 0;
+    *life=status;*death_box=(box&1)!=0;return 1;
+}
 
 /* PlayerArray is independent of streamed-level actor ordering. Use its
  * mutually linked active pawns both as discovery candidates and as a cache
@@ -2034,6 +2126,7 @@ static int select_advancing_camera_cache(uint64_t camera_manager) {
 static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
                              int root_off, int pos_off, int use_ctw) {
     (void)use_ctw; /* ComponentToWorld mode is retained for CLI compatibility. */
+    position_frame_failures = 0;
     diagnostic_read_failures = 0;
     diagnostic_failure_address = 0;
     diagnostic_failure_errno = 0;
@@ -2195,6 +2288,11 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             camera_pitch = read_float(pov + OFF_POV_ROTATION);
             camera_yaw = read_float(pov + OFF_POV_ROTATION + 4);
             camera_fov = read_float(pov + OFF_POV_FOV);
+#ifdef BUILD_AS_LIBRARY
+            /* Native GetFOVAngle returns LockedFOV before consulting this cache. */
+            float locked_fov=read_float(camera_manager+0x38c);
+            if(isfinite(locked_fov) && locked_fov>=10 && locked_fov<180) camera_fov=locked_fov;
+#endif
             {
                 static int cam_dbg = 0;
                 static float last_cam_x = 0;
@@ -2376,12 +2474,6 @@ camera_done:
             uint64_t cls = read_ptr(actor + OFF_UOBJECT_CLASS);
             if (!is_telemetry_ptr(cls)) continue;
             int character = actor == local_pawn || is_character_class(cls, local_class);
-            if (!character) {
-                uint64_t root = read_ptr(actor + root_off);
-                float hh = is_telemetry_ptr(root) ?
-                    read_float(root + OFF_CAPSULE_COMPONENT_HALF_HEIGHT) / 100.0f : 0;
-                character = isfinite(hh) && hh >= 0.4f && hh <= 3.0f;
-            }
             if (!character) continue;
             cached_actor_ptrs[cached_actor_count] = actor;
             cached_actor_classes[cached_actor_count] = cls;
@@ -2426,39 +2518,8 @@ camera_done:
                 int is_character = actor == local_pawn || is_character_class(cls, local_class);
                 if (is_character) dbg_cls_match++;
 
-                /* Human operators do not always share the local pawn's concrete
-                 * class hierarchy (different operator/skin blueprints). A named
-                 * PlayerState is a fallback, but only if the actor also looks
-                 * like a real pawn (has a CapsuleComponent root). Without
-                 * this check, APlayerState actors pass the name test and
-                 * produce ghost boxes at wrong positions. */
-                if (!is_character) {
-                    /* Structural pawn check: a real character pawn has a
-                     * root component with a valid capsule half-height at
-                     * the known offset (0.5-2.5m). APlayerState and other
-                     * non-pawn actors won't have this. */
-                    uint64_t root = read_ptr(actor + root_off);
-                    int looks_like_pawn = 0;
-                    if (is_any_ptr(root)) {
-                        float hh = read_float(root + OFF_CAPSULE_COMPONENT_HALF_HEIGHT) / 100.0f;
-                        looks_like_pawn = (hh == hh && hh >= 0.4f && hh <= 3.0f);
-                    }
-                    if (looks_like_pawn) {
-                        dbg_capsule++;
-                        uint64_t state = read_ptr(actor + OFF_APAWN_PLAYER_STATE);
-                        if (is_telemetry_ptr(state)) {
-                            char name[64] = {0};
-                            read_fstring(state + OFF_PLAYER_STATE_NAME, name, sizeof(name));
-                            if (!name[0])
-                                read_fstring(state + OFF_PLAYER_STATE_NAME_PRIVATE, name, sizeof(name));
-                            is_character = name[0] != '\0' &&
-                                read_ptr(state + OFF_PLAYER_STATE_PAWN_PRIVATE) == actor;
-                        } else {
-                            dbg_nostate++;
-                            is_character = 1;
-                        }
-                    }
-                }
+                /* A capsule is also used by PlayerStart and navigation actors.
+                 * Only verified CHARACTER/Pawn ancestry identifies a character. */
 
                 if (is_character) {
                     cached_actor_ptrs[cached_actor_count] = actor;
@@ -2498,6 +2559,9 @@ camera_done:
                         loot_kinds[loot_count++] = (uint8_t)loot_kind;
                     }
                 } else {
+#ifdef BUILD_AS_LIBRARY
+                    if(atomic_load(&internal_collect_occluders))
+#endif
                     try_add_occluder(actor, root_off, pos_off, camera_x, camera_y, camera_z);
                 }
             }
@@ -2575,6 +2639,7 @@ camera_done:
             snprintf(loot->id, sizeof(loot->id), "ent_%llx",
                      (unsigned long long)actor_ptrs[i]);
             snprintf(loot->kind, sizeof(loot->kind), "l");
+            loot->loot_kind = cached_actor_kinds[i];
             const char *name = cached_actor_kinds[i] == LOOT_DEATH_BOX ? "DB" :
                 cached_actor_kinds[i] == LOOT_CONTAINER ? "LC" :
                 cached_actor_kinds[i] == LOOT_STASH ? "SI" : "LI";
@@ -2616,12 +2681,8 @@ camera_done:
         float position[3];
         int position_plaintext = 0;
         PositionObservation position_observation;
-        int raw_position_read = read_actor_position(root, pos_off, position, &position_plaintext, &position_observation);
-        if (!position_plaintext && pos_off == OFF_PROXIMA_ROOT_WORLD_LOCATION &&
-            position_decode_actor(actor_ptrs[i], root, position)) {
-            position_plaintext = 1;
-            position_observation.decoded = 1;
-        } else if (!raw_position_read) continue;
+        if (!resolve_actor_position(actor_ptrs[i], root, pos_off, position,
+                                    &position_plaintext, &position_observation)) continue;
         long long position_sampled_at = sample_time_ms();
         float wx = position[0], wy = position[1], wz = position[2];
 
@@ -2734,20 +2795,20 @@ camera_done:
         /* Replicated death bits and the validated actor-owned health set.
          * Firing range bots reuse actors on respawn: LastIsDead stays set
          * even after health is restored, so health overrides the flag. */
-        int flag_dead = (character_dead & 1) != 0 || (player_dead & 1) != 0;
-        int health_dead = e->health_known && is_alive < 0.5f && e->health <= 0.01f;
-        int health_alive = e->health_known && e->health > 0.5f;
-        e->dead = health_dead || (flag_dead && !health_alive);
+        int life=0,death_box=0;
+        int life_known=has_playerstate && read_player_life_status(player_state,&life,&death_box);
+        e->dead=entity_observed_dead(e->health_known,e->health,is_alive,
+            (character_dead&1)!=0,(player_dead&1)!=0,life_known,life,death_box);
 
         /* RootComponent is the character capsule. Prefer the engine capsule's
          * actual scaled geometry; the mirrored character copy is version-sensitive. */
         float capsule_half_height = read_float(root + OFF_CAPSULE_COMPONENT_HALF_HEIGHT) / 100.0f;
         if (!(capsule_half_height == capsule_half_height &&
-              capsule_half_height >= 0.5f && capsule_half_height <= 2.5f))
+              capsule_half_height >= 0.2f && capsule_half_height <= 2.5f))
             capsule_half_height = read_float(
                 actor_ptrs[i] + OFF_CHARACTER_CAPSULE_HALF_HEIGHT) / 100.0f;
         e->half_height = capsule_half_height == capsule_half_height &&
-            capsule_half_height >= 0.5f && capsule_half_height <= 2.5f ? capsule_half_height : 1.05f;
+            capsule_half_height >= 0.2f && capsule_half_height <= 2.5f ? capsule_half_height : 1.05f;
 
         int raw_ros = actor_rendered_on_screen(actor_ptrs[i]);
         int visibility = is_visible_from_camera(camera_x, camera_y, camera_z, mx, my, mz, e->half_height, e->actor_address);

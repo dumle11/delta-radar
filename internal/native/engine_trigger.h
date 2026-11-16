@@ -23,7 +23,7 @@ static int et_enemy(const Entity *e, uint64_t pawn) {
 }
 static void et_frame(int count, float x, float y, float z, float yaw, float pitch,
                      unsigned config, uint64_t world, uint64_t controller, uint64_t pawn) {
-    if (!(config & (1u << 24)) || !ev_pe_fn ||
+    if (!(config & (1u << 24)) || !ev_native_frame_current() || !ev_pe_fn ||
         !ev_same(&ev_function) || !ev_same(&ev_receiver) ||
         !isfinite(x) || !isfinite(y) || !isfinite(z) ||
         !isfinite(yaw) || !isfinite(pitch)) { et_release(); return; }

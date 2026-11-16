@@ -1,5 +1,11 @@
 # Delta Radar — Handoff (2026-11-16)
 
+## Active loot / tracking / reconnect work
+
+**User preference: announce every intentional game stop/restart in chat BEFORE doing it.** They are watching for reconnect crashes and need to distinguish them from deployments.
+
+Read [the current checkpoint](docs/loot-2026-11-16/checkpoint.md) first. It records current implementation, user confirmations, unresolved reconnect/missing-player reports, and corrections to older architecture descriptions below. Changes are uncommitted. Latest build adds a small lower-left current-frame position recovery failure notice; see the checkpoint for the installed checksum and verification limits.
+
 ## Infinite stamina — verified in firing range (2026-11-16)
 
 **Misc → Movement → Infinite stamina** is implemented, defaults off, and persists

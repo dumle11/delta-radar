@@ -124,3 +124,20 @@ getter, enable/disable persistence, and unchanged weapon toggles. It injects no
 game input. On 2026-11-16 the broader overlay fixture has a stale resize assertion,
 and the weapon fixture omits the production ev_decode helper from its harness;
 those failures predate this stamina change.
+
+## Loot and camera transitions
+
+Run `python3 internal/native/tests/test_engine_loot.py` for production catalog
+lookup, sparse allocation flags, UTF-16 decoding, per-item reference values,
+rarity/range filters, identity checks and bounded work when localization is absent.
+`LootMenuRegression.java` uses the javac/D8/app_process steps above with that
+class name. It checks the Loot tab, persisted independent settings, native palette
+publication and links from Visuals.
+
+Run `python3 internal/native/tests/test_camera_fov.py` for SDK FOV cache fields,
+identity/ownership, request expiry, disable, recycling/world changes and checked
+write failures. These tests cannot establish live match stability or alignment.
+
+Position/transition regressions: `python3 internal/native/tests/test_position_acceptance.py` and `python3 internal/native/tests/test_engine_frame.py`. These compile production helpers and exercise independently protected coordinates, verified transform fallback, failed decode rejection, viewport travel, possession loss and actor destruction.
+
+`python3 internal/native/tests/test_engine_position.py` tests the production internal SDK getter binding and acceptance checks with synthetic dispatch, including incompatible ABI/exec, stale world, root changes, invalid receiver, nonfinite and disagreeing locations. Live native getter output requires separate match verification.

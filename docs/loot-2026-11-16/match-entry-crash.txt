@@ -1,0 +1,31 @@
+*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+Build fingerprint: 'OnePlus/OnePlus5/OnePlus5:10/QKQ1.191014.012/2006012143:user/release-keys'
+Revision: '0'
+ABI: 'arm64'
+Timestamp: 2026-11-16 11:54:16+0000
+pid: 2870, tid: 4685, name: overlay-reader  >>> com.proxima.dfm <<<
+uid: 10556
+signal 11 (SIGSEGV), code -6 (SI_TKILL), fault addr --------
+    x0  0000000000000000  x1  000000000000124d  x2  000000000000000b  x3  0000000000000b36
+    x4  000000000000293c  x5  000000000000124d  x6  000000000000124d  x7  0000007d2f1d9400
+    x8  0000000000000083  x9  b6a9fab4f0af69d9  x10 0000000000000001  x11 0000000000000000
+    x12 00000000000db578  x13 0000007d2f1d9640  x14 0000007b3a6fd150  x15 0000007b3a6fd160
+    x16 0000007bea0a64d0  x17 0000007d2e117320  x18 0000007aa4b54000  x19 000000000000000b
+    x20 0000007bea113c30  x21 0000000000000b36  x22 000000000000293c  x23 000000000000124d
+    x24 000000000000018c  x25 0000000000000064  x26 0000007c33a6d020  x27 0000007c33a6d008
+    x28 0000007bea113c88  x29 0000007c4a1a8d00
+    sp  0000007c4a1a8bc0  lr  0000007be9f6c12c  pc  0000007d2e117340
+
+backtrace:
+      #00 pc 0000000000080340  /apex/com.android.runtime/lib64/bionic/libc.so (syscall+32) (BuildId: e55e6e4c631509598633769798683023)
+      #01 pc 000000000001d128  /data/app/com.proxima.dfm-1W1zNfsN8IuxPlwcvgGaaw==/lib/arm64/libCrashSight.so (BuildId: d84c57aa024baf61cc612894703aaa708d99d8f3)
+      #02 pc 0000000000004dc8  /system/bin/app_process64 (art::SignalChain::Handler(int, siginfo*, void*)+336) (BuildId: 1a86d090ff0d3dd5f5a671601a88a247)
+      #03 pc 0000000000000690  [vdso] (__kernel_rt_sigreturn)
+      #04 pc 000000000001d660  /memfd:jit-cache (deleted)
+      #05 pc 00000000000e6890  /apex/com.android.runtime/lib64/bionic/libc.so!libc.so (offset 0xe1000) (__pthread_start(void*)+36) (BuildId: e55e6e4c631509598633769798683023)
+      #06 pc 0000000000084b6c  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: e55e6e4c631509598633769798683023)
+
+
+Symbolized local PC 0x1d664: _fov_write_thread, delta_radar_lib.c:1038-1039.
+The old worker directly stored through a camera pointer across map transitions.
+Full thread/memory dumps omitted; the relevant backtrace is preserved above.

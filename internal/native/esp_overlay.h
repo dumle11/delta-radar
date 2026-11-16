@@ -1,6 +1,10 @@
 #pragma once
 #include <jni.h>
 #include <math.h>
+#include "loot_filter.h"
+#include "render_camera.h"
+#include "render_projection.h"
+static float _ov_cam_roll;
 #include "overlay_dex.h"
 
 static JavaVM *_ov_jvm;
@@ -8,7 +12,7 @@ static jclass _ov_cls;
 static jmethodID _ov_z, _ov_b, _ov_r, _ov_f, _ov_l, _ov_t, _ov_e, _ov_gw, _ov_gh, _ov_ok;
 static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
-static jmethodID _ov_gvc, _ov_grd, _ov_dt;
+static jmethodID _ov_gvc, _ov_grd, _ov_dt, _ov_glr, _ov_glm, _ov_glf, _ov_lc;
 static jmethodID _ov_circle;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3, _ov_gap;
 static jmethodID _ov_gnr, _ov_gns, _ov_gcf, _ov_gis;
@@ -117,6 +121,10 @@ static int _ov_load_dex(void) {
     _ov_gf = (*env)->GetStaticMethodID(env, _ov_cls, "gf", "(I)I");
     _ov_gr = (*env)->GetStaticMethodID(env, _ov_cls, "gr", "(I)I");
     _ov_gso = (*env)->GetStaticMethodID(env, _ov_cls, "gso", "()I");
+    _ov_glr = (*env)->GetStaticMethodID(env, _ov_cls, "glr", "()I");
+    _ov_glm = (*env)->GetStaticMethodID(env, _ov_cls, "glm", "()I");
+    _ov_glf = (*env)->GetStaticMethodID(env, _ov_cls, "glf", "()I");
+    _ov_lc = (*env)->GetStaticMethodID(env, _ov_cls, "lc", "(II)V");
     _ov_circle = (*env)->GetStaticMethodID(env, _ov_cls, "cr", "(FFFI)V");
     _ov_ga = (*env)->GetStaticMethodID(env, _ov_cls, "ga", "()Z");
     _ov_gaf = (*env)->GetStaticMethodID(env, _ov_cls, "gaf", "()I");
@@ -346,6 +354,8 @@ static int _ov_w2s(float wx, float wy, float wz,
                    float cx, float cy, float cz,
                    float yaw, float pitch, float fov,
                    float *sx, float *sy) {
+    int native=render_projection_point(wx,wy,wz,sx,sy);
+    if(native>=0) return native;
     float dx = wx - cx, dy = wy - cy, dz = wz - cz;
     float yr = yaw * (float)(M_PI / 180.0);
     float pr = pitch * (float)(M_PI / 180.0);
@@ -355,6 +365,10 @@ static int _ov_w2s(float wx, float wy, float wz,
     float fwd_x = cp * cy_, fwd_y = cp * sy_, fwd_z = sp;
     float rt_x = -sy_, rt_y = cy_, rt_z = 0;
     float up_x = -sp * cy_, up_y = -sp * sy_, up_z = cp;
+    float rr=_ov_cam_roll*(float)(M_PI/180.0),cr=cosf(rr),sr=sinf(rr);
+    float old_rt_x=rt_x,old_rt_y=rt_y,old_rt_z=rt_z;
+    rt_x=old_rt_x*cr-up_x*sr;rt_y=old_rt_y*cr-up_y*sr;rt_z=old_rt_z*cr-up_z*sr;
+    up_x=old_rt_x*sr+up_x*cr;up_y=old_rt_y*sr+up_y*cr;up_z=old_rt_z*sr+up_z*cr;
 
     float dot_f = dx * fwd_x + dy * fwd_y + dz * fwd_z;
     if (dot_f < 0.5f) return 0;
@@ -637,6 +651,8 @@ static void _ov_misc_config(void) {
     atomic_store(&ew_no_spread, ns);
     atomic_store(&_ov_camera_fov_override, cf);
     atomic_store(&es_enabled, stamina);
+    int ray_flags=_ov_grd?(*env)->CallStaticIntMethod(env,_ov_cls,_ov_grd):0;
+    atomic_store(&internal_collect_occluders,(ray_flags&1)!=0);
 }
 
 static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {
@@ -660,6 +676,19 @@ static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {
     }
 }
 
+/* Current-frame failures only; successful SDK/software recovery is silent. */
+static void _ov_draw_position_status(JNIEnv *env) {
+    if (!position_frame_failures || !camera_frame_valid || !local_player_controlled) return;
+    char message[96];
+    snprintf(message,sizeof(message),"Position recovery failed: %u %s",position_frame_failures,
+        position_frame_failures==1 ? "entity" : "entities");
+    jstring text=(*env)->NewStringUTF(env,message);
+    if (!text) return;
+    (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_dt ? _ov_dt : _ov_t,
+        text,16.0f,(float)_ov_h-26.0f,(jint)0xffffbf47);
+    (*env)->DeleteLocalRef(env,text);
+}
+
 static void _ov_draw_esp(void) {
     if (!_ov_ready || !_ov_cls) return;
 
@@ -667,7 +696,8 @@ static void _ov_draw_esp(void) {
     if (!env) return;
 
     jboolean esp_on = _ov_ge ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_ge) : 1;
-    if (!atomic_load(&_rcam_ok)) return;
+    int camera_ready=atomic_load(&_rcam_ok);
+    if (!camera_ready && !(position_frame_failures && camera_frame_valid)) return;
     jboolean ok = (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_b);
     if (!ok) return;
 
@@ -680,6 +710,9 @@ static void _ov_draw_esp(void) {
         return;
     }
 
+    _ov_draw_position_status(env);
+    if (!camera_ready) { (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_e); return; }
+
     int feat[ET_COUNT], rdist[ET_COUNT], palette[ET_COUNT][2];
     for (int t = 0; t < ET_COUNT; t++) {
         feat[t] = _ov_gf ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gf, t) : 0xFF;
@@ -688,10 +721,20 @@ static void _ov_draw_esp(void) {
             palette[t][visible] = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gvc,
                 t, (jboolean)visible);
     }
+    unsigned loot_mask = _ov_glr ? (unsigned)(*env)->CallStaticIntMethod(env,_ov_cls,_ov_glr) & 255u : 255u;
+    int loot_minimum = _ov_glm ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_glm) : 0;
+    int loot_flags = _ov_glf ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_glf) : 3;
+    static uint32_t loot_published[8];
+    for (int q=1;q<8;q++) if (_ov_lc && el_color_known[q] && loot_published[q] != el_colors[q]) {
+        (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_lc,q,(jint)el_colors[q]);
+        loot_published[q] = el_colors[q];
+    }
     int snap_origin = _ov_gso ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gso) : 0;
 
     float cam[6];
     for (int i = 0; i < 6; i++) cam[i] = _rcam[i];
+    _ov_cam_roll=0;render_camera_snapshot(cam,&_ov_cam_roll);
+    render_projection_begin(_ov_w,_ov_h,cam);
 
     _ov_draw_aim(env,cam);
     if (!esp_on) { (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_e); return; }
@@ -700,6 +743,7 @@ static void _ov_draw_esp(void) {
     static int _esp_frame = 0;
     _esp_frame++;
     int drawn = 0, skipped_dead = 0, skipped_type = 0, skipped_dist = 0, skipped_w2s = 0, skipped_box = 0;
+    uint64_t loot_group_actor[MAX_ACTORS]={0};int loot_group_lines[MAX_ACTORS]={0},loot_groups=0;
     for (int i = 0; i < num_entities; i++) {
         Entity *e = &entities[i];
         if (strcmp(e->id, self_entity_id) == 0) continue;
@@ -725,6 +769,38 @@ static void _ov_draw_esp(void) {
                 _diag(dbuf);
                 _esp_dbg++;
             }
+            continue;
+        }
+
+        if (etype == ET_LOOT) {
+            if (!loot_matches(e->loot_quality,e->loot_metadata_known,e->loot_unit_value,e->loot_value_known,
+                e->loot_kind != LOOT_ITEM || e->loot_in_container,loot_mask,loot_minimum > 0 ? (uint64_t)loot_minimum : 0,
+                (loot_flags & 2) != 0,dist,(float)rdist[ET_LOOT])) continue;
+            int color = e->loot_color_known ? (int)e->loot_color : (int)0xffdedede;
+            int line=e->loot_line;
+            if(e->loot_in_container) {
+                int group=0;while(group<loot_groups && loot_group_actor[group]!=e->actor_address) ++group;
+                if(group==loot_groups && loot_groups<MAX_ACTORS) loot_group_actor[loot_groups++]=e->actor_address;
+                if(group<MAX_ACTORS) line=++loot_group_lines[group];
+            }
+            sy+=(float)line*38;
+            if (sx < -20 || sx > _ov_w+20 || sy < -20 || sy > _ov_h+20) continue;
+            ++drawn;
+            if (ef & EF_BOXES) (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_r,sx-3,sy-3,sx+3,sy+3,color);
+            if (ef & EF_NAMES) {
+                char label[300];
+                if (e->loot_stack > 1) snprintf(label,sizeof(label),"%s ×%d",e->loot_name,e->loot_stack);
+                else snprintf(label,sizeof(label),"%s",e->loot_name);
+                _ov_debug_text(env,label,sx+8,sy-7,color);
+            }
+            char details[100] = "";
+            if ((loot_flags & 1) && e->loot_value_known)
+                snprintf(details,sizeof(details),"%llu ref./item",(unsigned long long)e->loot_unit_value);
+            if (ef & EF_DISTANCE) {
+                size_t length = strlen(details);
+                snprintf(details+length,sizeof(details)-length,"%s%.0fm",length?" · ":"",dist);
+            }
+            if (details[0]) _ov_debug_text(env,details,sx+8,sy+16,color);
             continue;
         }
 

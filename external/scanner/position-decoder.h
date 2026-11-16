@@ -44,8 +44,16 @@ static int position_decoder_discover(void) {
     const uint32_t accessor[] = {0x91084000, 0x58000050, 0xd61f0200};
     const uint32_t callback[] = {0x14000002, 0xd65f03c0, 0x14000001, 0xa9ba7bfd};
     const uint32_t vector[] = {0xd10283ff, 0xf90023fe, 0xa9056ffc, 0xa90667fa};
-    if (!position_read(ue4_base + 0x107bbb8c, entry, sizeof(entry)) ||
-        memcmp(entry, accessor, sizeof(accessor))) {
+    /* Current SDK K2_GetComponentLocation calls 0x106136b0. Keep the
+     * older capture only when its entire redirect signature still matches;
+     * all provider/codec signatures below remain mandatory. */
+    int matched = 0;
+    const uint64_t accessors[] = {0x106136b0, 0x107bbb8c};
+    for (unsigned i = 0; i < sizeof(accessors)/sizeof(accessors[0]); i++) {
+        if (position_read(ue4_base + accessors[i], entry, sizeof(entry)) &&
+            !memcmp(entry, accessor, sizeof(accessor))) { matched = 1; break; }
+    }
+    if (!matched) {
         position_decoder_fail_step = 1;
         return 0;
     }
