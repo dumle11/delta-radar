@@ -11,7 +11,7 @@ static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt;
 static jmethodID _ov_circle;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3, _ov_gap;
-static jmethodID _ov_gnr, _ov_gns, _ov_gcf;
+static jmethodID _ov_gnr, _ov_gns, _ov_gcf, _ov_gis;
 static int _ov_ready;
 static int _ov_w, _ov_h;
 static int _ov_dex_loaded;
@@ -132,6 +132,7 @@ static int _ov_load_dex(void) {
     _ov_gnr = (*env)->GetStaticMethodID(env, _ov_cls, "gnr", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gns = (*env)->GetStaticMethodID(env, _ov_cls, "gns", "()Z");
+    _ov_gis = (*env)->GetStaticMethodID(env, _ov_cls, "gis", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gcf = (*env)->GetStaticMethodID(env, _ov_cls, "gcf", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
@@ -625,15 +626,17 @@ static unsigned _ov_aim_config(void) {
 static _Atomic int _ov_camera_fov_override;
 
 static void _ov_misc_config(void) {
-    if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); atomic_store(&_ov_camera_fov_override, 0); return; }
+    if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); atomic_store(&_ov_camera_fov_override, 0); atomic_store(&es_enabled, 0); return; }
     JNIEnv *env = _ov_env(); if (!env) return;
     int nr = _ov_gnr ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gnr) : 0;
     int ns = _ov_gns ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gns) : 0;
+    int stamina = _ov_gis ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gis) : 0;
     int cf = _ov_gcf ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gcf) : 0;
-    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); nr = ns = cf = 0; }
+    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); nr = ns = cf = stamina = 0; }
     atomic_store(&ew_no_recoil, nr);
     atomic_store(&ew_no_spread, ns);
     atomic_store(&_ov_camera_fov_override, cf);
+    atomic_store(&es_enabled, stamina);
 }
 
 static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {

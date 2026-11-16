@@ -1,4 +1,40 @@
-# Delta Radar — Handoff (2026-11-15)
+# Delta Radar — Handoff (2026-11-16)
+
+## Infinite stamina — verified in firing range (2026-11-16)
+
+**Misc → Movement → Infinite stamina** is implemented, defaults off, and persists
+in `overlay_v2` preferences. The user confirmed **“Enabled: steady; disabled:
+drains”** after testing sprinting with the toggle on and off. Previously completed
+aim/auto-zoom/trigger, recoil/spread, and camera features were preserved.
+
+`internal/native/engine_stamina.h` replaces the unfinished, unchecked component
+memory scan. It follows the SDK chain only: local DFMCharacter +0x3AD0 →
+GPStaminaDataComponent, verified GPOwner +0x1D8, then AttributeSetSpeed +0x1E0.
+Classes, object registration, identities, owner links, scalar bounds and death
+state are checked before any write. Missing/mismatched chains remain unavailable.
+
+The override zeros only BaseValue/CurrentValue of StaminaSprintChangeRate
+(+0x148 → scalar offsets +0x150/+0x154) and StaminaCostRate
+(+0x1B8 → +0x1C0/+0x1C4). Attribute metadata, actual stamina (+0x124), maximum
+(+0x134), regeneration, and other attributes are preserved. Natural regeneration
+continues; the implementation does not repeatedly refill the displayed value.
+It uses the existing kernel-checked scalar write helper. Saved rates are restored
+on disable, possession changes, death/missing pawn, and scanner cleanup, with
+identity/link checks and no overwrite of an already different host value.
+
+Current local/device SHA256 (matching): `2da59def7375cd1daa3b2537a6d490401ae2d0d8fc2d5541acf6b0d894358921`.
+Evidence: `docs/stamina-2026-11-16/`. Live disabled rates were 1/1 and stamina
+fell during sprinting. Enabled rates were 0/0, and stamina naturally recovered to
+100 then stayed there. The user's on/off sprint test confirms the visible bar.
+
+Validation: NDK build, `test_engine_stamina.py`, focused Android
+`StaminaMenuRegression.java`, and `git diff --check` pass. The menu fixture checks
+default off, native getter, toggle persistence, and independence from weapon
+settings. Existing broad OverlayRegression fails at its old resize expectation;
+existing weapon fixture fails to compile because its extracted harness omits
+`ev_decode` after earlier changes. Neither production subsystem was altered to
+satisfy those stale fixtures. Extended matches, buffs/debuffs and all modes remain
+outside this firing-range validation.
 
 ## Current internal trigger bot — verified (2026-11-15)
 

@@ -101,6 +101,7 @@ public class O extends View {
     // Misc settings
     static volatile boolean noRecoil = false;
     static volatile boolean noSpread = false;
+    static volatile boolean infiniteStamina = false;
     static volatile int cameraFov = 0; // 0 = game default, 10-170 = override
 
     static final int AIM_ENEMIES = 1, AIM_TEAMMATES = 2, AIM_BOTS = 4;
@@ -149,6 +150,7 @@ public class O extends View {
                     aimPriority = prefs.getInt("aimPriority", 0);
                     noRecoil = prefs.getBoolean("noRecoil", false);
                     noSpread = prefs.getBoolean("noSpread", false);
+                    infiniteStamina = prefs.getBoolean("infiniteStamina", false);
                     cameraFov = prefs.getInt("cameraFov", 0);
 
                     wm = (WindowManager) a.getSystemService(Context.WINDOW_SERVICE);
@@ -347,6 +349,7 @@ public class O extends View {
     /* Misc queries (called from C) */
     static boolean gnr() { return noRecoil; }
     static boolean gns() { return noSpread; }
+    static boolean gis() { return infiniteStamina; }
     static int gcf() { return cameraFov; }
 
     static void setColor(int slot, int color) {
@@ -362,7 +365,7 @@ public class O extends View {
             .putBoolean("autoShoot", autoShoot).putBoolean("autoZoom", autoZoom).putBoolean("showLockBtn", showLockBtn).putBoolean("aim360", aim360).putInt("aimMask", aimTargetMask).putInt("aimPriority", aimPriority)
             .putBoolean("rayDebug", rayDebug).putBoolean("rayViews", rayViews)
             .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds)
-            .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread)
+            .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread).putBoolean("infiniteStamina", infiniteStamina)
             .putInt("cameraFov", cameraFov);
         for (int i = 0; i < ET_COUNT; i++) {
             edit.putInt(entityKey("color", i), entityColors[i]);
@@ -861,6 +864,9 @@ public class O extends View {
             toggle("No recoil", -8, noRecoil);
             toggle("No spread", -9, noSpread);
 
+            section("Movement", null);
+            toggle("Infinite stamina", -14, infiniteStamina);
+
             section("Camera FOV", cameraFov == 0 ? "Default" : cameraFov + "°");
             SeekBar fovSlider = new SeekBar(getContext()); fovSlider.setMax(190); fovSlider.setProgress(cameraFov == 0 ? 80 : cameraFov - 10);
             styleSlider(fovSlider);
@@ -916,6 +922,7 @@ public class O extends View {
                         case -8: noRecoil = checked; break;
                         case -9: noSpread = checked; break;
                         case -12: aim360 = checked; break;
+                        case -14: infiniteStamina = checked; break;
                         case -13: cameraFov = checked ? 0 : 90; saveSettings(); selectTab(3); break;
                     }
                     saveSettings(); if (inst != null) inst.invalidate();

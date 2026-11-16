@@ -73,6 +73,7 @@ static void _diag(const char *msg) {
 
 #include "engine_visibility.h"
 #include "engine_weapon.h"
+#include "engine_stamina.h"
 
 /*
  * Neutralise the verification function's termination path.
@@ -1317,65 +1318,7 @@ static void *injected_scanner_thread(void *arg) {
         }
         ev_update(n);
         ew_update(atomic_load(&ev_local_pawn));
-        /* Stamina offset discovery: deep scan through pawn component pointers */
-        {
-            static int _stam_phase = 0;
-            #define STAM_COMP_MAX 32
-            #define STAM_COMP_SCAN 0x400
-            static uint64_t _stam_comp_addr[STAM_COMP_MAX];
-            static uint32_t _stam_comp_poff[STAM_COMP_MAX]; /* pawn offset of pointer */
-            static float _stam_comp_snap[STAM_COMP_MAX][STAM_COMP_SCAN/4];
-            static int _stam_ncomp = 0;
-            uint64_t pawn = atomic_load(&ev_local_pawn);
-            if (_stam_phase == 0 && pawn > 0x10000 && seq > 300) {
-                _stam_ncomp = 0;
-                for (uint32_t off = 0x100; off < 0x2000 && _stam_ncomp < STAM_COMP_MAX; off += 8) {
-                    uint64_t ptr = *(volatile uint64_t *)(uintptr_t)(pawn + off);
-                    if (ptr > 0x7000000000ULL && ptr < 0x8000000000ULL && (ptr & 7) == 0) {
-                        int dup = 0;
-                        for (int d = 0; d < _stam_ncomp; d++)
-                            if (_stam_comp_addr[d] == ptr) { dup = 1; break; }
-                        if (dup) continue;
-                        int has_100 = 0;
-                        for (uint32_t s = 0; s < STAM_COMP_SCAN; s += 4) {
-                            float v = *(volatile float *)(uintptr_t)(ptr + s);
-                            _stam_comp_snap[_stam_ncomp][s/4] = v;
-                            if (v > 90.0f && v < 110.0f) has_100 = 1;
-                        }
-                        if (has_100) {
-                            _stam_comp_addr[_stam_ncomp] = ptr;
-                            _stam_comp_poff[_stam_ncomp] = off;
-                            _stam_ncomp++;
-                        }
-                    }
-                }
-                char dbuf[128];
-                snprintf(dbuf, sizeof(dbuf), "stam deep: %d components with ~100 values, sprint now", _stam_ncomp);
-                _diag(dbuf);
-                _stam_phase = 1;
-            } else if (_stam_phase == 1 && seq % 30 == 0 && pawn > 0x10000) {
-                int total = 0;
-                char dbuf[200];
-                for (int c = 0; c < _stam_ncomp && total < 20; c++) {
-                    uint64_t ptr = _stam_comp_addr[c];
-                    for (uint32_t s = 0; s < STAM_COMP_SCAN && total < 20; s += 4) {
-                        float prev = _stam_comp_snap[c][s/4];
-                        float now = *(volatile float *)(uintptr_t)(ptr + s);
-                        if (prev > 80.0f && prev < 110.0f && now < prev && now > 0.0f && (prev - now) > 1.0f) {
-                            snprintf(dbuf, sizeof(dbuf), "stam hit: pawn+0x%x->0x%lx+0x%x was=%.1f now=%.1f",
-                                _stam_comp_poff[c], (unsigned long)ptr, s, prev, now);
-                            _diag(dbuf);
-                            total++;
-                        }
-                    }
-                }
-                if (total > 0) {
-                    snprintf(dbuf, sizeof(dbuf), "stam deep: %d hits found", total);
-                    _diag(dbuf);
-                    _stam_phase = 2;
-                }
-            }
-        }
+        es_update(atomic_load(&ev_local_pawn));
         if (seq <= 5 || seq % 100 == 0) {
             char vis_diag[160];
             snprintf(vis_diag, sizeof(vis_diag), "engine LOS: ready=%d batches=%u traces=%u",
@@ -1688,6 +1631,7 @@ static void *injected_scanner_thread(void *arg) {
     }
 
 cleanup:
+    es_release();
     et_release();
     ea_release();
     ew_release();

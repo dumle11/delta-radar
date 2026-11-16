@@ -108,3 +108,19 @@ the SDK GetGGameThreadId accessor is signature-checked to identify Unreal's thre
 The native fire bridge patches the verified Actor::ProcessEvent vtable slot on
 local controller/pawn classes. Visibility and aim calculations keep their existing
 scanner path. No touch input, root helper, or screen fire-button position is used.
+
+## Infinite stamina
+
+Run `python3 internal/native/tests/test_engine_stamina.py`. It executes the
+production handler with synthetic SDK objects and kernel-checked writes. Checks
+include class/owner/identity validation, scalar-only changes with surrounding
+metadata preserved, default off, repeated updates, restore, host changes at
+release, possession/death/recycling, invalid values, missing pawn and cleanup.
+
+`StaminaMenuRegression.java` is a focused Android fixture. Compile it with
+`internal/native/overlay/O.java` using the same javac/D8 setup above, then run
+`StaminaMenuRegression` through app_process. It validates the real Misc switch,
+getter, enable/disable persistence, and unchanged weapon toggles. It injects no
+game input. On 2026-11-16 the broader overlay fixture has a stale resize assertion,
+and the weapon fixture omits the production ev_decode helper from its harness;
+those failures predate this stamina change.

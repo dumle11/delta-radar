@@ -1,0 +1,850 @@
+[5675.461]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5675.461]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5675.461]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5675.461]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5675.461]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5675.461]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5675.461]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.461]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.461]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.461]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.461]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.461]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.462]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.462]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.462]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.462]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.462]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.462]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.462]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.462]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5675.462] nonprim classes: 19 types
+[5675.462]   np[0] n=331 SceneComponent
+[5675.462]   np[1] n=1 CameraTransComponent
+[5675.462]   np[2] n=1 GameAkComponent
+[5675.462]   np[3] n=58 CameraComponent
+[5675.462]   np[4] n=4 SceneCaptureComponent2D
+[5675.462]   np[5] n=122 SpotLightComponent
+[5675.462]   np[6] n=40 DirectionalLightComponent
+[5675.462]   np[7] n=41 SkyLightComponent
+[5675.462]   np[8] n=5 PostProcessComponent
+[5675.462]   np[9] n=8 SphereReflectionCaptureComponent
+[5675.462]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5675.462]   np[11] n=6 BoxReflectionCaptureComponent
+[5675.462]   np[12] n=30 PointLightComponent
+[5675.462]   np[13] n=9 LocalLightGroupBakeComponent
+[5675.462]   np[14] n=6 ExponentialHeightFogComponent
+[5675.462]   np[15] n=2 SkyAtmosphereComponent
+[5675.466] frame 4900: render end
+[5675.466] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5675.585] cam: 30,-127,2 y=98.8 p=-14.9 f=135.0 n=17 pt=1
+[5675.952] cam: 30,-125,2 y=98.6 p=-15.0 f=135.0 n=17 pt=1
+[5676.366] cam: 29,-123,2 y=129.7 p=-18.2 f=135.0 n=17 pt=1
+[5676.728] cam: 27,-121,2 y=132.7 p=-19.0 f=135.0 n=17 pt=1
+[5677.086] cam: 26,-120,2 y=131.1 p=-19.5 f=135.0 n=17 pt=1
+[5677.454] cam: 25,-118,2 y=119.9 p=-18.2 f=135.0 n=17 pt=1
+[5677.835] cam: 24,-116,2 y=117.4 p=-18.3 f=135.0 n=17 pt=1
+[5678.191] cam: 23,-114,2 y=109.3 p=-18.8 f=135.0 n=17 pt=1
+[5678.303] frame 5000: read begin
+[5678.323] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=36.741/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5678.323] engine LOS: ready=1 batches=4328 traces=259630
+[5678.323] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5678.323] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=3183 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5678.323] frame 5000: read end n=17 camera=1 occ=119 visible=5 read_ms=21
+[5678.323] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5678.323] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5678.323]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5678.323]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5678.324]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5678.324]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5678.324]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5678.324]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5678.324]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5678.324]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5678.324]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5678.324]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5678.324]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5678.324] nonprim classes: 19 types
+[5678.324]   np[0] n=331 SceneComponent
+[5678.324]   np[1] n=1 CameraTransComponent
+[5678.324]   np[2] n=1 GameAkComponent
+[5678.324]   np[3] n=58 CameraComponent
+[5678.324]   np[4] n=4 SceneCaptureComponent2D
+[5678.324]   np[5] n=122 SpotLightComponent
+[5678.324]   np[6] n=40 DirectionalLightComponent
+[5678.324]   np[7] n=41 SkyLightComponent
+[5678.324]   np[8] n=5 PostProcessComponent
+[5678.324]   np[9] n=8 SphereReflectionCaptureComponent
+[5678.324]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5678.324]   np[11] n=6 BoxReflectionCaptureComponent
+[5678.324]   np[12] n=30 PointLightComponent
+[5678.325]   np[13] n=9 LocalLightGroupBakeComponent
+[5678.325]   np[14] n=6 ExponentialHeightFogComponent
+[5678.325]   np[15] n=2 SkyAtmosphereComponent
+[5678.328] frame 5000: render end
+[5678.328] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5678.371] weapon: wpn=7ac41d5d40 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=3135/3135
+[5678.371] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[5678.371] weapon runtime: source=7a983d50b0 self_dc=7a983d50b0 game_dc=7a983d50b0 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=0
+[5678.371] weapon peers: gp=7ac41d5d40 fp=0 tp=7ac41d8bc0 weapon=7ac41d5d40 fp=7ac41d5d40 tp=7ac41d8bc0
+[5678.556] cam: 22,-112,2 y=107.7 p=-19.4 f=135.0 n=17 pt=1
+[5678.933] cam: 22,-110,2 y=107.8 p=-19.3 f=135.0 n=17 pt=1
+[5679.019] cam: 22,-110,2 y=107.7 p=-19.2 f=135.0 n=17 pt=1
+[5679.371] cam: 21,-108,2 y=112.3 p=-15.0 f=135.0 n=17 pt=1
+[5679.739] cam: 20,-105,2 y=112.1 p=-15.3 f=135.0 n=17 pt=1
+[5680.096] cam: 19,-103,2 y=112.3 p=-15.3 f=135.0 n=17 pt=1
+[5680.430] esp f4400: 7 drawn of 17 ent (dead=0 type=0 dist=0 w2s=9 box=0) cam=(18,-102,2) fov=135
+[5680.449] cam: 18,-101,2 y=112.2 p=-15.2 f=135.0 n=17 pt=1
+[5680.822] cam: 17,-99,2 y=112.2 p=-15.0 f=135.0 n=17 pt=1
+[5681.150] frame 5100: read begin
+[5681.204] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=36.741/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5681.204] engine LOS: ready=1 batches=4428 traces=267630
+[5681.204] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5681.204] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=3283 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5681.204] frame 5100: read end n=17 camera=1 occ=119 visible=5 read_ms=54
+[5681.204]   e[0] k=p t=1 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=0 act=1 CeciliKeyi45
+[5681.204]   e[1] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B1
+[5681.204]   e[2] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B2
+[5681.204]   e[3] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B3
+[5681.204]   e[4] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B4
+[5681.204]   e[5] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B5
+[5681.204]   e[6] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B6
+[5681.204]   e[7] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B7
+[5681.204]   e[8] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B8
+[5681.204]   e[9] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B9
+[5681.204]   e[10] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B10
+[5681.204]   e[11] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B11
+[5681.204]   e[12] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B12
+[5681.205]   e[13] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B13
+[5681.205]   e[14] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B14
+[5681.205]   e[15] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B15
+[5681.205]   e[16] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B16
+[5681.205] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5681.205] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5681.205]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5681.205]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5681.205]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5681.205]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5681.205]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5681.205]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5681.205]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5681.205]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5681.205]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5681.205]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5681.205]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5681.205] nonprim classes: 19 types
+[5681.205]   np[0] n=331 SceneComponent
+[5681.205]   np[1] n=1 CameraTransComponent
+[5681.205]   np[2] n=1 GameAkComponent
+[5681.205]   np[3] n=58 CameraComponent
+[5681.205]   np[4] n=4 SceneCaptureComponent2D
+[5681.205]   np[5] n=122 SpotLightComponent
+[5681.205]   np[6] n=40 DirectionalLightComponent
+[5681.205]   np[7] n=41 SkyLightComponent
+[5681.205]   np[8] n=5 PostProcessComponent
+[5681.205]   np[9] n=8 SphereReflectionCaptureComponent
+[5681.206]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5681.206]   np[11] n=6 BoxReflectionCaptureComponent
+[5681.206]   np[12] n=30 PointLightComponent
+[5681.206]   np[13] n=9 LocalLightGroupBakeComponent
+[5681.206]   np[14] n=6 ExponentialHeightFogComponent
+[5681.206]   np[15] n=2 SkyAtmosphereComponent
+[5681.208] frame 5100: render end
+[5681.208] loop n=17 posted=-1 sock=-1 fail=6 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5681.226] cam: 16,-97,2 y=112.4 p=-15.1 f=135.0 n=17 pt=1
+[5683.784] frame 5200: read begin
+[5683.802] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=48.000/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5683.802] engine LOS: ready=1 batches=4528 traces=275630
+[5683.802] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5683.802] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=3383 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5683.802] frame 5200: read end n=17 camera=1 occ=119 visible=6 read_ms=18
+[5683.802] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5683.802] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5683.802]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5683.802]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5683.802]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5683.802]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5683.802]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5683.802]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5683.802]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5683.802]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5683.802]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5683.803]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5683.803]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5683.803] nonprim classes: 19 types
+[5683.803]   np[0] n=331 SceneComponent
+[5683.803]   np[1] n=1 CameraTransComponent
+[5683.803]   np[2] n=1 GameAkComponent
+[5683.803]   np[3] n=58 CameraComponent
+[5683.803]   np[4] n=4 SceneCaptureComponent2D
+[5683.803]   np[5] n=122 SpotLightComponent
+[5683.803]   np[6] n=40 DirectionalLightComponent
+[5683.803]   np[7] n=41 SkyLightComponent
+[5683.803]   np[8] n=5 PostProcessComponent
+[5683.803]   np[9] n=8 SphereReflectionCaptureComponent
+[5683.803]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5683.803]   np[11] n=6 BoxReflectionCaptureComponent
+[5683.803]   np[12] n=30 PointLightComponent
+[5683.803]   np[13] n=9 LocalLightGroupBakeComponent
+[5683.803]   np[14] n=6 ExponentialHeightFogComponent
+[5683.803]   np[15] n=2 SkyAtmosphereComponent
+[5683.806] frame 5200: render end
+[5683.806] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5683.876] weapon: wpn=7ac41d5d40 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=3335/3335
+[5683.876] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[5683.876] weapon runtime: source=7a983d50b0 self_dc=7a983d50b0 game_dc=7a983d50b0 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=0
+[5683.876] weapon peers: gp=7ac41d5d40 fp=0 tp=7ac41d8bc0 weapon=7ac41d5d40 fp=7ac41d5d40 tp=7ac41d8bc0
+[5685.558] esp f4600: 7 drawn of 17 ent (dead=0 type=0 dist=0 w2s=9 box=0) cam=(16,-97,2) fov=135
+[5686.222] frame 5300: read begin
+[5686.238] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=58.809/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5686.238] engine LOS: ready=1 batches=4628 traces=283630
+[5686.238] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5686.238] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=3483 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5686.238] frame 5300: read end n=17 camera=1 occ=119 visible=6 read_ms=16
+[5686.238] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5686.238] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5686.238]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5686.238]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5686.238]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5686.238]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5686.238]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5686.238]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5686.238]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5686.238]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5686.238]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5686.238]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5686.238]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.238]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.238]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.238]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.238]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5686.239] nonprim classes: 19 types
+[5686.239]   np[0] n=331 SceneComponent
+[5686.239]   np[1] n=1 CameraTransComponent
+[5686.239]   np[2] n=1 GameAkComponent
+[5686.239]   np[3] n=58 CameraComponent
+[5686.239]   np[4] n=4 SceneCaptureComponent2D
+[5686.239]   np[5] n=122 SpotLightComponent
+[5686.239]   np[6] n=40 DirectionalLightComponent
+[5686.239]   np[7] n=41 SkyLightComponent
+[5686.239]   np[8] n=5 PostProcessComponent
+[5686.239]   np[9] n=8 SphereReflectionCaptureComponent
+[5686.239]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5686.239]   np[11] n=6 BoxReflectionCaptureComponent
+[5686.239]   np[12] n=30 PointLightComponent
+[5686.239]   np[13] n=9 LocalLightGroupBakeComponent
+[5686.239]   np[14] n=6 ExponentialHeightFogComponent
+[5686.239]   np[15] n=2 SkyAtmosphereComponent
+[5686.242] frame 5300: render end
+[5686.242] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5686.956] cam: 16,-97,2 y=112.3 p=-15.2 f=135.0 n=17 pt=1
+[5688.798] frame 5400: read begin
+[5688.852] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=70.529/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5688.852] engine LOS: ready=1 batches=4728 traces=291630
+[5688.852] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5688.852] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=3583 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5688.853] frame 5400: read end n=17 camera=1 occ=119 visible=6 read_ms=55
+[5688.853]   e[0] k=p t=1 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=0 act=1 CeciliKeyi45
+[5688.853]   e[1] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B1
+[5688.853]   e[2] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x0C dead=0 act=1 B2
+[5688.853]   e[3] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B3
+[5688.853]   e[4] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B4
+[5688.853]   e[5] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B5
+[5688.853]   e[6] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B6
+[5688.853]   e[7] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B7
+[5688.853]   e[8] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B8
+[5688.853]   e[9] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B9
+[5688.853]   e[10] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B10
+[5688.853]   e[11] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B11
+[5688.853]   e[12] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B12
+[5688.853]   e[13] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B13
+[5688.853]   e[14] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B14
+[5688.853]   e[15] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B15
+[5688.853]   e[16] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B16
+[5688.853] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5688.853] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5688.853]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5688.853]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5688.853]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5688.853]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5688.853]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5688.853]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5688.853]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5688.853]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5688.853]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5688.853]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5688.853]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5688.853] nonprim classes: 19 types
+[5688.853]   np[0] n=331 SceneComponent
+[5688.854]   np[1] n=1 CameraTransComponent
+[5688.854]   np[2] n=1 GameAkComponent
+[5688.854]   np[3] n=58 CameraComponent
+[5688.854]   np[4] n=4 SceneCaptureComponent2D
+[5688.854]   np[5] n=122 SpotLightComponent
+[5688.854]   np[6] n=40 DirectionalLightComponent
+[5688.854]   np[7] n=41 SkyLightComponent
+[5688.854]   np[8] n=5 PostProcessComponent
+[5688.854]   np[9] n=8 SphereReflectionCaptureComponent
+[5688.854]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5688.854]   np[11] n=6 BoxReflectionCaptureComponent
+[5688.854]   np[12] n=30 PointLightComponent
+[5688.854]   np[13] n=9 LocalLightGroupBakeComponent
+[5688.854]   np[14] n=6 ExponentialHeightFogComponent
+[5688.854]   np[15] n=2 SkyAtmosphereComponent
+[5688.856] frame 5400: render end
+[5688.857] loop n=17 posted=-1 sock=-1 fail=6 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5688.896] weapon: wpn=7ac41d5d40 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=3535/3535
+[5688.896] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[5688.896] weapon runtime: source=7a983d50b0 self_dc=7a983d50b0 game_dc=7a983d50b0 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=0
+[5688.896] weapon peers: gp=7ac41d5d40 fp=0 tp=7ac41d8bc0 weapon=7ac41d5d40 fp=7ac41d5d40 tp=7ac41d8bc0
+[5690.844] esp f4800: 7 drawn of 17 ent (dead=0 type=0 dist=0 w2s=9 box=0) cam=(16,-97,2) fov=135
+[5691.615] frame 5500: read begin
+[5691.635] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=83.139/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5691.635] engine LOS: ready=1 batches=4828 traces=299630
+[5691.635] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5691.635] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=3683 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5691.635] frame 5500: read end n=17 camera=1 occ=119 visible=6 read_ms=19
+[5691.635] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5691.635] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5691.635]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5691.635]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5691.635]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5691.635]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5691.635]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5691.635]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5691.635]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5691.635]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5691.635]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5691.635]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5691.635]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.635]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.635]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.635]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5691.636] nonprim classes: 19 types
+[5691.636]   np[0] n=331 SceneComponent
+[5691.636]   np[1] n=1 CameraTransComponent
+[5691.636]   np[2] n=1 GameAkComponent
+[5691.636]   np[3] n=58 CameraComponent
+[5691.636]   np[4] n=4 SceneCaptureComponent2D
+[5691.636]   np[5] n=122 SpotLightComponent
+[5691.636]   np[6] n=40 DirectionalLightComponent
+[5691.636]   np[7] n=41 SkyLightComponent
+[5691.636]   np[8] n=5 PostProcessComponent
+[5691.636]   np[9] n=8 SphereReflectionCaptureComponent
+[5691.636]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5691.636]   np[11] n=6 BoxReflectionCaptureComponent
+[5691.636]   np[12] n=30 PointLightComponent
+[5691.636]   np[13] n=9 LocalLightGroupBakeComponent
+[5691.636]   np[14] n=6 ExponentialHeightFogComponent
+[5691.636]   np[15] n=2 SkyAtmosphereComponent
+[5691.639] frame 5500: render end
+[5691.639] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5694.368] frame 5600: read begin
+[5694.386] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=95.218/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5694.386] engine LOS: ready=1 batches=4928 traces=307630
+[5694.386] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5694.386] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=3783 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5694.386] frame 5600: read end n=17 camera=1 occ=119 visible=6 read_ms=18
+[5694.386] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5694.386] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5694.386]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5694.386]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5694.386]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5694.386]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5694.386]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5694.386]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5694.386]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5694.386]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5694.386]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5694.386]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5694.386]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5694.387] nonprim classes: 19 types
+[5694.387]   np[0] n=331 SceneComponent
+[5694.387]   np[1] n=1 CameraTransComponent
+[5694.387]   np[2] n=1 GameAkComponent
+[5694.387]   np[3] n=58 CameraComponent
+[5694.387]   np[4] n=4 SceneCaptureComponent2D
+[5694.387]   np[5] n=122 SpotLightComponent
+[5694.387]   np[6] n=40 DirectionalLightComponent
+[5694.387]   np[7] n=41 SkyLightComponent
+[5694.387]   np[8] n=5 PostProcessComponent
+[5694.387]   np[9] n=8 SphereReflectionCaptureComponent
+[5694.387]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5694.387]   np[11] n=6 BoxReflectionCaptureComponent
+[5694.387]   np[12] n=30 PointLightComponent
+[5694.387]   np[13] n=9 LocalLightGroupBakeComponent
+[5694.387]   np[14] n=6 ExponentialHeightFogComponent
+[5694.387]   np[15] n=2 SkyAtmosphereComponent
+[5694.390] frame 5600: render end
+[5694.390] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5694.429] weapon: wpn=7ac41d5d40 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=3735/3735
+[5694.429] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[5694.429] weapon runtime: source=7a983d50b0 self_dc=7a983d50b0 game_dc=7a983d50b0 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=0
+[5694.429] weapon peers: gp=7ac41d5d40 fp=0 tp=7ac41d8bc0 weapon=7ac41d5d40 fp=7ac41d5d40 tp=7ac41d8bc0
+[5695.124] cam: 16,-97,2 y=112.3 p=-15.2 f=135.0 n=17 pt=1
+[5696.200] esp f5000: 7 drawn of 17 ent (dead=0 type=0 dist=0 w2s=9 box=0) cam=(16,-97,2) fov=135
+[5696.839] frame 5700: read begin
+[5696.888] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=100.000/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5696.888] engine LOS: ready=1 batches=5028 traces=315630
+[5696.888] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5696.888] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=3883 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5696.888] frame 5700: read end n=17 camera=1 occ=119 visible=6 read_ms=49
+[5696.888]   e[0] k=p t=1 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=0 act=1 CeciliKeyi45
+[5696.888]   e[1] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B1
+[5696.888]   e[2] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x0C dead=0 act=1 B2
+[5696.888]   e[3] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B3
+[5696.888]   e[4] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B4
+[5696.888]   e[5] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B5
+[5696.888]   e[6] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B6
+[5696.888]   e[7] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B7
+[5696.888]   e[8] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B8
+[5696.888]   e[9] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B9
+[5696.888]   e[10] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B10
+[5696.888]   e[11] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B11
+[5696.888]   e[12] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B12
+[5696.888]   e[13] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B13
+[5696.888]   e[14] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B14
+[5696.888]   e[15] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B15
+[5696.888]   e[16] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B16
+[5696.888] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5696.888] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5696.888]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5696.888]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5696.888]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5696.888]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5696.888]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5696.888]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5696.888]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5696.888]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5696.888]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5696.888]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5696.888]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.888]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.888]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5696.889] nonprim classes: 19 types
+[5696.889]   np[0] n=331 SceneComponent
+[5696.889]   np[1] n=1 CameraTransComponent
+[5696.889]   np[2] n=1 GameAkComponent
+[5696.889]   np[3] n=58 CameraComponent
+[5696.889]   np[4] n=4 SceneCaptureComponent2D
+[5696.889]   np[5] n=122 SpotLightComponent
+[5696.889]   np[6] n=40 DirectionalLightComponent
+[5696.889]   np[7] n=41 SkyLightComponent
+[5696.889]   np[8] n=5 PostProcessComponent
+[5696.889]   np[9] n=8 SphereReflectionCaptureComponent
+[5696.889]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5696.889]   np[11] n=6 BoxReflectionCaptureComponent
+[5696.889]   np[12] n=30 PointLightComponent
+[5696.889]   np[13] n=9 LocalLightGroupBakeComponent
+[5696.889]   np[14] n=6 ExponentialHeightFogComponent
+[5696.889]   np[15] n=2 SkyAtmosphereComponent
+[5696.892] frame 5700: render end
+[5696.892] loop n=17 posted=-1 sock=-1 fail=6 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5699.301] frame 5800: read begin
+[5699.318] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=100.000/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5699.318] engine LOS: ready=1 batches=5128 traces=323630
+[5699.318] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5699.318] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=3983 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5699.318] frame 5800: read end n=17 camera=1 occ=119 visible=6 read_ms=18
+[5699.318] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5699.318] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5699.318]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5699.318]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5699.318]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5699.318]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5699.318]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5699.318]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5699.318]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5699.319]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5699.319]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5699.319]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5699.319]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5699.319] nonprim classes: 19 types
+[5699.319]   np[0] n=331 SceneComponent
+[5699.319]   np[1] n=1 CameraTransComponent
+[5699.319]   np[2] n=1 GameAkComponent
+[5699.319]   np[3] n=58 CameraComponent
+[5699.319]   np[4] n=4 SceneCaptureComponent2D
+[5699.319]   np[5] n=122 SpotLightComponent
+[5699.319]   np[6] n=40 DirectionalLightComponent
+[5699.319]   np[7] n=41 SkyLightComponent
+[5699.319]   np[8] n=5 PostProcessComponent
+[5699.319]   np[9] n=8 SphereReflectionCaptureComponent
+[5699.319]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5699.319]   np[11] n=6 BoxReflectionCaptureComponent
+[5699.319]   np[12] n=30 PointLightComponent
+[5699.319]   np[13] n=9 LocalLightGroupBakeComponent
+[5699.319]   np[14] n=6 ExponentialHeightFogComponent
+[5699.319]   np[15] n=2 SkyAtmosphereComponent
+[5699.322] frame 5800: render end
+[5699.322] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5699.391] weapon: wpn=7ac41d5d40 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=3935/3935
+[5699.391] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[5699.391] weapon runtime: source=7a983d50b0 self_dc=7a983d50b0 game_dc=7a983d50b0 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=0
+[5699.391] weapon peers: gp=7ac41d5d40 fp=0 tp=7ac41d8bc0 weapon=7ac41d5d40 fp=7ac41d5d40 tp=7ac41d8bc0
+[5701.017] cam: 16,-99,1 y=-95.4 p=-29.9 f=135.0 n=17 pt=1
+[5701.169] esp f5200: 9 drawn of 17 ent (dead=0 type=0 dist=0 w2s=7 box=0) cam=(16,-100,2) fov=135
+[5701.408] cam: 16,-101,2 y=-87.6 p=-10.9 f=135.0 n=17 pt=1
+[5701.749] cam: 16,-103,2 y=-87.6 p=-11.4 f=135.0 n=17 pt=1
+[5701.864] frame 5900: read begin
+[5701.880] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=100.000/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5701.880] engine LOS: ready=1 batches=5228 traces=331630
+[5701.880] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5701.880] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=4083 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5701.880] frame 5900: read end n=17 camera=1 occ=119 visible=5 read_ms=17
+[5701.880] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5701.880] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5701.880]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5701.880]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5701.880]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5701.880]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5701.880]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5701.880]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5701.880]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5701.880]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5701.881]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5701.881]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5701.881]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5701.881] nonprim classes: 19 types
+[5701.881]   np[0] n=331 SceneComponent
+[5701.881]   np[1] n=1 CameraTransComponent
+[5701.881]   np[2] n=1 GameAkComponent
+[5701.881]   np[3] n=58 CameraComponent
+[5701.881]   np[4] n=4 SceneCaptureComponent2D
+[5701.881]   np[5] n=122 SpotLightComponent
+[5701.881]   np[6] n=40 DirectionalLightComponent
+[5701.881]   np[7] n=41 SkyLightComponent
+[5701.881]   np[8] n=5 PostProcessComponent
+[5701.881]   np[9] n=8 SphereReflectionCaptureComponent
+[5701.881]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5701.881]   np[11] n=6 BoxReflectionCaptureComponent
+[5701.881]   np[12] n=30 PointLightComponent
+[5701.881]   np[13] n=9 LocalLightGroupBakeComponent
+[5701.881]   np[14] n=6 ExponentialHeightFogComponent
+[5701.881]   np[15] n=2 SkyAtmosphereComponent
+[5701.884] frame 5900: render end
+[5701.884] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5702.160] cam: 16,-105,2 y=-87.8 p=-11.4 f=135.0 n=17 pt=1
+[5702.497] cam: 16,-107,2 y=-87.5 p=-11.6 f=135.0 n=17 pt=1
+[5702.697] cam: 16,-109,2 y=-87.7 p=-11.4 f=135.0 n=17 pt=1
+[5703.051] cam: 16,-111,2 y=-87.6 p=-11.5 f=135.0 n=17 pt=1
+[5703.468] cam: 16,-113,2 y=-87.8 p=-11.6 f=135.0 n=17 pt=1
+[5703.798] cam: 17,-115,2 y=-87.6 p=-11.7 f=135.0 n=17 pt=1
+[5704.185] cam: 17,-117,2 y=-87.7 p=-11.5 f=135.0 n=17 pt=1
+[5704.279] frame 6000: read begin
+[5704.326] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=100.000/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5704.326] engine LOS: ready=1 batches=5328 traces=339630
+[5704.326] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5704.326] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=4183 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5704.326] frame 6000: read end n=17 camera=1 occ=119 visible=6 read_ms=46
+[5704.326]   e[0] k=p t=1 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=0 act=1 CeciliKeyi45
+[5704.326]   e[1] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x05 dead=0 act=1 B1
+[5704.326]   e[2] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B2
+[5704.326]   e[3] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B3
+[5704.326]   e[4] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x14 dead=0 act=1 B4
+[5704.326]   e[5] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B5
+[5704.326]   e[6] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B6
+[5704.326]   e[7] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B7
+[5704.326]   e[8] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B8
+[5704.326]   e[9] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B9
+[5704.326]   e[10] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B10
+[5704.326]   e[11] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B11
+[5704.326]   e[12] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B12
+[5704.326]   e[13] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B13
+[5704.326]   e[14] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B14
+[5704.326]   e[15] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B15
+[5704.326]   e[16] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B16
+[5704.326] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5704.326] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5704.326]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5704.326]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5704.326]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5704.326]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5704.326]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5704.326]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5704.327]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5704.327]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5704.327]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5704.327]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5704.327]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5704.327] nonprim classes: 19 types
+[5704.327]   np[0] n=331 SceneComponent
+[5704.327]   np[1] n=1 CameraTransComponent
+[5704.327]   np[2] n=1 GameAkComponent
+[5704.327]   np[3] n=58 CameraComponent
+[5704.327]   np[4] n=4 SceneCaptureComponent2D
+[5704.327]   np[5] n=122 SpotLightComponent
+[5704.327]   np[6] n=40 DirectionalLightComponent
+[5704.327]   np[7] n=41 SkyLightComponent
+[5704.327]   np[8] n=5 PostProcessComponent
+[5704.327]   np[9] n=8 SphereReflectionCaptureComponent
+[5704.327]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5704.327]   np[11] n=6 BoxReflectionCaptureComponent
+[5704.327]   np[12] n=30 PointLightComponent
+[5704.327]   np[13] n=9 LocalLightGroupBakeComponent
+[5704.327]   np[14] n=6 ExponentialHeightFogComponent
+[5704.327]   np[15] n=2 SkyAtmosphereComponent
+[5704.329] frame 6000: render end
+[5704.329] loop n=17 posted=-1 sock=-1 fail=6 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5704.363] weapon: wpn=7ac41d5d40 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=4135/4135
+[5704.363] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[5704.363] weapon runtime: source=7a983d50b0 self_dc=7a983d50b0 game_dc=7a983d50b0 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=0
+[5704.363] weapon peers: gp=7ac41d5d40 fp=0 tp=7ac41d8bc0 weapon=7ac41d5d40 fp=7ac41d5d40 tp=7ac41d8bc0
+[5704.522] cam: 17,-119,2 y=-87.7 p=-11.4 f=135.0 n=17 pt=1
+[5704.909] cam: 17,-122,2 y=-87.6 p=-11.4 f=135.0 n=17 pt=1
+[5705.263] cam: 17,-124,2 y=-87.8 p=-11.6 f=135.0 n=17 pt=1
+[5705.623] cam: 17,-126,2 y=-87.5 p=-11.7 f=135.0 n=17 pt=1
+[5706.000] esp f5400: 6 drawn of 17 ent (dead=0 type=0 dist=0 w2s=10 box=0) cam=(17,-128,2) fov=135
+[5706.016] cam: 17,-128,2 y=-87.7 p=-11.6 f=135.0 n=17 pt=1
+[5706.363] cam: 17,-130,2 y=-104.4 p=-6.1 f=135.0 n=17 pt=1
+[5706.606] frame 6100: read begin
+[5706.622] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=100.000/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5706.622] engine LOS: ready=1 batches=5428 traces=347630
+[5706.622] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5706.622] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=4283 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5706.622] frame 6100: read end n=17 camera=1 occ=119 visible=6 read_ms=16
+[5706.622] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5706.622] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5706.622]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5706.622]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5706.622]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5706.623]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5706.623]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5706.623]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5706.623]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5706.623]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5706.623]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5706.623]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5706.623]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5706.623] nonprim classes: 19 types
+[5706.623]   np[0] n=331 SceneComponent
+[5706.623]   np[1] n=1 CameraTransComponent
+[5706.623]   np[2] n=1 GameAkComponent
+[5706.623]   np[3] n=58 CameraComponent
+[5706.623]   np[4] n=4 SceneCaptureComponent2D
+[5706.623]   np[5] n=122 SpotLightComponent
+[5706.623]   np[6] n=40 DirectionalLightComponent
+[5706.623]   np[7] n=41 SkyLightComponent
+[5706.623]   np[8] n=5 PostProcessComponent
+[5706.623]   np[9] n=8 SphereReflectionCaptureComponent
+[5706.623]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5706.623]   np[11] n=6 BoxReflectionCaptureComponent
+[5706.623]   np[12] n=30 PointLightComponent
+[5706.623]   np[13] n=9 LocalLightGroupBakeComponent
+[5706.623]   np[14] n=6 ExponentialHeightFogComponent
+[5706.623]   np[15] n=2 SkyAtmosphereComponent
+[5706.625] frame 6100: render end
+[5706.625] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5706.744] cam: 16,-132,2 y=-142.5 p=-4.1 f=135.0 n=17 pt=1
+[5707.119] cam: 14,-133,2 y=-165.8 p=-6.2 f=135.0 n=17 pt=1
+[5707.465] cam: 12,-134,2 y=-131.2 p=-8.6 f=135.0 n=17 pt=1
+[5707.838] cam: 11,-136,2 y=-100.4 p=-8.7 f=135.0 n=17 pt=1
+[5708.211] cam: 12,-138,2 y=-65.8 p=-10.5 f=135.0 n=17 pt=1
+[5708.568] cam: 13,-140,2 y=-65.0 p=-10.7 f=135.0 n=17 pt=1
+[5708.913] frame 6200: read begin
+[5708.929] stamina: enabled=1 state=2 stage=5 pawn=7ac1d70010 comp=7aa00ebec0 attr=7b06dda960 value=100.000/100.000 sprint=0.000/0.000 cost=0.000/0.000
+[5708.929] engine LOS: ready=1 batches=5528 traces=355630
+[5708.929] aim: enabled=0 ready=0 state=0 target=0 corrections=0
+[5708.929] trigger: enabled=1 state=3 hit=7a9bfb9e00 queries=4383 starts=0 stops=0 callbacks=0 tid=7872 reject=0
+[5708.929] frame 6200: read end n=17 camera=1 occ=119 visible=6 read_ms=16
+[5708.929] visibility: actors=525 primitive_rej=691 flags_rej=222 bounds_rej=0 size_rej=0 added=119
+[5708.929] occ_rej: badread=0 nocol=160(wall=0,floor=0) nochan=62
+[5708.929]   rej[0] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5708.929]   rej[1] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5708.929]   rej[2] r=2 qm=1 ch=[1,1,1,0,1] Raid1_1_Valkyrie_Enter_Area
+[5708.929]   rej[3] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Dam_Iris
+[5708.929]   rej[4] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_Forrest
+[5708.929]   rej[5] r=2 qm=1 ch=[0,0,1,0,0] FreezeRebasingVolume_SpaceCenter
+[5708.929]   rej[6] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume_SOLgun
+[5708.929]   rej[7] r=2 qm=1 ch=[1,1,1,1,1] LightShadowVolume
+[5708.929]   occ[0] org=10000,10050,-10050 ext=50,50,50 BP_RTICapture_C
+[5708.929]   occ[1] org=-10,622,29989 ext=77,150,41 BP_HallSceneClothes
+[5708.929]   occ[2] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[3] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[4] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[5] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[6] org=-25237,12173,12013 ext=10,16,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[7] org=-25246,12159,12015 ext=1,1,1 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[8] org=-25235,12178,12012 ext=10,14,5 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[9] org=-25240,12168,12019 ext=2,2,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[10] org=-25221,12201,12013 ext=3,3,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[11] org=-25215,12213,12006 ext=6,8,3 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[12] org=-25224,12197,12006 ext=9,11,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[13] org=-25221,12204,11998 ext=4,5,6 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[14] org=-25212,12218,12001 ext=8,10,8 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929]   occ[15] org=-25229,12191,11999 ext=5,5,11 AssembleWeapon_WeaponDispaly_SeqWeapon
+[5708.929] nonprim classes: 19 types
+[5708.929]   np[0] n=331 SceneComponent
+[5708.929]   np[1] n=1 CameraTransComponent
+[5708.930]   np[2] n=1 GameAkComponent
+[5708.930]   np[3] n=58 CameraComponent
+[5708.930]   np[4] n=4 SceneCaptureComponent2D
+[5708.930]   np[5] n=122 SpotLightComponent
+[5708.930]   np[6] n=40 DirectionalLightComponent
+[5708.930]   np[7] n=41 SkyLightComponent
+[5708.930]   np[8] n=5 PostProcessComponent
+[5708.930]   np[9] n=8 SphereReflectionCaptureComponent
+[5708.930]   np[10] n=16 WeaponBulletPhysicsSimulateView
+[5708.930]   np[11] n=6 BoxReflectionCaptureComponent
+[5708.930]   np[12] n=30 PointLightComponent
+[5708.930]   np[13] n=9 LocalLightGroupBakeComponent
+[5708.930]   np[14] n=6 ExponentialHeightFogComponent
+[5708.930]   np[15] n=2 SkyAtmosphereComponent
+[5708.930] cam: 14,-142,2 y=-34.7 p=-12.6 f=135.0 n=17 pt=1
+[5708.932] frame 6200: render end
+[5708.932] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=142 w=7b1cc6e4a0
+[5708.965] weapon: wpn=7ac41d5d40 recoil=1 spread=1 fields=50/73/40 kick=2 sway=4 camera=3 gate=1 applied=4335/4335
+[5708.965] weapon spread output: hip=0.0000,0.0000 aim=0.0000,0.0000 current=0.0000,0.0000
+[5708.965] weapon runtime: source=7a983d50b0 self_dc=7a983d50b0 game_dc=7a983d50b0 shot=0 target=0.000,0.000 shake=0.000,0.000 pose=-1000.00,-1000.00 rewrites=0
+[5708.965] weapon peers: gp=7ac41d5d40 fp=0 tp=7ac41d8bc0 weapon=7ac41d5d40 fp=7ac41d5d40 tp=7ac41d8bc0
+[5709.320] cam: 16,-142,2 y=-15.3 p=-12.6 f=135.0 n=17 pt=1
+[5709.661] cam: 18,-143,2 y=4.3 p=-12.7 f=135.0 n=17 pt=1
+[5710.041] cam: 20,-142,2 y=5.4 p=-12.6 f=135.0 n=17 pt=1
+[5710.142] cam: 21,-142,2 y=5.3 p=-12.3 f=135.0 n=17 pt=1
