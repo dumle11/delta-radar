@@ -776,17 +776,20 @@ public class O extends View {
             section("Aim point", null);
             buildBonePicker();
 
-            section("FOV radius", aimFov + "°");
-            SeekBar fov = new SeekBar(getContext()); fov.setMax(40); fov.setProgress(aimFov - 5);
-            styleSlider(fov);
-            body.addView(fov, new LayoutParams(-1, 42));
-            fov.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                public void onProgressChanged(SeekBar bar, int value, boolean user) {
-                    if (user) aimFov = value + 5;
-                }
-                public void onStartTrackingTouch(SeekBar bar) {}
-                public void onStopTrackingTouch(SeekBar bar) { saveSettings(); selectTab(2); }
-            });
+            section("FOV radius", aim360 ? "360°" : aimFov + "°");
+            if (!aim360) {
+                SeekBar fov = new SeekBar(getContext()); fov.setMax(40); fov.setProgress(aimFov - 5);
+                styleSlider(fov);
+                body.addView(fov, new LayoutParams(-1, 42));
+                fov.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    public void onProgressChanged(SeekBar bar, int value, boolean user) {
+                        if (user) aimFov = value + 5;
+                    }
+                    public void onStartTrackingTouch(SeekBar bar) {}
+                    public void onStopTrackingTouch(SeekBar bar) { saveSettings(); selectTab(2); }
+                });
+            }
+            toggle("360° (lock any visible)", -12, aim360);
 
 
         }
@@ -872,6 +875,7 @@ public class O extends View {
                         case -7: rayBounds = checked; break;
                         case -8: noRecoil = checked; break;
                         case -9: noSpread = checked; break;
+                        case -12: aim360 = checked; break;
                     }
                     saveSettings(); if (inst != null) inst.invalidate();
                 }

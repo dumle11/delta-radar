@@ -10,7 +10,7 @@ static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt;
 static jmethodID _ov_circle;
-static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal;
+static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3;
 static jmethodID _ov_gnr, _ov_gns;
 static int _ov_ready;
 static int _ov_w, _ov_h;
@@ -126,6 +126,7 @@ static int _ov_load_dex(void) {
     _ov_gaz = (*env)->GetStaticMethodID(env, _ov_cls, "gaz", "()Z");
     _ov_gam = (*env)->GetStaticMethodID(env, _ov_cls, "gam", "()I");
     _ov_gal = (*env)->GetStaticMethodID(env, _ov_cls, "gal", "()Z");
+    _ov_ga3 = (*env)->GetStaticMethodID(env, _ov_cls, "ga3", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gnr = (*env)->GetStaticMethodID(env, _ov_cls, "gnr", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
@@ -610,10 +611,11 @@ static unsigned _ov_aim_config(void) {
     int autoshoot = _ov_gaa ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gaa) : 0;
     int autozoom = _ov_gaz ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gaz) : 0;
     int aimlocked = _ov_gal ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gal) : 1;
+    int aim360 = _ov_ga3 ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_ga3) : 0;
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return 0; }
     if (fov<5) fov=5; if (fov>45) fov=45;
     if (bone<0 || bone>2) bone=2;
-    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u) | (autozoom?1u<<25:0u) | (aimlocked?1u<<26:0u);
+    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u) | (autozoom?1u<<25:0u) | (aimlocked?1u<<26:0u) | (aim360?1u<<27:0u);
 }
 static void _ov_misc_config(void) {
     if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); return; }
@@ -683,24 +685,27 @@ static void _ov_draw_esp(void) {
     if (!esp_on) { (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_e); return; }
 
     static int _esp_dbg = 0;
-    int drawn = 0;
+    static int _esp_frame = 0;
+    _esp_frame++;
+    int drawn = 0, skipped_dead = 0, skipped_type = 0, skipped_dist = 0, skipped_w2s = 0, skipped_box = 0;
     for (int i = 0; i < num_entities; i++) {
         Entity *e = &entities[i];
         if (strcmp(e->id, self_entity_id) == 0) continue;
-        if (e->dead) continue;
+        if (e->dead) { skipped_dead++; continue; }
 
         int etype = _ov_entity_type(e);
         int ef = feat[etype];
-        if (!(ef & EF_ENABLED)) continue;
+        if (!(ef & EF_ENABLED)) { skipped_type++; continue; }
 
         float dist = sqrtf((e->x - cam[0]) * (e->x - cam[0]) +
                            (e->y - cam[1]) * (e->y - cam[1]) +
                            (e->z - cam[2]) * (e->z - cam[2]));
-        if (dist > (float)rdist[etype]) continue;
+        if (dist > (float)rdist[etype]) { skipped_dist++; continue; }
 
         float sx, sy;
         if (!_ov_w2s(e->x, e->y, e->z, cam[0], cam[1], cam[2],
                      cam[3], cam[4], cam[5], &sx, &sy)) {
+            skipped_w2s++;
             if (_esp_dbg < 3) {
                 char dbuf[160];
                 snprintf(dbuf, sizeof(dbuf), "w2s fail e=(%.0f,%.0f,%.0f) c=(%.0f,%.0f,%.0f) y=%.1f p=%.1f f=%.1f",
@@ -735,7 +740,7 @@ static void _ov_draw_esp(void) {
             if (box_h < 10.0f) box_h = 10.0f;
             box_bot = box_top + box_h;
         } else {
-            continue;
+            skipped_box++; continue;
         }
         bw = box_h * 0.45f * 0.5f;
         int box_visible = !(box_cx + bw < 0 || box_cx - bw > _ov_w ||
@@ -812,11 +817,12 @@ static void _ov_draw_esp(void) {
     int ray_flags = (*env)->CallStaticIntMethod(env, _ov_cls, _ov_grd);
     if (ray_flags & 1) _ov_draw_ray_debug(env, cam, ray_flags);
 
-    if (_esp_dbg < 10 && drawn == 0 && num_entities > 0) {
-        char dbuf[64];
-        snprintf(dbuf, sizeof(dbuf), "esp: 0 drawn of %d ent", num_entities);
+    if ((_esp_frame <= 5 || _esp_frame % 200 == 0) && num_entities > 0) {
+        char dbuf[200];
+        snprintf(dbuf, sizeof(dbuf), "esp f%d: %d drawn of %d ent (dead=%d type=%d dist=%d w2s=%d box=%d) cam=(%.0f,%.0f,%.0f) fov=%.0f",
+            _esp_frame, drawn, num_entities, skipped_dead, skipped_type, skipped_dist, skipped_w2s, skipped_box,
+            cam[0], cam[1], cam[2], cam[5]);
         _diag(dbuf);
-        _esp_dbg++;
     }
     (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_e);
 }
