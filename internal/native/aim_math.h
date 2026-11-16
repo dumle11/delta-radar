@@ -37,13 +37,20 @@ static int aim_rotation(const float camera[3], const float target[3], float rota
     return isfinite(rotation[0]) && isfinite(rotation[1]);
 }
 
+static float aim_3d_distance_sq(const float camera[3], const float point[3]) {
+    float dx=point[0]-camera[0], dy=point[1]-camera[1], dz=point[2]-camera[2];
+    float d = dx*dx + dy*dy + dz*dz;
+    return isfinite(d) ? d : INFINITY;
+}
+
 typedef struct { uint64_t actor; float distance_squared; int eligible; } AimChoice;
-static int aim_select(const AimChoice *choices, int count, uint64_t locked_actor, float radius) {
+static int aim_select(const AimChoice *choices, int count, uint64_t locked_actor, float radius, int full_sphere) {
     int selected=-1; float nearest=INFINITY;
     for (int i=0;i<count;i++) {
         if (!choices[i].eligible || !choices[i].actor || !isfinite(choices[i].distance_squared)) continue;
         if (locked_actor && choices[i].actor==locked_actor) return i;
-        if (aim_inside(choices[i].distance_squared,radius) && choices[i].distance_squared<nearest) {
+        int in_range = full_sphere || aim_inside(choices[i].distance_squared, radius);
+        if (in_range && choices[i].distance_squared<nearest) {
             selected=i; nearest=choices[i].distance_squared;
         }
     }

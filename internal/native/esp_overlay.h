@@ -10,7 +10,7 @@ static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt;
 static jmethodID _ov_circle;
-static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz;
+static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal;
 static jmethodID _ov_gnr, _ov_gns;
 static int _ov_ready;
 static int _ov_w, _ov_h;
@@ -125,6 +125,7 @@ static int _ov_load_dex(void) {
     _ov_gaa = (*env)->GetStaticMethodID(env, _ov_cls, "gaa", "()Z");
     _ov_gaz = (*env)->GetStaticMethodID(env, _ov_cls, "gaz", "()Z");
     _ov_gam = (*env)->GetStaticMethodID(env, _ov_cls, "gam", "()I");
+    _ov_gal = (*env)->GetStaticMethodID(env, _ov_cls, "gal", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gnr = (*env)->GetStaticMethodID(env, _ov_cls, "gnr", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
@@ -608,10 +609,11 @@ static unsigned _ov_aim_config(void) {
     int mask = (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gam) & 7;
     int autoshoot = _ov_gaa ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gaa) : 0;
     int autozoom = _ov_gaz ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gaz) : 0;
+    int aimlocked = _ov_gal ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gal) : 1;
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return 0; }
     if (fov<5) fov=5; if (fov>45) fov=45;
     if (bone<0 || bone>2) bone=2;
-    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u) | (autozoom?1u<<25:0u);
+    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u) | (autozoom?1u<<25:0u) | (aimlocked?1u<<26:0u);
 }
 static void _ov_misc_config(void) {
     if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); return; }

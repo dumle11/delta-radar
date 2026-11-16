@@ -207,9 +207,12 @@ static void ea_write_rotation(uint64_t controller, float pitch, float yaw) {
 static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
                             float cam_yaw, float cam_pitch, unsigned aim_config,
                             uint64_t world, uint64_t controller, uint64_t pawn) {
-    if (!(aim_config & 1) || !atomic_load(&ea_ready)) {
+    int aim_locked = (aim_config >> 26) & 1;
+    int aim_360 = (aim_config >> 27) & 1;
+    if (!(aim_config & 1) || !atomic_load(&ea_ready) || !aim_locked) {
         ea_release();
-        if ((aim_config & 1) && !atomic_load(&ea_ready)) atomic_store(&ea_status, 3);
+        if ((aim_config & 1) && !aim_locked) atomic_store(&ea_status, 1);
+        else if ((aim_config & 1) && !atomic_load(&ea_ready)) atomic_store(&ea_status, 3);
         return;
     }
 
@@ -219,9 +222,10 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
     AimChoice choices[EV_MAX];
     int choice_count = 0;
     int choice_entity[EV_MAX];
+    float aim_points[EV_MAX][3];
     unsigned mask = (aim_config >> 1) & 7;
     int bone = (aim_config >> 16) & 3;
-    float height = bone == 0 ? 0.8f : bone == 1 ? 0.45f : 0.2f;
+    float height = bone == 0 ? 0.65f : bone == 1 ? 0.3f : 0.0f;
 
     for (int i = 0; i < count && choice_count < EV_MAX; i++) {
         Entity *e = &entities[i];
@@ -240,7 +244,7 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
             (e->z + e->half_height * height) * 100.0f
         };
 
-        /* Check if aim point is clear via engine trace. */
+        /* Trace preferred aim point; if blocked, trace fallback samples. */
         int aim_clear = 0;
         if (eligible && ev_pe_fn && ev_same(&ev_function) && ev_same(&ev_receiver)) {
             uint64_t ignored[2] = {pawn, e->actor_address};
@@ -257,12 +261,22 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
             if (params.result == 0) {
                 aim_clear = 1;
             } else if (params.result == 1) {
-                /* Try exposed body sample instead of blocked aim point. */
-                const int preference[5] = {0, 1, 3, 4, 2};
+                /* Preferred bone blocked — trace each body sample for a visible one. */
+                const int preference[5] = {1, 0, 3, 4, 2};
                 for (int k = 0; k < 5; k++) {
-                    if (!(e->visibility_ray_mask & (1u << preference[k]))) {
-                        float sample[3];
-                        visibility_sample_point(cam_x, cam_y, e->x, e->y, e->z, e->half_height, preference[k], sample);
+                    float sample[3];
+                    visibility_sample_point(cam_x, cam_y, e->x, e->y, e->z, e->half_height, preference[k], sample);
+                    EVTraceParams fp = {0};
+                    fp.world = world;
+                    fp.start[0] = camera_cm[0]; fp.start[1] = camera_cm[1]; fp.start[2] = camera_cm[2];
+                    fp.end[0] = sample[0] * 100.0f; fp.end[1] = sample[1] * 100.0f; fp.end[2] = sample[2] * 100.0f;
+                    fp.channel = 3; fp.complex = 1;
+                    fp.ignore = (EVArray){(uint64_t)(uintptr_t)ignored, 2, 2};
+                    fp.result = 0xff;
+                    ev_pe_fn((void *)(uintptr_t)ev_receiver.address,
+                             (void *)(uintptr_t)ev_function.address, &fp);
+                    atomic_fetch_add(&ev_traces, 1);
+                    if (fp.result == 0) {
                         aim_point[0] = sample[0] * 100.0f;
                         aim_point[1] = sample[1] * 100.0f;
                         aim_point[2] = sample[2] * 100.0f;
@@ -273,9 +287,13 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
             }
         }
 
+        aim_points[choice_count][0] = aim_point[0];
+        aim_points[choice_count][1] = aim_point[1];
+        aim_points[choice_count][2] = aim_point[2];
+        float dist = aim_360 ? aim_3d_distance_sq(camera_cm, aim_point)
+                             : aim_screen_distance(camera_cm, cam_yaw, cam_pitch, aim_point);
         choices[choice_count] = (AimChoice){
-            e->actor_address,
-            aim_screen_distance(camera_cm, cam_yaw, cam_pitch, aim_point),
+            e->actor_address, dist,
             eligible && aim_clear && ea_alive_entity(e)
         };
         choice_entity[choice_count] = i;
@@ -289,7 +307,7 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
         previous = 0;
     }
 
-    int chosen = aim_select(choices, choice_count, previous, (aim_config >> 8) & 255);
+    int chosen = aim_select(choices, choice_count, previous, (aim_config >> 8) & 255, aim_360);
     if (chosen < 0) { ea_release(); return; }
 
     Entity *target_entity = &entities[choice_entity[chosen]];
@@ -300,13 +318,8 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
             (unsigned long)target_entity->actor_address);
         _diag(ad);
     }
-    float aim_point[3] = {
-        target_entity->x * 100.0f,
-        target_entity->y * 100.0f,
-        (target_entity->z + target_entity->half_height * height) * 100.0f
-    };
     float rotation[3];
-    if (!aim_rotation(camera_cm, aim_point, rotation)) { ea_release(); return; }
+    if (!aim_rotation(camera_cm, aim_points[chosen], rotation)) { ea_release(); return; }
 
     ev_object(controller, &ea_controller_obj);
     ev_object(world, &ea_world_obj);

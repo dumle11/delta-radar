@@ -50,7 +50,7 @@ public class O extends View {
     static Frame drawingFrame;
     static int menuX = -1, menuY = -1;
     static volatile long frameAt;
-    static final long FRAME_TTL_MS = 500;
+    static final long FRAME_TTL_MS = 10000;
     static volatile boolean rdy;
     static Canvas cv, frontCanvas, backCanvas;
     static O inst;
@@ -60,6 +60,7 @@ public class O extends View {
 
     static BubbleView bubble;
     static MenuPanel menu;
+    static LockBtnView lockBtn;
 
     static SharedPreferences prefs;
     static volatile float lineWidth = 2.5f;
@@ -91,6 +92,9 @@ public class O extends View {
     static volatile int aimBone = 2; // 0=head, 1=chest, 2=body
     static volatile boolean autoShoot = false;
     static volatile boolean autoZoom = false;
+    static volatile boolean showLockBtn = false;
+    static volatile boolean aimLocked = true;
+    static volatile boolean aim360 = false;
     static volatile int aimTargetMask = 0x5; // enemies + bots
 
     // Misc settings
@@ -137,6 +141,8 @@ public class O extends View {
                     aimBone = Math.max(0, Math.min(2, prefs.getInt("aimBone", 2)));
                     autoShoot = prefs.getBoolean("autoShoot", false);
                     autoZoom = prefs.getBoolean("autoZoom", false);
+                    showLockBtn = prefs.getBoolean("showLockBtn", false);
+                    aim360 = prefs.getBoolean("aim360", false);
                     aimTargetMask = prefs.getInt("aimMask", AIM_ENEMIES | AIM_BOTS) & AIM_ALL;
                     noRecoil = prefs.getBoolean("noRecoil", false);
                     noSpread = prefs.getBoolean("noSpread", false);
@@ -146,6 +152,7 @@ public class O extends View {
 
                     inst = new O(a);
                     inst.setWillNotDraw(false);
+                    inst.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
                     WindowManager.LayoutParams espLp = new WindowManager.LayoutParams(
                         WindowManager.LayoutParams.MATCH_PARENT,
                         WindowManager.LayoutParams.MATCH_PARENT,
@@ -174,6 +181,19 @@ public class O extends View {
                     blp.y = sh / 2 - 45;
                     wm.addView(bubble, blp);
 
+                    lockBtn = new LockBtnView(a);
+                    WindowManager.LayoutParams lklp = new WindowManager.LayoutParams(
+                        70, 70,
+                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                        PixelFormat.TRANSLUCENT);
+                    lklp.gravity = Gravity.TOP | Gravity.RIGHT;
+                    lklp.x = 20;
+                    lklp.y = 100;
+                    wm.addView(lockBtn, lklp);
+                    lockBtn.setVisibility((showLockBtn && aimEnabled) ? View.VISIBLE : View.GONE);
+
                     menu = new MenuPanel(a);
                     rdy = true;
                     uiHandler.post(new Runnable() {
@@ -181,7 +201,7 @@ public class O extends View {
                             if (inst == null) return;
                             if (frameAt != 0 && SystemClock.uptimeMillis() - frameAt > FRAME_TTL_MS)
                                 inst.invalidate();
-                            uiHandler.postDelayed(this, 250);
+                            uiHandler.postDelayed(this, 2000);
                         }
                     });
                 } catch (Exception ex) {
@@ -208,19 +228,13 @@ public class O extends View {
     }
 
     @Override protected void onDraw(Canvas c) {
-        if ((!espEnabled && !aimEnabled) || frameAt == 0) return;
-        for (int attempt = 0; attempt < 4; attempt++) {
-            Frame f = publishedFrame;
-            if (f == null) return;
-            f.readers.incrementAndGet();
-            try {
-                if (f != publishedFrame) continue;
-                if (f.width != viewWidth || f.height != viewHeight || f.presentedAt == 0 ||
-                    SystemClock.uptimeMillis() - f.presentedAt > FRAME_TTL_MS) return;
-                c.drawBitmap(f.bitmap, 0, 0, bp);
-                return;
-            } finally { f.readers.decrementAndGet(); }
-        }
+        if (!espEnabled && !aimEnabled) return;
+        Frame f = publishedFrame;
+        if (f == null || f.bitmap == null) return;
+        f.readers.incrementAndGet();
+        try {
+            c.drawBitmap(f.bitmap, 0, 0, bp);
+        } finally { f.readers.decrementAndGet(); }
     }
 
     static boolean b() {
@@ -278,8 +292,7 @@ public class O extends View {
         Frame complete = drawingFrame;
         if (cv == null || complete == null) return;
         cv = null; drawingFrame = null;
-        complete.presentedAt = (complete.width == viewWidth && complete.height == viewHeight)
-            ? SystemClock.uptimeMillis() : 0;
+        complete.presentedAt = SystemClock.uptimeMillis();
         front = complete.bitmap; frontCanvas = complete.canvas;
         frameAt = complete.presentedAt;
         publishedFrame = complete;
@@ -323,6 +336,8 @@ public class O extends View {
     static boolean gaa() { return autoShoot; }
     static boolean gaz() { return autoZoom; }
     static int gam() { return aimTargetMask; }
+    static boolean gal() { return aimLocked; }
+    static boolean ga3() { return aim360; }
 
     /* Misc queries (called from C) */
     static boolean gnr() { return noRecoil; }
@@ -338,7 +353,7 @@ public class O extends View {
             .putInt("snapOrigin", snapOrigin)
             .putBoolean("aim", aimEnabled).putInt("aimFov", aimFov)
             .putInt("aimStr", aimStrength).putInt("aimBone", aimBone)
-            .putBoolean("autoShoot", autoShoot).putBoolean("autoZoom", autoZoom).putInt("aimMask", aimTargetMask)
+            .putBoolean("autoShoot", autoShoot).putBoolean("autoZoom", autoZoom).putBoolean("showLockBtn", showLockBtn).putBoolean("aim360", aim360).putInt("aimMask", aimTargetMask)
             .putBoolean("rayDebug", rayDebug).putBoolean("rayViews", rayViews)
             .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds)
             .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread);
@@ -440,6 +455,42 @@ public class O extends View {
             }
             return super.onTouchEvent(ev);
         }
+    }
+
+    /* ======== Lock toggle button ======== */
+    static class LockBtnView extends View {
+        Paint cp, tp;
+        LockBtnView(Context c) {
+            super(c);
+            cp = new Paint(Paint.ANTI_ALIAS_FLAG);
+            tp = new Paint(Paint.ANTI_ALIAS_FLAG);
+            tp.setColor(0xFFFFFFFF);
+            tp.setTextSize(24f);
+            tp.setTypeface(Typeface.DEFAULT_BOLD);
+            tp.setTextAlign(Paint.Align.CENTER);
+        }
+        @Override protected void onDraw(Canvas c) {
+            float cx = getWidth() / 2f, cy = getHeight() / 2f, r = Math.min(cx, cy) - 2;
+            cp.setColor(aimLocked ? 0xCC00C853 : 0xCC555555);
+            c.drawCircle(cx, cy, r, cp);
+            c.drawText(aimLocked ? "◎" : "○", cx, cy + 9, tp);
+        }
+        @Override public boolean onTouchEvent(MotionEvent ev) {
+            if (ev.getAction() == MotionEvent.ACTION_UP) {
+                aimLocked = !aimLocked;
+                invalidate();
+            }
+            return true;
+        }
+    }
+    static void updateLockBtnVisibility() {
+        if (uiHandler == null) return;
+        uiHandler.post(new Runnable() { public void run() {
+            if (lockBtn == null || wm == null) return;
+            boolean show = showLockBtn && aimEnabled;
+            lockBtn.setVisibility(show ? View.VISIBLE : View.GONE);
+            lockBtn.invalidate();
+        }});
     }
 
     /* ======== Menu panel with tabs ======== */
@@ -711,6 +762,7 @@ public class O extends View {
         void buildAimTab() {
             section("Aim assist", "Locks onto a live, visible target inside the circle. Disable Aim to release.");
             toggle("Enable aim", -2, aimEnabled);
+            toggle("Show lock button", -11, showLockBtn);
 
             section("Trigger bot", "Holds fire while a visible, living enemy is under the crosshair. Works with Aim off.");
             toggle("Auto shoot", -3, autoShoot);
@@ -810,9 +862,10 @@ public class O extends View {
                 public void onCheckedChanged(CompoundButton button, boolean checked) {
                     switch (key) {
                         case -1: espEnabled = checked; break;
-                        case -2: aimEnabled = checked; break;
+                        case -2: aimEnabled = checked; updateLockBtnVisibility(); break;
                         case -3: autoShoot = checked; break;
                         case -10: autoZoom = checked; break;
+                        case -11: showLockBtn = checked; updateLockBtnVisibility(); break;
                         case -4: rayDebug = checked; break;
                         case -5: rayViews = checked; break;
                         case -6: rayLos = checked; break;
