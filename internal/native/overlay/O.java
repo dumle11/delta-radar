@@ -96,10 +96,12 @@ public class O extends View {
     static volatile boolean aimLocked = true;
     static volatile boolean aim360 = false;
     static volatile int aimTargetMask = 0x5; // enemies + bots
+    static volatile int aimPriority = 0; // 0=crosshair, 1=distance, 2=low hp, 3=looking at us
 
     // Misc settings
     static volatile boolean noRecoil = false;
     static volatile boolean noSpread = false;
+    static volatile int cameraFov = 0; // 0 = game default, 10-170 = override
 
     static final int AIM_ENEMIES = 1, AIM_TEAMMATES = 2, AIM_BOTS = 4;
     static final int AIM_ALL = AIM_ENEMIES | AIM_TEAMMATES | AIM_BOTS;
@@ -144,8 +146,10 @@ public class O extends View {
                     showLockBtn = prefs.getBoolean("showLockBtn", false);
                     aim360 = prefs.getBoolean("aim360", false);
                     aimTargetMask = prefs.getInt("aimMask", AIM_ENEMIES | AIM_BOTS) & AIM_ALL;
+                    aimPriority = prefs.getInt("aimPriority", 0);
                     noRecoil = prefs.getBoolean("noRecoil", false);
                     noSpread = prefs.getBoolean("noSpread", false);
+                    cameraFov = prefs.getInt("cameraFov", 0);
 
                     wm = (WindowManager) a.getSystemService(Context.WINDOW_SERVICE);
                     sh = a.getResources().getDisplayMetrics().heightPixels;
@@ -338,10 +342,12 @@ public class O extends View {
     static int gam() { return aimTargetMask; }
     static boolean gal() { return aimLocked; }
     static boolean ga3() { return aim360; }
+    static int gap() { return aimPriority; }
 
     /* Misc queries (called from C) */
     static boolean gnr() { return noRecoil; }
     static boolean gns() { return noSpread; }
+    static int gcf() { return cameraFov; }
 
     static void setColor(int slot, int color) {
         if (slot >= 0 && slot < ET_COUNT) entityColors[slot] = color;
@@ -353,10 +359,11 @@ public class O extends View {
             .putInt("snapOrigin", snapOrigin)
             .putBoolean("aim", aimEnabled).putInt("aimFov", aimFov)
             .putInt("aimStr", aimStrength).putInt("aimBone", aimBone)
-            .putBoolean("autoShoot", autoShoot).putBoolean("autoZoom", autoZoom).putBoolean("showLockBtn", showLockBtn).putBoolean("aim360", aim360).putInt("aimMask", aimTargetMask)
+            .putBoolean("autoShoot", autoShoot).putBoolean("autoZoom", autoZoom).putBoolean("showLockBtn", showLockBtn).putBoolean("aim360", aim360).putInt("aimMask", aimTargetMask).putInt("aimPriority", aimPriority)
             .putBoolean("rayDebug", rayDebug).putBoolean("rayViews", rayViews)
             .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds)
-            .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread);
+            .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread)
+            .putInt("cameraFov", cameraFov);
         for (int i = 0; i < ET_COUNT; i++) {
             edit.putInt(entityKey("color", i), entityColors[i]);
             edit.putInt(entityKey("visibleColor", i), visibleColors[i]);
@@ -776,6 +783,9 @@ public class O extends View {
             section("Aim point", null);
             buildBonePicker();
 
+            section("Target priority", null);
+            buildPriorityPicker();
+
             section("FOV radius", aim360 ? "360°" : aimFov + "°");
             if (!aim360) {
                 SeekBar fov = new SeekBar(getContext()); fov.setMax(40); fov.setProgress(aimFov - 5);
@@ -828,11 +838,41 @@ public class O extends View {
             body.addView(row, new LayoutParams(-1, 48));
         }
 
+        void buildPriorityPicker() {
+            String[] labels = {"Crosshair", "Distance", "Low HP", "Facing me"};
+            LinearLayout row = row();
+            for (int i = 0; i < 4; i++) {
+                final int prio = i;
+                TextView item = text(labels[i], 17, i == aimPriority ? INK : MUTED);
+                item.setGravity(Gravity.CENTER);
+                item.setBackground(shape(i == aimPriority ? BG_ACTIVE : BG_CARD, 8));
+                LayoutParams lp = new LayoutParams(0, 44, 1); lp.setMargins(0, 0, 8, 0);
+                row.addView(item, lp);
+                item.setOnClickListener(new OnClickListener() {
+                    public void onClick(View v) { aimPriority = prio; saveSettings(); selectTab(2); }
+                });
+            }
+            body.addView(row, new LayoutParams(-1, 48));
+        }
+
         /* ---- Misc tab ---- */
         void buildMiscTab() {
             section("Weapon", null);
             toggle("No recoil", -8, noRecoil);
             toggle("No spread", -9, noSpread);
+
+            section("Camera FOV", cameraFov == 0 ? "Default" : cameraFov + "°");
+            SeekBar fovSlider = new SeekBar(getContext()); fovSlider.setMax(190); fovSlider.setProgress(cameraFov == 0 ? 80 : cameraFov - 10);
+            styleSlider(fovSlider);
+            body.addView(fovSlider, new LayoutParams(-1, 42));
+            fovSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar bar, int value, boolean user) {
+                    if (user) cameraFov = value + 10;
+                }
+                public void onStartTrackingTouch(SeekBar bar) {}
+                public void onStopTrackingTouch(SeekBar bar) { saveSettings(); selectTab(3); }
+            });
+            toggle("Reset to default", -13, cameraFov == 0);
         }
 
         /* ---- Status tab ---- */
@@ -876,6 +916,7 @@ public class O extends View {
                         case -8: noRecoil = checked; break;
                         case -9: noSpread = checked; break;
                         case -12: aim360 = checked; break;
+                        case -13: cameraFov = checked ? 0 : 90; saveSettings(); selectTab(3); break;
                     }
                     saveSettings(); if (inst != null) inst.invalidate();
                 }

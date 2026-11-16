@@ -43,13 +43,13 @@ static float aim_3d_distance_sq(const float camera[3], const float point[3]) {
     return isfinite(d) ? d : INFINITY;
 }
 
-typedef struct { uint64_t actor; float distance_squared; int eligible; } AimChoice;
+typedef struct { uint64_t actor; float distance_squared; float range_check; int eligible; } AimChoice;
 static int aim_select(const AimChoice *choices, int count, uint64_t locked_actor, float radius, int full_sphere) {
     int selected=-1; float nearest=INFINITY;
     for (int i=0;i<count;i++) {
         if (!choices[i].eligible || !choices[i].actor || !isfinite(choices[i].distance_squared)) continue;
         if (locked_actor && choices[i].actor==locked_actor) return i;
-        int in_range = full_sphere || aim_inside(choices[i].distance_squared, radius);
+        int in_range = full_sphere || aim_inside(choices[i].range_check, radius);
         if (in_range && choices[i].distance_squared<nearest) {
             selected=i; nearest=choices[i].distance_squared;
         }

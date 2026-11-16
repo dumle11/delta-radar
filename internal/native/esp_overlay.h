@@ -10,8 +10,8 @@ static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt;
 static jmethodID _ov_circle;
-static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3;
-static jmethodID _ov_gnr, _ov_gns;
+static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3, _ov_gap;
+static jmethodID _ov_gnr, _ov_gns, _ov_gcf;
 static int _ov_ready;
 static int _ov_w, _ov_h;
 static int _ov_dex_loaded;
@@ -127,10 +127,13 @@ static int _ov_load_dex(void) {
     _ov_gam = (*env)->GetStaticMethodID(env, _ov_cls, "gam", "()I");
     _ov_gal = (*env)->GetStaticMethodID(env, _ov_cls, "gal", "()Z");
     _ov_ga3 = (*env)->GetStaticMethodID(env, _ov_cls, "ga3", "()Z");
+    _ov_gap = (*env)->GetStaticMethodID(env, _ov_cls, "gap", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gnr = (*env)->GetStaticMethodID(env, _ov_cls, "gnr", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gns = (*env)->GetStaticMethodID(env, _ov_cls, "gns", "()Z");
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    _ov_gcf = (*env)->GetStaticMethodID(env, _ov_cls, "gcf", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     if (!_ov_z || !_ov_b || !_ov_r || !_ov_f || !_ov_l || !_ov_t ||
         !_ov_e || !_ov_gw || !_ov_gh || !_ov_ok || !_ov_gvc || !_ov_grd || !_ov_dt) {
@@ -612,19 +615,25 @@ static unsigned _ov_aim_config(void) {
     int autozoom = _ov_gaz ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gaz) : 0;
     int aimlocked = _ov_gal ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gal) : 1;
     int aim360 = _ov_ga3 ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_ga3) : 0;
+    int priority = _ov_gap ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gap) : 0;
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return 0; }
     if (fov<5) fov=5; if (fov>45) fov=45;
     if (bone<0 || bone>2) bone=2;
-    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u) | (autozoom?1u<<25:0u) | (aimlocked?1u<<26:0u) | (aim360?1u<<27:0u);
+    if (priority<0 || priority>3) priority=0;
+    return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u) | (autozoom?1u<<25:0u) | (aimlocked?1u<<26:0u) | (aim360?1u<<27:0u) | ((unsigned)priority<<28);
 }
+static _Atomic int _ov_camera_fov_override;
+
 static void _ov_misc_config(void) {
-    if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); return; }
+    if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); atomic_store(&_ov_camera_fov_override, 0); return; }
     JNIEnv *env = _ov_env(); if (!env) return;
     int nr = _ov_gnr ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gnr) : 0;
     int ns = _ov_gns ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gns) : 0;
-    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); nr = ns = 0; }
+    int cf = _ov_gcf ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gcf) : 0;
+    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); nr = ns = cf = 0; }
     atomic_store(&ew_no_recoil, nr);
     atomic_store(&ew_no_spread, ns);
+    atomic_store(&_ov_camera_fov_override, cf);
 }
 
 static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {

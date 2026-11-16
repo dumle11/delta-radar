@@ -209,6 +209,7 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
                             uint64_t world, uint64_t controller, uint64_t pawn) {
     int aim_locked = (aim_config >> 26) & 1;
     int aim_360 = (aim_config >> 27) & 1;
+    int aim_priority = (aim_config >> 28) & 3;
     if (!(aim_config & 1) || !atomic_load(&ea_ready) || !aim_locked) {
         ea_release();
         if ((aim_config & 1) && !aim_locked) atomic_store(&ea_status, 1);
@@ -290,10 +291,28 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
         aim_points[choice_count][0] = aim_point[0];
         aim_points[choice_count][1] = aim_point[1];
         aim_points[choice_count][2] = aim_point[2];
-        float dist = aim_360 ? aim_3d_distance_sq(camera_cm, aim_point)
-                             : aim_screen_distance(camera_cm, cam_yaw, cam_pitch, aim_point);
+        float range_dist = aim_360 ? aim_3d_distance_sq(camera_cm, aim_point)
+                                    : aim_screen_distance(camera_cm, cam_yaw, cam_pitch, aim_point);
+        float score;
+        switch (aim_priority) {
+        default:
+        case 0: score = range_dist; break;
+        case 1: score = aim_3d_distance_sq(camera_cm, aim_point); break;
+        case 2: score = (e->health_known && isfinite(e->health)) ? e->health : 1e9f; break;
+        case 3: {
+            float dx = cam_x - e->x, dy = cam_y - e->y;
+            float to_us_yaw = atan2f(dy, dx) * 57.29577951308232f;
+            float delta = e->yaw - to_us_yaw;
+            while (delta > 180.0f) delta -= 360.0f;
+            while (delta < -180.0f) delta += 360.0f;
+            int facing = fabsf(delta) < 60.0f;
+            float dist3d = aim_3d_distance_sq(camera_cm, aim_point);
+            score = facing ? dist3d : (1e12f + dist3d);
+            break;
+        }
+        }
         choices[choice_count] = (AimChoice){
-            e->actor_address, dist,
+            e->actor_address, score, range_dist,
             eligible && aim_clear && ea_alive_entity(e)
         };
         choice_entity[choice_count] = i;
