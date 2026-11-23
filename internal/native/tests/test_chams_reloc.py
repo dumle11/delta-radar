@@ -25,7 +25,15 @@ int main(void) {
     memcpy(&address,&out[3],8); assert(address==0xff0);
     uint32_t plain[]={0xd10103ff,0xf90013f3,0xa9037bfd,0x9100c3fd};
     assert(cr_trampoline(out,plain,0x1000)==32 && !memcmp(plain,out,16));
-    uint32_t unsupported[]={0x90000000,0,0,0}; assert(!cr_trampoline(out,unsupported,0x1000));
+    uint32_t adr[]={0x90000000,0xd503201f,0xd503201f,0xd503201f};
+    assert(cr_trampoline(out,adr,0x1234)==44);
+    uint64_t decoded=0;
+    for(unsigned k=0;k<4;k++) decoded|=(uint64_t)((out[k]>>5)&65535)<<(k*16);
+    assert(decoded==0x1000);
+    adr[0]=0x10000000; assert(cr_trampoline(out,adr,0x1234)==44);
+    decoded=0;for(unsigned k=0;k<4;k++) decoded|=(uint64_t)((out[k]>>5)&65535)<<(k*16);
+    assert(decoded==0x1234);
+    uint32_t unsupported[]={0x58000000,0,0,0}; assert(!cr_trampoline(out,unsupported,0x1000));
     unsupported[0]=0x54000000; assert(!cr_trampoline(out,unsupported,0x1000));
     unsupported[0]=0x14000001; assert(!cr_trampoline(out,unsupported,0x1000));
     puts("chams relocation: captured crashing BL, negative offsets, resume address and rejection checks passed");

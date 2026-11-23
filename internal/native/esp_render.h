@@ -1,6 +1,6 @@
 /* ESP config + Vulkan chams — included by delta_radar_lib.c
  * Config atomics shared between overlay (esp_overlay.h) and chams hooks.
- * ESP rendering handled by the overlay's own GL surface.
+ * ESP/UI are composited into the game swapchain by vulkan_present.h.
  * Chams uses inline hooks on the Vulkan ICD (Adreno). */
 #ifndef INTERNAL_ESP_RENDER_H
 #define INTERNAL_ESP_RENDER_H
@@ -36,6 +36,8 @@ static void *_gsym(const unsigned char *enc, int len) {
 
 /* ---- Vulkan chams via ICD inline hooks ---- */
 #if defined(__ANDROID__) && defined(__aarch64__)
+
+#include "gpu_view.h"
 
 typedef void *VkDev_;
 typedef void *VkCmdBuf_;
@@ -477,6 +479,8 @@ static int _hook_vk_cgp(VkDev_ dev, VkPipeCache_ cache, uint32_t cnt,
         if (n_attach < 1) { _attr_skip++; continue; }
         if (ac <= 5) { _fp_skip++; continue; }
 
+        for(uint32_t stage=0;stage<infos[i].stageCount;stage++)
+            if(infos[i].pStages[stage].stage==1) gv_selected((VkShaderModule)infos[i].pStages[stage].module);
         VkPipe_ cinv = _vk_make_clone(dev, cache, &infos[i], alloc,
             1, _vk_frag_inv);
         VkPipe_ cvis = _vk_make_clone(dev, cache, &infos[i], alloc,
@@ -619,6 +623,7 @@ static void *_vksym(void *(*lookup)(void*,const char*), void *ctx,
 }
 
 #include "chams_replay.h"
+#include "vulkan_present.h"
 
 static void _install_esp_hook(void) {
     if (_o_vk_di) return;
@@ -659,6 +664,8 @@ static void _install_esp_hook(void) {
              uint32_t eec; const char*const* ee; } ici;
     memset(&ici, 0, sizeof(ici));
     ici.sType = 1; /* VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO */
+    const char *instance_extensions[]={"VK_KHR_surface","VK_KHR_android_surface"};
+    ici.eec=2;ici.ee=instance_extensions;
     void *inst = NULL;
     if (pCI(&ici, NULL, &inst) != 0 || !inst) { _diag("v0: ci fail"); return; }
 
@@ -723,6 +730,8 @@ static void _install_esp_hook(void) {
     memset(&dci, 0, sizeof(dci));
     dci.sType = 3; /* VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO */
     dci.qcic = 1; dci.pqci = &qci;
+    const char *device_extensions[]={"VK_KHR_swapchain"};
+    dci.efc=1;dci.ef=device_extensions;
 
     void *dev = NULL;
     if (pCD(phys, &dci, NULL, &dev) != 0 || !dev) {
@@ -786,6 +795,8 @@ static void _install_esp_hook(void) {
 
     /* Journal owns viewport tracking as well as the remaining graphics state. */
     int sv_ok = cr_install((PFN_vkGetDeviceProcAddr)pGDPA,(VkDevice)dev,tp);
+    vp_install((PFN_vkGetDeviceProcAddr)pGDPA,(VkDevice)dev,(void*)pCD,tp);
+    if(fn_csm) _ih_patch(fn_csm,(void*)gv_create_module,(void**)&gv_o_module,tp+2048);
     pDD(dev,NULL);
     pDI(inst,NULL);
 

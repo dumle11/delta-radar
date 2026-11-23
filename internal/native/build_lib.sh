@@ -56,7 +56,7 @@ $CC \
     -s \
     -o "$OUT" \
     "$SRC" \
-    -lm -landroid
+    -lm -landroid -lvulkan -ljnigraphics
 
 echo "[+] Built: $OUT"
 echo "    Size: $(du -h "$OUT" | cut -f1)"

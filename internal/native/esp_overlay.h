@@ -96,6 +96,14 @@ static int _ov_load_dex(void) {
     }
     _ov_cls = (*env)->NewGlobalRef(env, cls_obj);
 
+    JNINativeMethod compositor_methods[]={
+        {"submitPixels","(Landroid/graphics/Bitmap;I)V",(void*)vp_bitmap},
+        {"compositorActive","()Z",(void*)vp_is_active},
+        {"renderEvent","(Ljava/lang/String;)V",(void*)vp_event},
+        {"inputRegions","([F)V",(void*)vp_regions}};
+    if((*env)->RegisterNatives(env,_ov_cls,compositor_methods,4)!=JNI_OK) {
+        (*env)->ExceptionClear(env);_diag("ov: compositor native registration failed");return 0;
+    }
     _ov_z  = (*env)->GetStaticMethodID(env, _ov_cls, "z",
         "(Landroid/app/Activity;)V");
     _ov_b  = (*env)->GetStaticMethodID(env, _ov_cls, "b", "()Z");

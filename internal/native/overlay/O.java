@@ -1,4 +1,6 @@
 import android.app.Activity;
+import android.app.Application;
+import android.os.Bundle;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.drawable.GradientDrawable;
@@ -25,6 +27,8 @@ import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.view.WindowManager;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -54,7 +58,118 @@ public class O extends View {
     static volatile boolean rdy;
     static Canvas cv, frontCanvas, backCanvas;
     static O inst;
-    static WindowManager wm;
+    static LocalWindows wm;
+    static RenderHost renderHost;
+    static final Runnable attachHost = new Runnable() {
+        public void run() {
+            try {
+                // Startup can finish the splash before our UI Runnable executes.
+                // Resolve the current game activity instead of retaining its decor.
+                Class<?> thread=Class.forName("android.app.ActivityThread");
+                Object current=thread.getMethod("currentActivityThread").invoke(null);
+                java.lang.reflect.Field records=thread.getDeclaredField("mActivities");
+                records.setAccessible(true);
+                java.util.Map<?,?> activities=(java.util.Map<?,?>)records.get(current);
+                for(Object record:activities.values()) {
+                    java.lang.reflect.Field field=record.getClass().getDeclaredField("activity");
+                    field.setAccessible(true);
+                    Activity activity=(Activity)field.get(record);
+                    if(activity==null || activity.isFinishing() || !activity.getClass().getName().endsWith("GameActivity")) continue;
+                    ViewGroup decor=(ViewGroup)activity.getWindow().getDecorView();
+                    if(renderHost!=null && renderHost.getParent()!=decor) {
+                        if(renderHost.getParent() instanceof ViewGroup) ((ViewGroup)renderHost.getParent()).removeView(renderHost);
+                        decor.addView(renderHost,new ViewGroup.LayoutParams(-1,-1));
+                        renderEvent("attached current game activity");
+                    }
+                    break;
+                }
+            } catch(Exception ex) { renderEvent("attach failed " + ex.toString()); }
+            if(uiHandler!=null) uiHandler.postDelayed(this,1000);
+        }
+    };
+    static native void submitPixels(Bitmap bitmap,int rotation);
+    static native boolean compositorActive();
+    static native void renderEvent(String message);
+    static native void inputRegions(float[] rectangles);
+    static boolean routeTouch(final int action,final float x,final float y,final long down,final long time) {
+        if(uiHandler==null || renderHost==null) return false;
+        return uiHandler.post(new Runnable() {
+            public void run() {
+                MotionEvent event=MotionEvent.obtain(down,time,action,x,y,0);
+                renderHost.dispatchTouchEvent(event);event.recycle();
+            }
+        });
+    }
+
+    // Child views retain their existing layout and input behavior. They never
+    // draw into Android's window surface: pixels go to the game Vulkan image.
+    static final class RenderHost extends ViewGroup {
+        Bitmap pixels;
+        Canvas canvas;
+        final Runnable capture = new Runnable() {
+            public void run() {
+                if (!isAttachedToWindow()) return;
+                int w=getWidth(), h=getHeight();
+                if (w>0 && h>0) {
+                    if (pixels==null || pixels.getWidth()!=w || pixels.getHeight()!=h) {
+                        if(pixels!=null) pixels.recycle();
+                        pixels=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888);
+                        canvas=new Canvas(pixels);
+                    }
+                    canvas.drawColor(Color.TRANSPARENT,PorterDuff.Mode.CLEAR);
+                    paintChildren(canvas);
+                    submitPixels(pixels,getDisplay()==null?0:getDisplay().getRotation());
+                    int count=0;
+                    for(int i=0;i<getChildCount();i++) if(getChildAt(i)!=inst && getChildAt(i).getVisibility()==View.VISIBLE) count++;
+                    float[] hits=new float[Math.min(3,count)*4];int n=0;
+                    for(int i=0;i<getChildCount() && n<hits.length;i++) {
+                        View child=getChildAt(i);
+                        if(child==inst || child.getVisibility()!=View.VISIBLE) continue;
+                        hits[n++]=child.getLeft();hits[n++]=child.getTop();hits[n++]=child.getRight();hits[n++]=child.getBottom();
+                    }
+                    inputRegions(hits);
+                }
+                postDelayed(this,33);
+            }
+        };
+        RenderHost(Context context) { super(context); setWillNotDraw(true); setClipChildren(false); }
+        @Override protected void onAttachedToWindow() { super.onAttachedToWindow(); renderEvent("host attached"); post(capture); }
+        @Override protected void onDetachedFromWindow() { removeCallbacks(capture); super.onDetachedFromWindow(); }
+        @Override protected void dispatchDraw(Canvas canvas) { /* Vulkan presents the pixels. */ }
+        void paintChildren(Canvas canvas) { super.dispatchDraw(canvas); }
+        @Override protected void onMeasure(int ws,int hs) {
+            int w=MeasureSpec.getSize(ws), h=MeasureSpec.getSize(hs);
+            setMeasuredDimension(w,h);
+            for(int i=0;i<getChildCount();i++) {
+                View child=getChildAt(i);
+                WindowManager.LayoutParams lp=(WindowManager.LayoutParams)child.getLayoutParams();
+                int cw=lp.width<0?w:Math.min(w,lp.width), ch=lp.height<0?h:Math.min(h,lp.height);
+                child.measure(MeasureSpec.makeMeasureSpec(cw,MeasureSpec.EXACTLY),MeasureSpec.makeMeasureSpec(ch,MeasureSpec.EXACTLY));
+            }
+        }
+        @Override protected void onLayout(boolean changed,int l,int t,int r,int b) {
+            for(int i=0;i<getChildCount();i++) {
+                View child=getChildAt(i);
+                WindowManager.LayoutParams lp=(WindowManager.LayoutParams)child.getLayoutParams();
+                int w=child.getMeasuredWidth(),h=child.getMeasuredHeight();
+                int x=(lp.gravity&Gravity.HORIZONTAL_GRAVITY_MASK)==Gravity.RIGHT?getWidth()-w-lp.x:lp.x;
+                int y=lp.y;
+                child.layout(x,y,x+w,y+h);
+            }
+        }
+    }
+    // This adapter stores layout data only; it does not call WindowManager.
+    static final class LocalWindows {
+        final RenderHost host;
+        LocalWindows(RenderHost host) { this.host=host; }
+        void addView(View view,WindowManager.LayoutParams lp) { host.addView(view,lp); }
+        void removeView(View view) { host.removeView(view); }
+        void updateViewLayout(View view,WindowManager.LayoutParams lp) {
+            lp.x=clampPosition(lp.x,host.getWidth(),view.getWidth());
+            lp.y=clampPosition(lp.y,host.getHeight(),view.getHeight());
+            view.setLayoutParams(lp); host.requestLayout();
+        }
+    }
     static Handler uiHandler;
     static volatile boolean initDone;
 
@@ -175,7 +290,27 @@ public class O extends View {
                     chamsVisibleColor = prefs.getInt("chamsVisibleColor", 0xFF00FF00);
                     chamsInvisibleColor = prefs.getInt("chamsInvisibleColor", 0xFFFF0000);
 
-                    wm = (WindowManager) a.getSystemService(Context.WINDOW_SERVICE);
+                    renderHost = new RenderHost(a);
+                    ViewGroup decor=(ViewGroup)a.getWindow().getDecorView();
+                    decor.addView(renderHost,new ViewGroup.LayoutParams(-1,-1));
+                    wm = new LocalWindows(renderHost);
+                    a.getApplication().registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+                        public void onActivityResumed(Activity current) {
+                            if (!current.getClass().getName().endsWith("GameActivity") || renderHost==null) return;
+                            renderEvent("resume " + current.getClass().getName());
+                            ViewGroup next=(ViewGroup)current.getWindow().getDecorView();
+                            if(renderHost.getParent()!=next) {
+                                if(renderHost.getParent() instanceof ViewGroup) ((ViewGroup)renderHost.getParent()).removeView(renderHost);
+                                next.addView(renderHost,new ViewGroup.LayoutParams(-1,-1));
+                            }
+                        }
+                        public void onActivityCreated(Activity current,Bundle state) {}
+                        public void onActivityStarted(Activity current) {}
+                        public void onActivityPaused(Activity current) {}
+                        public void onActivityStopped(Activity current) {}
+                        public void onActivitySaveInstanceState(Activity current,Bundle state) {}
+                        public void onActivityDestroyed(Activity current) {}
+                    });
                     sh = a.getResources().getDisplayMetrics().heightPixels;
 
                     inst = new O(a);
@@ -184,7 +319,7 @@ public class O extends View {
                     WindowManager.LayoutParams espLp = new WindowManager.LayoutParams(
                         WindowManager.LayoutParams.MATCH_PARENT,
                         WindowManager.LayoutParams.MATCH_PARENT,
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                        WindowManager.LayoutParams.TYPE_APPLICATION,
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                         WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -200,7 +335,7 @@ public class O extends View {
                     bubble = new BubbleView(a);
                     WindowManager.LayoutParams blp = new WindowManager.LayoutParams(
                         90, 90,
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                        WindowManager.LayoutParams.TYPE_APPLICATION,
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                         PixelFormat.TRANSLUCENT);
@@ -212,7 +347,7 @@ public class O extends View {
                     lockBtn = new LockBtnView(a);
                     WindowManager.LayoutParams lklp = new WindowManager.LayoutParams(
                         70, 70,
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                        WindowManager.LayoutParams.TYPE_APPLICATION,
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                         PixelFormat.TRANSLUCENT);
@@ -232,7 +367,10 @@ public class O extends View {
                             uiHandler.postDelayed(this, 2000);
                         }
                     });
+                    uiHandler.post(attachHost);
+                    renderEvent("UI initialized " + a.getClass().getName());
                 } catch (Exception ex) {
+                    renderEvent("init failed " + ex.toString());
                     initDone = false;
                 }
             }
@@ -257,6 +395,7 @@ public class O extends View {
 
     @Override protected void onDraw(Canvas c) {
         if (!espEnabled && !aimEnabled) return;
+        if (frameAt==0 || SystemClock.uptimeMillis()-frameAt>FRAME_TTL_MS) return;
         Frame f = publishedFrame;
         if (f == null || f.bitmap == null) return;
         f.readers.incrementAndGet();
@@ -436,7 +575,7 @@ public class O extends View {
             WindowManager.LayoutParams mlp = new WindowManager.LayoutParams(
                 Math.min(760, Math.max(280, viewWidth - 120)),
                 Math.min(800, Math.max(280, viewHeight - 60)),
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.TYPE_APPLICATION,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT);

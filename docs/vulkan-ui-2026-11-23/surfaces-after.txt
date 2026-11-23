@@ -1,0 +1,46 @@
+Display Covered#0
+Display Root#0
+mBelowAppWindowsContainers#0
+WallpaperWindowToken{25fcfb2 token=android.os.Binder@38efdbd}#0
+8ca88b8 com.oneplus.wallpaper.LiveWallpaper#0
+com.oneplus.wallpaper.LiveWallpaper#0
+com.android.server.wm.DisplayContent$TaskStackContainers@6ffcd1#0
+animationLayer#0
+splitScreenDividerAnchor#0
+WindowToken{484def0 android.os.BinderProxy@3d442a2}#0
+6203c69 DockedStackDivider#0
+Stack=0#0
+animation background stackId=0#0
+Task=421#0
+AppWindowToken{f6bba0c token=Token{6d113f ActivityRecord{e42e299 u0 com.teslacoilsw.launcher/.NovaLauncher t421}}}#0
+9a39539 com.teslacoilsw.launcher/com.teslacoilsw.launcher.NovaLauncher#0
+homeAnimationLayer#0
+Stack=37#0
+animation background stackId=37#0
+Task=354#0
+AppWindowToken{48c2f83 token=Token{70ea632 ActivityRecord{df11e3d u0 net.oneplus.launcher/net.oneplus.quickstep.RecentsActivity t354}}}#0
+23af645 net.oneplus.launcher/net.oneplus.quickstep.RecentsActivity#0
+Stack=134#0
+animation background stackId=134#0
+Task=453#0
+AppWindowToken{21a9f7b token=Token{b417b0a ActivityRecord{f795f75 u0 com.proxima.dfm/com.epicgames.ue4.GameActivity t453}}}#0
+628ba48 com.proxima.dfm/com.epicgames.ue4.GameActivity#0
+Background for -SurfaceView - com.proxima.dfm/com.epicgames.ue4.GameActivity#0
+Bounds for - com.proxima.dfm/com.epicgames.ue4.GameActivity#0
+SurfaceView - com.proxima.dfm/com.epicgames.ue4.GameActivity#0
+com.proxima.dfm/com.epicgames.ue4.GameActivity#1
+boostedAnimationLayer#0
+mAboveAppWindowsContainers#0
+WindowToken{554cd8 android.os.BinderProxy@559744a}#0
+8cbb831 AssistPreviewPanel#0
+mImeWindowsContainers#0
+WindowToken{965b430 android.os.Binder@4afcd73}#0
+b9f5640 InputMethod#0
+WindowToken{bfe35c4 android.os.BinderProxy@aa84056}#0
+936ccad StatusBar#0
+StatusBar#0
+Input Consumer pip_input_consumer#0
+Input Consumer recents_animation_input_consumer#0
+Input Consumer recents_animation_input_consumer#1
+Display Overlays#0
+Sprite#0
