@@ -16,7 +16,7 @@ static jmethodID _ov_gvc, _ov_grd, _ov_dt, _ov_glr, _ov_glm, _ov_glf, _ov_lc;
 static jmethodID _ov_circle;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3, _ov_gap;
 static jmethodID _ov_gnr, _ov_gns, _ov_gcf, _ov_gis;
-static jmethodID _ov_gce, _ov_gcv, _ov_gci;
+static jmethodID _ov_gce, _ov_gcv, _ov_gci, _ov_gcb;
 static int _ov_ready;
 static int _ov_w, _ov_h;
 static int _ov_dex_loaded;
@@ -148,6 +148,8 @@ static int _ov_load_dex(void) {
     _ov_gce = (*env)->GetStaticMethodID(env, _ov_cls, "gce", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gcv = (*env)->GetStaticMethodID(env, _ov_cls, "gcv", "()I");
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    _ov_gcb = (*env)->GetStaticMethodID(env, _ov_cls, "gcb", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gci = (*env)->GetStaticMethodID(env, _ov_cls, "gci", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
@@ -679,6 +681,7 @@ static void _ov_esp_render_config(void) {
     if (chams) {
         unsigned vis = _ov_gcv ? (unsigned)(*env)->CallStaticIntMethod(env, _ov_cls, _ov_gcv) : 0xFF00FF00u;
         unsigned inv = _ov_gci ? (unsigned)(*env)->CallStaticIntMethod(env, _ov_cls, _ov_gci) : 0xFFFF0000u;
+        atomic_store(&_er_chams_brightness, _ov_gcb ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gcb) : 70);
         atomic_store(&_er_chams_vis, vis);
         atomic_store(&_er_chams_inv, inv);
     }

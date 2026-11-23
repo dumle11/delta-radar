@@ -1,0 +1,70 @@
+[299687.501] stamina: enabled=0 state=0 stage=4 pawn=7ab21d5560 comp=7b609d7d80 attr=7aa0cdb530 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[299687.506] engine LOS: ready=1 batches=788 traces=103571
+[299687.507] aim: enabled=1 ready=1 state=1 target=0 corrections=165
+[299687.507] trigger: enabled=1 state=3 hit=7aa62d2700 queries=788 starts=0 stops=0 callbacks=0 tid=4509 reject=0
+[299687.507] frame 5500: read end n=17 camera=1 occ=0 visible=4 read_ms=12
+[299687.507] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[299687.507] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[299687.509] frame 5500: render end
+[299687.509] projection state: ready=1 stage=0
+[299687.509] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=146 w=7b2ec0e4a0
+[299688.553] esp f5000: 6 drawn of 17 ent (dead=0 type=0 dist=0 w2s=10 box=0) cam=(18,-84,2) fov=124
+[299689.477] frame 5600: read begin
+[299689.515] stamina: enabled=0 state=0 stage=4 pawn=7ab21d5560 comp=7b609d7d80 attr=7aa0cdb530 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[299689.519] loot: tables=2 rows=17344 colors=0 scan=230784/238497 actors=0 named=0
+[299689.519] engine LOS: ready=1 batches=888 traces=111571
+[299689.519] aim: enabled=1 ready=1 state=1 target=0 corrections=165
+[299689.519] trigger: enabled=1 state=3 hit=7aa62d2700 queries=888 starts=0 stops=0 callbacks=0 tid=4509 reject=0
+[299689.519] frame 5600: read end n=17 camera=1 occ=0 visible=4 read_ms=43
+[299689.519] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[299689.519] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[299689.521] frame 5600: render end
+[299689.521] projection state: ready=1 stage=0
+[299689.521] loop n=17 posted=-1 sock=-1 fail=7 zero=0 st=5 ac=146 w=7b2ec0e4a0
+[299689.569] v1: hit=3900 miss=9450 fs=0 cl=17 en=1 ic=<3000/900/0/0> na=<3600/300/0/0>
+[299689.569] v2: flush=2894 draws=49892 drops=0 ready=1
+[299689.829] camera FOV: target=124 lock=124.0 cache=90.0 view=90.0
+[299689.876] projection: viewport=1280x720 rect=0,0,1280,720 scale=0.532,0.945 hfov=124.00 near=1.00
+[299689.877] projection comparison: samples=0 native_max_error_px=0.000
+[299690.714] cam: 18,-84,2 y=34.3 p=-14.8 f=124.0 n=17
+[299691.505] frame 5700: read begin
+[299691.513] stamina: enabled=0 state=0 stage=4 pawn=7ab21d5560 comp=7b609d7d80 attr=7aa0cdb530 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[299691.514] engine LOS: ready=1 batches=988 traces=119571
+[299691.514] aim: enabled=1 ready=1 state=1 target=0 corrections=165
+[299691.514] trigger: enabled=1 state=3 hit=7aa62d2700 queries=988 starts=0 stops=0 callbacks=0 tid=4509 reject=0
+[299691.514] frame 5700: read end n=17 camera=1 occ=0 visible=4 read_ms=9
+[299691.514]   e[0] k=p t=1 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=0 act=1 CeciliKeyi45
+[299691.514]   e[1] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x00 dead=0 act=1 B1
+[299691.514]   e[2] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x08 dead=0 act=1 B2
+[299691.514]   e[3] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x00 dead=0 act=1 B3
+[299691.514]   e[4] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B4
+[299691.514]   e[5] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B5
+[299691.514]   e[6] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x00 dead=0 act=1 B6
+[299691.514]   e[7] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B7
+[299691.514]   e[8] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B8
+[299691.514]   e[9] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B9
+[299691.514]   e[10] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B10
+[299691.514]   e[11] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B11
+[299691.514]   e[12] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B12
+[299691.514]   e[13] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B13
+[299691.514]   e[14] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B14
+[299691.514]   e[15] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B15
+[299691.514]   e[16] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B16
+[299691.514] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[299691.514] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[299691.517] frame 5700: render end
+[299691.517] projection state: ready=1 stage=0
+[299691.517] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=146 w=7b2ec0e4a0
+[299692.549] esp f5200: 6 drawn of 17 ent (dead=0 type=0 dist=0 w2s=10 box=0) cam=(18,-84,2) fov=124
+[299693.440] frame 5800: read begin
+[299693.447] stamina: enabled=0 state=0 stage=4 pawn=7ab21d5560 comp=7b609d7d80 attr=7aa0cdb530 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[299693.447] loot: tables=2 rows=17344 colors=6 scan=238497/238497 actors=0 named=0
+[299693.447] engine LOS: ready=1 batches=1088 traces=127571
+[299693.447] aim: enabled=1 ready=1 state=1 target=0 corrections=165
+[299693.447] trigger: enabled=1 state=3 hit=7aa62d2700 queries=1088 starts=0 stops=0 callbacks=0 tid=4509 reject=0
+[299693.447] frame 5800: read end n=17 camera=1 occ=0 visible=4 read_ms=6
+[299693.447] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[299693.447] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[299693.449] frame 5800: render end
+[299693.449] projection state: ready=1 stage=0
+[299693.449] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=146 w=7b2ec0e4a0

@@ -1,5 +1,25 @@
 # Delta Radar — Handoff (2026-11-23)
 
+## Chams follow-up — 2026-11-23 (latest checkpoint)
+
+Read [the chams checkpoint](docs/chams-2026-11-23/checkpoint.md) before the older
+Vulkan section below. The old draw order and baked palette are superseded.
+Current implementation replays selected draws at the end of their original inline
+subpass, all red then all green, preserving graphics bindings and dynamic state.
+The user confirmed the initial draw-order fix removed red on visible surfaces;
+a live capture of the corrected replay build shows covered bodies through the
+nearby boxes. An intermediate replay deployment crashed because the pre-existing
+inline hook helper copied a relative BL unchanged. The helper now relocates B/BL
+and rejects other unsupported PC-relative instructions before patching.
+
+Latest build adds live palette + brightness (Visuals → Chams, default70%).
+Installed SHA256: `eccaf12a7591072844384895f921f13e69f93126355c6002bf243b15a19073c2`
+(local/device match). User confirmed the latest build: “looks good now”.
+Final range capture shows brighter green exposed surfaces and red covered bodies
+through the nearby boxes. PID4357 remained running; journal reported zero drops.
+Do not infer long-session stability or all-map coverage from that short check.
+Announce every intentional game stop/restart before doing it; user enters matches.
+
 ## Active loot / tracking / reconnect work
 
 **User preference: announce every intentional game stop/restart in chat BEFORE doing it.** They are watching for reconnect crashes and need to distinguish them from deployments.

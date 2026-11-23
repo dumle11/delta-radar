@@ -25,7 +25,7 @@ static PFN_vkFreeCommandBuffers cr_o_free;
 static PFN_vkCmdBeginRenderPass cr_o_begin_pass;
 static PFN_vkCmdEndRenderPass cr_o_end_pass;
 static PFN_vkCmdNextSubpass cr_o_next;
-static int cr_ready;
+
 static _Atomic unsigned cr_flushes, cr_draws, cr_drops;
 typedef struct {
     unsigned kind;
@@ -92,6 +92,17 @@ static int cr_capture(VkCmdBuf_ cmd, VkPipe_ inv, VkPipe_ vis,
     e->u.draw.vo=vo; e->u.draw.fInst=fInst; b->draws++;
     return 1;
 }
+static void cr_color(VkCmdBuf_ cmd, int visible) {
+    unsigned color=atomic_load(visible ? &_er_chams_vis : &_er_chams_inv);
+    /* Zero is a valid black selection; defaults live in Java preferences. */
+    int brightness=atomic_load(&_er_chams_brightness);
+    if(brightness<10) brightness=10;
+    if(brightness>100) brightness=100;
+    float scale=brightness/100.0f;
+    float values[]={((color>>16)&255)/255.0f*scale,
+        ((color>>8)&255)/255.0f*scale,(color&255)/255.0f*scale,1.0f};
+    if(cr_o_vkCmdSetBlendConstants) cr_o_vkCmdSetBlendConstants((VkCommandBuffer)cmd,values);
+}
 static void cr_flush(CrBuffer *b) {
     if (!b || !b->active || !b->draws || b->bad) return;
     /* All red silhouettes, then all green surfaces: self-occlusion and mesh
@@ -103,6 +114,7 @@ static void cr_flush(CrBuffer *b) {
         case 0: _o_vk_bp((VkCmdBuf_)b->cmd,0,e->u.pipeline.pipe); break;
         case 1:
             _o_vk_bp((VkCmdBuf_)b->cmd,0,pass ? e->u.draw.vis : e->u.draw.inv);
+            cr_color((VkCmdBuf_)b->cmd,pass);
             _o_vk_di((VkCmdBuf_)b->cmd,e->u.draw.ic,e->u.draw.inst,
                 e->u.draw.fi,e->u.draw.vo,e->u.draw.fInst); break;
         case 2: cr_o_vkCmdBindDescriptorSets(b->cmd, e->u.c2.bp, e->u.c2.layout, e->u.c2.first, e->u.c2.count, e->u.c2.sets, e->u.c2.ndyn, e->u.c2.dyn); break;
@@ -123,6 +135,9 @@ static void cr_flush(CrBuffer *b) {
     /* Restore the host pipeline; the last replay leaves all other state at the
      * end-of-subpass value. Keep state events for inherited state in later passes. */
     _o_vk_bp((VkCmdBuf_)b->cmd,0,_vk_cur((VkCmdBuf_)b->cmd));
+    for(unsigned i=b->count;i>0;i--) if(b->events[i-1].kind==10) {
+        cr_o_vkCmdSetBlendConstants(b->cmd,b->events[i-1].u.c10.values); break;
+    }
     atomic_fetch_add(&cr_flushes,1); atomic_fetch_add(&cr_draws,b->draws);
     unsigned dst=0;
     for(unsigned i=0;i<b->count;i++) if(b->events[i].kind!=1)

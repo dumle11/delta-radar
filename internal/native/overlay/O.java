@@ -106,6 +106,7 @@ public class O extends View {
 
     // Chams settings
     static volatile boolean chamsEnabled = false;
+    static volatile int chamsBrightness = 70;
     static volatile int chamsVisibleColor = 0xFF00FF00;
     static volatile int chamsInvisibleColor = 0xFFFF0000;
 
@@ -170,6 +171,7 @@ public class O extends View {
                     cameraFov = prefs.getInt("cameraFov", 0);
                     if(cameraFov!=0) cameraFov=Math.max(10,Math.min(170,cameraFov));
                     chamsEnabled = prefs.getBoolean("chamsEnabled", false);
+                    chamsBrightness = Math.max(10, Math.min(100, prefs.getInt("chamsBrightness", 70)));
                     chamsVisibleColor = prefs.getInt("chamsVisibleColor", 0xFF00FF00);
                     chamsInvisibleColor = prefs.getInt("chamsInvisibleColor", 0xFFFF0000);
 
@@ -376,6 +378,7 @@ public class O extends View {
     static boolean gce() { return chamsEnabled; }
     static int gcv() { return chamsVisibleColor; }
     static int gci() { return chamsInvisibleColor; }
+    static int gcb() { return chamsBrightness; }
     static int glr() { return lootRarityMask; }
     static int glm() { return lootMinValue; }
     static int glf() { return (lootShowValue ? 1 : 0) | (lootShowContainers ? 2 : 0); }
@@ -409,7 +412,7 @@ public class O extends View {
             .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds)
             .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread).putBoolean("infiniteStamina", infiniteStamina)
             .putInt("cameraFov", cameraFov)
-            .putBoolean("chamsEnabled", chamsEnabled).putInt("chamsVisibleColor", chamsVisibleColor).putInt("chamsInvisibleColor", chamsInvisibleColor)
+            .putInt("chamsBrightness", chamsBrightness).putBoolean("chamsEnabled", chamsEnabled).putInt("chamsVisibleColor", chamsVisibleColor).putInt("chamsInvisibleColor", chamsInvisibleColor)
             .putInt("lootRarityMask", lootRarityMask).putInt("lootMinValue", lootMinValue)
             .putBoolean("lootShowValue", lootShowValue).putBoolean("lootShowContainers", lootShowContainers);
         for (int i = 0; i < ET_COUNT; i++) {
@@ -695,6 +698,21 @@ public class O extends View {
             section("Chams", chamsEnabled ? "Colored models through walls" : null);
             toggle("Enable chams", -17, chamsEnabled);
             if (chamsEnabled) {
+                final TextView intensity = text("Brightness: " + chamsBrightness + "%", 18, INK);
+                intensity.setPadding(12, 8, 12, 0);
+                body.addView(intensity, new LayoutParams(-1, -2));
+                SeekBar brightness = new SeekBar(getContext());
+                brightness.setMax(90); brightness.setProgress(chamsBrightness - 10);
+                styleSlider(brightness); body.addView(brightness, new LayoutParams(-1, 42));
+                brightness.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    public void onProgressChanged(SeekBar bar, int value, boolean user) {
+                        if (!user) return;
+                        chamsBrightness = value + 10;
+                        intensity.setText("Brightness: " + chamsBrightness + "%");
+                    }
+                    public void onStartTrackingTouch(SeekBar bar) {}
+                    public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
+                });
                 buildChamsColorPicker("Visible", true);
                 buildChamsColorPicker("Behind walls", false);
             }

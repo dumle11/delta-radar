@@ -15,6 +15,7 @@ static _Atomic int _er_snap_origin;
 static _Atomic int _er_chams_enabled;
 static _Atomic unsigned _er_chams_vis;
 static _Atomic unsigned _er_chams_inv;
+static _Atomic int _er_chams_brightness = 70;
 
 #define EF_ENABLED  1
 #define EF_BOXES    2
@@ -127,6 +128,7 @@ static PFN_vkCGP _o_vk_cgp;
 static PFN_vkCSM _vk_csm;
 static PFN_vkSV  _o_vk_sv;
 static VkDev_    _vk_dev;
+static int cr_ready;
 static void     *_vk_frag_vis; /* shader module for visible color */
 static void     *_vk_frag_inv; /* shader module for invisible color */
 static volatile float _vk_vp_depth_range = 1.0f;
@@ -313,6 +315,7 @@ static void _vk_ensure_shaders(VkDev_ dev, float vr, float vg, float vb,
 static VkPipe_ _vk_make_clone(VkDev_ dev, VkPipeCache_ cache,
     const VkGPCI_ *src, const void *alloc, int behind_wall,
     void *frag_mod) {
+    if(!cr_ready) return NULL;
     VkGPCI_ ci;
     memcpy(&ci, src, sizeof(ci));
 
@@ -354,7 +357,7 @@ static VkPipe_ _vk_make_clone(VkDev_ dev, VkPipeCache_ cache,
         if (replaced) ci.pStages = stages;
     }
 
-    /* Color blend: src * ONE + dst * ZERO (shader outputs exact color) */
+    /* Color blend: white shader * live tint, no destination contribution. */
     VkCBSCI_ ccbs;
     VkCBAS_ catt[8];
     const VkCBSCI_ *cbs = (const VkCBSCI_ *)src->pColorBlendState;
@@ -373,8 +376,8 @@ static VkPipe_ _vk_make_clone(VkDev_ dev, VkPipeCache_ cache,
     }
     for (uint32_t a = 0; a < ac; a++) {
         catt[a].colorWriteMask = a == 0 ? 0xF : 0;
-        catt[a].blendEnable = 0;
-        catt[a].srcColorBlendFactor = 1;  /* VK_BLEND_FACTOR_ONE */
+        catt[a].blendEnable = 1;
+        catt[a].srcColorBlendFactor = 10; /* CONSTANT_COLOR: live tint */
         catt[a].dstColorBlendFactor = 0;  /* VK_BLEND_FACTOR_ZERO */
         catt[a].colorBlendOp = 0;
         catt[a].srcAlphaBlendFactor = 1;  /* VK_BLEND_FACTOR_ONE */
@@ -386,7 +389,23 @@ static VkPipe_ _vk_make_clone(VkDev_ dev, VkPipeCache_ cache,
     ccbs.pAttachments = catt;
     ci.pColorBlendState = (const void *)&ccbs;
 
-    /* (depth bias no longer used — no dynamic state stripping needed) */
+    /* Tint uses a white fragment shader and dynamic blend constants, so colors
+     * and intensity can change without rebuilding modules or pipelines. */
+    VkDynSCI_ dynamic = {0};
+    uint32_t states[16];
+    const VkDynSCI_ *original_dynamic = (const VkDynSCI_*)src->pDynamicState;
+    if(original_dynamic) dynamic=*original_dynamic;
+    else dynamic.sType=27;
+    if(dynamic.dynamicStateCount>15) return NULL;
+    int has_blend=0;
+    for(uint32_t i=0;i<dynamic.dynamicStateCount;i++) {
+        states[i]=dynamic.pDynamicStates[i];
+        if(states[i]>8) return NULL; /* journal supports core 1.0 dynamic state */
+        if(states[i]==4) has_blend=1;
+    }
+    if(!has_blend) states[dynamic.dynamicStateCount++]=4;
+    dynamic.pDynamicStates=states;
+    ci.pDynamicState=&dynamic;
 
     VkPipe_ cp = NULL;
     int rc = _o_vk_cgp(dev, cache, 1, &ci, alloc, &cp);
@@ -419,19 +438,7 @@ static VkPipe_ _vk_make_clone(VkDev_ dev, VkPipeCache_ cache,
 static int _hook_vk_cgp(VkDev_ dev, VkPipeCache_ cache, uint32_t cnt,
     const VkGPCI_ *infos, const void *alloc, VkPipe_ *pipes) {
     if (!_vk_dev) _vk_dev = dev;
-    unsigned cv = atomic_load(&_er_chams_vis);
-    unsigned cci = atomic_load(&_er_chams_inv);
-    float vr = cv ? ((cv>>16)&0xFF)/255.0f : 0.0f;
-    float vg = cv ? ((cv>>8)&0xFF)/255.0f : 1.0f;
-    float vb = cv ? (cv&0xFF)/255.0f : 0.0f;
-    float ir = cci ? ((cci>>16)&0xFF)/255.0f : 1.0f;
-    float ig = cci ? ((cci>>8)&0xFF)/255.0f : 0.0f;
-    float ib = cci ? (cci&0xFF)/255.0f : 0.0f;
-    /* Scale down to avoid HDR bloom washing colors to white */
-    const float bloom_scale = 0.5f;
-    vr *= bloom_scale; vg *= bloom_scale; vb *= bloom_scale;
-    ir *= bloom_scale; ig *= bloom_scale; ib *= bloom_scale;
-    _vk_ensure_shaders(dev, vr, vg, vb, ir, ig, ib);
+    _vk_ensure_shaders(dev,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f);
     int r = _o_vk_cgp(dev, cache, cnt, infos, alloc, pipes);
     if (r != 0) return r;
     static int _shdr_ok, _shdr_fail, _attr_skip, _fp_skip, _pipe_logged, _depth_yes, _depth_no;
@@ -491,6 +498,7 @@ static int _hook_vk_cgp(VkDev_ dev, VkPipeCache_ cache, uint32_t cnt,
 }
 
 static void cr_pipeline(VkCmdBuf_ cmd, VkPipe_ pipe);
+static void cr_color(VkCmdBuf_ cmd, int visible);
 static int cr_capture(VkCmdBuf_ cmd, VkPipe_ inv, VkPipe_ vis,
     uint32_t ic, uint32_t inst, uint32_t fi, int32_t vo, uint32_t fInst);
 
@@ -543,10 +551,12 @@ static void _hook_vk_di(VkCmdBuf_ cmd, uint32_t ic, uint32_t inst,
             /* Red first: a later hidden triangle must not overwrite the
              * green front surface of the same draw. Neither clone writes depth. */
             _o_vk_bp(cmd, 0, cinv);
+            cr_color(cmd,0);
             _o_vk_di(cmd, ic, inst, fi, vo, fInst);
             _o_vk_bp(cmd, 0, cur);
             _o_vk_di(cmd, ic, inst, fi, vo, fInst);
             _o_vk_bp(cmd, 0, cvis);
+            cr_color(cmd,1);
             _o_vk_di(cmd, ic, inst, fi, vo, fInst);
             /* Restore original pipeline */
             _o_vk_bp(cmd, 0, cur);
