@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class O extends View {
     static volatile Bitmap front, back;
     static Paint ps, pf, pt, bp;
+    static Paint actorText, actorOutline;
     static volatile int sw, sh;
     static volatile int viewWidth, viewHeight;
     static final class Frame {
@@ -444,6 +445,29 @@ public class O extends View {
     }
     static void t(String txt, float x, float y, int c) {
         if (cv == null) return; pt.setColor(c); cv.drawText(txt, x, y, pt);
+    }
+    // Actor labels follow projected actor height, independently of menu/debug text.
+    static void ta(String txt, float centerX, float baseline, int color, float size) {
+        if (cv == null || txt == null || !Float.isFinite(size)) return;
+        if (actorText == null) {
+            actorText = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+            actorText.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+            actorText.setHinting(Paint.HINTING_ON);
+            actorOutline = new Paint(actorText);
+            actorOutline.setStyle(Paint.Style.STROKE);
+            actorOutline.setStrokeJoin(Paint.Join.ROUND);
+            actorOutline.setStrokeCap(Paint.Cap.ROUND);
+        }
+        float fontSize = Math.max(12f, Math.min(24f, size));
+        actorText.setTextSize(fontSize);
+        actorText.setColor(color);
+        actorOutline.setTextSize(fontSize);
+        actorOutline.setColor(color & 0xFF000000);
+        actorOutline.setStrokeWidth(Math.max(1.5f, Math.min(2.5f, fontSize * 0.12f)));
+        float x = Math.round(centerX - actorText.measureText(txt) * 0.5f);
+        float y = Math.round(baseline);
+        cv.drawText(txt, x, y, actorOutline);
+        cv.drawText(txt, x, y, actorText);
     }
     static void dt(String txt, float x, float y, int c) {
         if (cv == null) return;

@@ -27,12 +27,18 @@ static uint32_t vp_width=4,vp_height=4;
 static uint64_t vp_generation=2;
 static _Atomic unsigned vp_presented,vp_skipped;
 static _Atomic int vp_active;
+static _Atomic int vp_rotation;
 static PFN_vkQueuePresentKHR vp_o_present;
 static VkPhysicalDevice vp_physical;
 static struct {VkQueue queue;uint32_t family;} vp_queues[16];
 static uint32_t vp_queue_count=1;
 static VkResult fence_status=VK_SUCCESS,submit_status=VK_SUCCESS;
 static int submits,presents,uploads,barriers,draws,initialized,cleanups;
+static int gv_internal_submit;
+typedef struct {float x,y;uint32_t color;} EgVert;
+typedef struct {int valid,screen_rotation;unsigned width,height;} GvFrame;
+static int gv_present_view(VkQueue queue,const VkPresentInfoKHR *info,GvFrame *view) {return 0;}
+static int eg_draw(EgVert *v,float w,float h,const GvFrame *view) {return 0;}
 static const VkPresentInfoKHR *original;
 static int expect_composite=1;
 static void _diag(const char *msg) {}
@@ -58,6 +64,8 @@ VKAPI_ATTR void VKAPI_CALL vkCmdBindPipeline(VkCommandBuffer c,VkPipelineBindPoi
 VKAPI_ATTR void VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer c,VkPipelineBindPoint p,VkPipelineLayout l,uint32_t first,uint32_t n,const VkDescriptorSet *sets,uint32_t dn,const uint32_t *offsets) {}
 VKAPI_ATTR void VKAPI_CALL vkCmdDraw(VkCommandBuffer c,uint32_t count,uint32_t inst,uint32_t first,uint32_t fi) {assert(count==3 && inst==1);draws++;}
 VKAPI_ATTR void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer c) {}
+VKAPI_ATTR void VKAPI_CALL vkCmdPushConstants(VkCommandBuffer c,VkPipelineLayout layout,VkShaderStageFlags stage,uint32_t offset,uint32_t size,const void *data) {}
+VKAPI_ATTR void VKAPI_CALL vkCmdBindVertexBuffers(VkCommandBuffer c,uint32_t first,uint32_t count,const VkBuffer *buffers,const VkDeviceSize *offsets) {}
 VKAPI_ATTR VkResult VKAPI_CALL vkResetFences(VkDevice d,uint32_t count,const VkFence *f) {return VK_SUCCESS;}
 VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit(VkQueue q,uint32_t count,const VkSubmitInfo *info,VkFence f) {
     assert(count==1 && info->waitSemaphoreCount==2);

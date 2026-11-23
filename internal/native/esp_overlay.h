@@ -13,7 +13,7 @@ static jmethodID _ov_z, _ov_b, _ov_r, _ov_f, _ov_l, _ov_t, _ov_e, _ov_gw, _ov_gh
 static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt, _ov_glr, _ov_glm, _ov_glf, _ov_lc;
-static jmethodID _ov_circle;
+static jmethodID _ov_circle, _ov_ta;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3, _ov_gap;
 static jmethodID _ov_gnr, _ov_gns, _ov_gcf, _ov_gis;
 static jmethodID _ov_gce, _ov_gcv, _ov_gci, _ov_gcb;
@@ -112,6 +112,8 @@ static int _ov_load_dex(void) {
     _ov_l  = (*env)->GetStaticMethodID(env, _ov_cls, "l", "(FFFFIF)V");
     _ov_t  = (*env)->GetStaticMethodID(env, _ov_cls, "t",
         "(Ljava/lang/String;FFI)V");
+    _ov_ta = (*env)->GetStaticMethodID(env, _ov_cls, "ta", "(Ljava/lang/String;FFIF)V");
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_e  = (*env)->GetStaticMethodID(env, _ov_cls, "e", "()V");
     _ov_gw = (*env)->GetStaticMethodID(env, _ov_cls, "gw", "()I");
     _ov_gh = (*env)->GetStaticMethodID(env, _ov_cls, "gh", "()I");
@@ -771,7 +773,16 @@ static void _ov_draw_esp(void) {
         loot_published[q] = el_colors[q];
     }
     int snap_origin = _ov_gso ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gso) : 0;
+    /* Sync ESP config to Vulkan-native ESP atomics */
+    atomic_store(&eg_esp_on, esp_on);
+    atomic_store(&eg_snap_origin, snap_origin);
+    for (int t = 0; t < ET_COUNT && t < 5; t++) {
+        atomic_store(&eg_feat[t], feat[t]);
+        atomic_store(&eg_rdist[t], rdist[t]);
+        for (int v = 0; v < 2; v++) atomic_store(&eg_palette[t][v], palette[t][v]);
+    }
 
+    eg_publish(loot_mask,loot_minimum>0?(uint64_t)loot_minimum:0,loot_flags);
     float cam[6];
     for (int i = 0; i < 6; i++) cam[i] = _rcam[i];
     _ov_cam_roll=0;render_camera_snapshot(cam,&_ov_cam_roll);
@@ -783,6 +794,7 @@ static void _ov_draw_esp(void) {
     static int _esp_dbg = 0;
     static int _esp_frame = 0;
     _esp_frame++;
+    int gpu_esp = atomic_load(&eg_active);
     int drawn = 0, skipped_dead = 0, skipped_type = 0, skipped_dist = 0, skipped_w2s = 0, skipped_box = 0;
     uint64_t loot_group_actor[MAX_ACTORS]={0};int loot_group_lines[MAX_ACTORS]={0},loot_groups=0;
     for (int i = 0; i < num_entities; i++) {
@@ -827,7 +839,7 @@ static void _ov_draw_esp(void) {
             sy+=(float)line*38;
             if (sx < -20 || sx > _ov_w+20 || sy < -20 || sy > _ov_h+20) continue;
             ++drawn;
-            if (ef & EF_BOXES) (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_r,sx-3,sy-3,sx+3,sy+3,color);
+            if (!gpu_esp && (ef & EF_BOXES)) (*env)->CallStaticVoidMethod(env,_ov_cls,_ov_r,sx-3,sy-3,sx+3,sy+3,color);
             if (ef & EF_NAMES) {
                 char label[300];
                 if (e->loot_stack > 1) snprintf(label,sizeof(label),"%s ×%d",e->loot_name,e->loot_stack);
@@ -878,11 +890,11 @@ static void _ov_draw_esp(void) {
 
         int color = e->visibility_known ? palette[etype][e->visible_from_camera != 0] : (int)0xFFFFB300;
         drawn++;
-        if ((ef & EF_BOXES) && box_visible)
+        if (!gpu_esp && (ef & EF_BOXES) && box_visible)
             (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_r,
                 box_cx - bw, box_top, box_cx + bw, box_bot, color);
 
-        if ((ef & EF_SKELETON) && e->has_bones && e->bone_count >= 2 &&
+        if (!gpu_esp && (ef & EF_SKELETON) && e->has_bones && e->bone_count >= 2 &&
             e->bone_count <= MAX_SKELETON_BONES) {
             for (int joint = 0; joint < e->bone_count; joint++) {
                 int parent = e->bone_parent[joint];
@@ -908,19 +920,24 @@ static void _ov_draw_esp(void) {
             else
                 snprintf(lbl, sizeof(lbl), "[%s]", kind_str);
             jstring jlbl = (*env)->NewStringUTF(env, lbl);
-            (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t,
-                jlbl, box_cx - bw, box_top - 4, color);
+            float name_size = fminf(24.0f, fmaxf(12.0f, box_h * 0.20f));
+            if (_ov_ta)
+                (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_ta,
+                    jlbl, box_cx, box_top - fmaxf(2.0f, name_size * 0.2f), color, name_size);
+            else
+                (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t,
+                    jlbl, box_cx - bw, box_top - 4, color);
             (*env)->DeleteLocalRef(env, jlbl);
         }
 
-        if (ef & EF_SNAPLINES) {
+        if (!gpu_esp && (ef & EF_SNAPLINES)) {
             float snap_y = snap_origin ? 0.0f : (float)_ov_h;
             (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_l,
                 (float)(_ov_w / 2), snap_y, box_cx, snap_origin ? box_top : box_bot,
                 color, 1.5f);
         }
 
-        if ((ef & EF_HEALTH) && e->health_known && e->max_health > 0) {
+        if (!gpu_esp && (ef & EF_HEALTH) && e->health_known && e->max_health > 0) {
             float hp = (float)e->health / (float)e->max_health;
             if (hp < 0) hp = 0;
             if (hp > 1) hp = 1;
@@ -937,8 +954,13 @@ static void _ov_draw_esp(void) {
             char dbuf[16];
             snprintf(dbuf, sizeof(dbuf), "%.0fm", dist);
             jstring js = (*env)->NewStringUTF(env, dbuf);
-            (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t,
-                js, box_cx - 10, box_bot + 16, color);
+            float distance_size = fminf(20.0f, fmaxf(12.0f, box_h * 0.17f));
+            if (_ov_ta)
+                (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_ta,
+                    js, box_cx, box_bot + distance_size + 2.0f, color, distance_size);
+            else
+                (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_t,
+                    js, box_cx - 10, box_bot + 16, color);
             (*env)->DeleteLocalRef(env, js);
         }
     }

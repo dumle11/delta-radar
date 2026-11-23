@@ -480,7 +480,7 @@ static int _hook_vk_cgp(VkDev_ dev, VkPipeCache_ cache, uint32_t cnt,
         if (ac <= 5) { _fp_skip++; continue; }
 
         for(uint32_t stage=0;stage<infos[i].stageCount;stage++)
-            if(infos[i].pStages[stage].stage==1) gv_selected((VkShaderModule)infos[i].pStages[stage].module);
+            if(infos[i].pStages[stage].stage==1) { gv_selected((VkShaderModule)infos[i].pStages[stage].module); gv_pipeline((VkPipeline)pipes[i],(VkShaderModule)infos[i].pStages[stage].module); }
         VkPipe_ cinv = _vk_make_clone(dev, cache, &infos[i], alloc,
             1, _vk_frag_inv);
         VkPipe_ cvis = _vk_make_clone(dev, cache, &infos[i], alloc,
@@ -548,6 +548,7 @@ static void _hook_vk_di(VkCmdBuf_ cmd, uint32_t ic, uint32_t inst,
             else if (nattr == 8) _vk_na_hist[2]++;
             else _vk_na_hist[3]++;
             _vk_chams_cnt++;
+            gv_draw_view((VkCommandBuffer)cmd,(VkPipeline)cur);
             if (cr_capture(cmd,cinv,cvis,ic,inst,fi,vo,fInst)) {
                 _o_vk_di(cmd,ic,inst,fi,vo,fInst);
                 goto log_check;
@@ -623,6 +624,7 @@ static void *_vksym(void *(*lookup)(void*,const char*), void *ctx,
 }
 
 #include "chams_replay.h"
+#include "gpu_view_runtime.h"
 #include "vulkan_present.h"
 
 static void _install_esp_hook(void) {
@@ -797,6 +799,7 @@ static void _install_esp_hook(void) {
     int sv_ok = cr_install((PFN_vkGetDeviceProcAddr)pGDPA,(VkDevice)dev,tp);
     vp_install((PFN_vkGetDeviceProcAddr)pGDPA,(VkDevice)dev,(void*)pCD,tp);
     if(fn_csm) _ih_patch(fn_csm,(void*)gv_create_module,(void**)&gv_o_module,tp+2048);
+    gv_install((PFN_vkGetDeviceProcAddr)pGDPA,(VkDevice)dev,tp);
     pDD(dev,NULL);
     pDI(inst,NULL);
 

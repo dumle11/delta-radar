@@ -3,8 +3,9 @@
 #ifndef INTERNAL_GPU_VIEW_H
 #define INTERNAL_GPU_VIEW_H
 #include <vulkan/vulkan.h>
+#include "gpu_view_profile.h"
 #define GV_MODULES 512
-static struct {VkShaderModule module;uint32_t *words;size_t count;} gv_modules[GV_MODULES];
+static struct {VkShaderModule module;uint32_t *words;size_t count;GvProfile profile;} gv_modules[GV_MODULES];
 static pthread_mutex_t gv_mutex=PTHREAD_MUTEX_INITIALIZER;
 static PFN_vkCreateShaderModule gv_o_module;
 static VkResult gv_create_module(VkDevice device,const VkShaderModuleCreateInfo *info,const VkAllocationCallbacks *alloc,VkShaderModule *module) {
@@ -27,11 +28,34 @@ static VkResult gv_create_module(VkDevice device,const VkShaderModuleCreateInfo 
     if(slot>=0) {
         uint32_t *copy=malloc(info->codeSize);
         if(copy) {memcpy(copy,info->pCode,info->codeSize);free(gv_modules[slot].words);
-            gv_modules[slot].words=copy;gv_modules[slot].module=*module;gv_modules[slot].count=count;}
+            gv_modules[slot].words=copy;gv_modules[slot].module=*module;gv_modules[slot].count=count;gv_modules[slot].profile=gv_profile(copy,count);}
     }
     pthread_mutex_unlock(&gv_mutex);
     return result;
 }
+typedef struct {
+    float matrix[16],translation[3];
+    VkViewport viewport;
+    uint32_t width,height;
+    int64_t recorded_at;
+    unsigned serial;
+    int valid,screen_rotation;
+} GvFrame;
+static struct {VkPipeline pipeline;GvProfile profile;} gv_pipelines[128];
+static void gv_pipeline(VkPipeline pipeline,VkShaderModule module) {
+    pthread_mutex_lock(&gv_mutex);
+    GvProfile profile={0};
+    for(unsigned i=0;i<GV_MODULES;i++) if(gv_modules[i].module==module) {profile=gv_modules[i].profile;break;}
+    if(profile.valid) for(unsigned i=0;i<128;i++) if(!gv_pipelines[i].pipeline || gv_pipelines[i].pipeline==pipeline) {
+        gv_pipelines[i].pipeline=pipeline;gv_pipelines[i].profile=profile;break;
+    }
+    pthread_mutex_unlock(&gv_mutex);
+}
+static void gv_log(void);
+static void gv_cmd_reset(VkCommandBuffer);
+static void gv_cmd_free(VkCommandBuffer);
+static void gv_begin_pass(VkCommandBuffer,const VkRenderPassBeginInfo*);
+static void gv_draw_view(VkCommandBuffer,VkPipeline);
 static void gv_selected(VkShaderModule module) {
     static VkShaderModule recorded[3];static unsigned count;
     pthread_mutex_lock(&gv_mutex);

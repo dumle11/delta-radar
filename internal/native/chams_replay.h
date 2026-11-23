@@ -147,6 +147,7 @@ static void cr_flush(CrBuffer *b) {
 static VkResult cr_begin(VkCommandBuffer cmd,const VkCommandBufferBeginInfo *info) {
     VkResult r=cr_o_begin(cmd,info);
     if(r==VK_SUCCESS) {
+        gv_cmd_reset(cmd);
         CrBuffer *b=cr_get(cmd,1);
         if(b) { b->count=b->draws=0; b->active=b->bad=0;
             b->secondary=!!(info->flags & VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT); }
@@ -156,12 +157,14 @@ static VkResult cr_begin(VkCommandBuffer cmd,const VkCommandBufferBeginInfo *inf
 }
 static void cr_free(VkDevice dev,VkCommandPool pool,uint32_t count,const VkCommandBuffer *cmds) {
     for(uint32_t i=0;i<count;i++) {
+        gv_cmd_free(cmds[i]);
         CrBuffer *b=cr_get(cmds[i],0);
         if(b) { pthread_mutex_lock(&cr_mutex); free(b->events); memset(b,0,sizeof(*b)); pthread_mutex_unlock(&cr_mutex); }
     }
     cr_o_free(dev,pool,count,cmds);
 }
 static void cr_begin_pass(VkCommandBuffer cmd,const VkRenderPassBeginInfo *info,VkSubpassContents contents) {
+    gv_begin_pass(cmd,info);
     CrBuffer *b=cr_get(cmd,0);
     if(b) { b->active=(contents==VK_SUBPASS_CONTENTS_INLINE); b->draws=0; }
     cr_o_begin_pass(cmd,info,contents);
@@ -332,6 +335,7 @@ static void cr_vkCmdSetStencilReference(VkCommandBuffer cmd, VkStencilFaceFlags 
     cr_o_vkCmdSetStencilReference(cmd, face, ref);
 }
 static void cr_log(void) {
+    gv_log();
     char db[120]; snprintf(db,sizeof(db),"v2: flush=%u draws=%u drops=%u ready=%d",
         atomic_load(&cr_flushes),atomic_load(&cr_draws),atomic_load(&cr_drops),cr_ready); _diag(db);
 }

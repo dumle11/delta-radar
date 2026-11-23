@@ -6,6 +6,7 @@
 #include <android/bitmap.h>
 #include <android/input.h>
 #include "composite_spv.h"
+#include "esp_gpu.h"
 #define VP_IMAGES 8
 #define VP_SWAPS 4
 #define VP_MAX_PIXELS (4096u*4096u)
@@ -97,6 +98,9 @@ typedef struct {
     VkCommandBuffer command;
     VkFence fence;
     VkSemaphore done;
+    VkBuffer esp_vb;
+    VkDeviceMemory esp_vb_memory;
+    void *esp_vb_mapped;
     uint64_t generation;
     int initialized;
 } VpFrame;
@@ -110,6 +114,8 @@ typedef struct {
     VkRenderPass pass;
     VkPipelineLayout layout;
     VkPipeline pipeline;
+    VkPipelineLayout esp_layout;
+    VkPipeline esp_pipeline;
     VkDescriptorSetLayout descriptor_layout;
     VkDescriptorPool descriptors;
     VkSampler sampler;
@@ -167,25 +173,30 @@ static void vp_cleanup(VpSwap *s) {
     for(uint32_t i=0;i<s->count;i++) {
         VpFrame *f=&s->frames[i];
         if(f->mapped) vkUnmapMemory(s->device,f->buffer_memory);
+        if(f->esp_vb_mapped) vkUnmapMemory(s->device,f->esp_vb_memory);
         if(f->framebuffer) vkDestroyFramebuffer(s->device,f->framebuffer,NULL);
         if(f->texture_view) vkDestroyImageView(s->device,f->texture_view,NULL);
         if(f->view) vkDestroyImageView(s->device,f->view,NULL);
         if(f->texture) vkDestroyImage(s->device,f->texture,NULL);
         if(f->buffer) vkDestroyBuffer(s->device,f->buffer,NULL);
+        if(f->esp_vb) vkDestroyBuffer(s->device,f->esp_vb,NULL);
         if(f->texture_memory) vkFreeMemory(s->device,f->texture_memory,NULL);
         if(f->buffer_memory) vkFreeMemory(s->device,f->buffer_memory,NULL);
+        if(f->esp_vb_memory) vkFreeMemory(s->device,f->esp_vb_memory,NULL);
         if(f->done) vkDestroySemaphore(s->device,f->done,NULL);
         if(f->fence) vkDestroyFence(s->device,f->fence,NULL);
         VkImage image=f->image; memset(f,0,sizeof(*f)); f->image=image;
     }
     if(s->pool) vkDestroyCommandPool(s->device,s->pool,NULL);
     if(s->pipeline) vkDestroyPipeline(s->device,s->pipeline,NULL);
+    if(s->esp_pipeline) vkDestroyPipeline(s->device,s->esp_pipeline,NULL);
     if(s->layout) vkDestroyPipelineLayout(s->device,s->layout,NULL);
+    if(s->esp_layout) vkDestroyPipelineLayout(s->device,s->esp_layout,NULL);
     if(s->descriptors) vkDestroyDescriptorPool(s->device,s->descriptors,NULL);
     if(s->descriptor_layout) vkDestroyDescriptorSetLayout(s->device,s->descriptor_layout,NULL);
     if(s->sampler) vkDestroySampler(s->device,s->sampler,NULL);
     if(s->pass) vkDestroyRenderPass(s->device,s->pass,NULL);
-    s->pool=0;s->pipeline=0;s->layout=0;s->descriptors=0;s->descriptor_layout=0;s->sampler=0;s->pass=0;s->ready=0;
+    s->pool=0;s->pipeline=0;s->esp_pipeline=0;s->layout=0;s->esp_layout=0;s->descriptors=0;s->descriptor_layout=0;s->sampler=0;s->pass=0;s->ready=0;
 }
 #define VP_TRY(call) do { VkResult result=(call); if(result!=VK_SUCCESS) { vp_report(#call,result); goto fail; } } while(0)
 static int vp_initialize(VpSwap *s,uint32_t family,uint32_t width,uint32_t height) {
@@ -253,6 +264,39 @@ static int vp_initialize(VpSwap *s,uint32_t family,uint32_t width,uint32_t heigh
     result=vkCreateGraphicsPipelines(s->device,0,1,&gp,NULL,&s->pipeline);
     vkDestroyShaderModule(s->device,modules[0],NULL);vkDestroyShaderModule(s->device,modules[1],NULL);
     if(result!=VK_SUCCESS) { vp_report("pipeline",result); goto fail; }
+    /* ESP line pipeline: vertex-colored triangles (line quads), push constants for screen size */
+    {
+        VkPushConstantRange pc_range={.stageFlags=VK_SHADER_STAGE_VERTEX_BIT,.offset=0,.size=8};
+        VkPipelineLayoutCreateInfo esp_pl={.sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,.pushConstantRangeCount=1,.pPushConstantRanges=&pc_range};
+        VP_TRY(vkCreatePipelineLayout(s->device,&esp_pl,NULL,&s->esp_layout));
+        VkShaderModule esp_modules[2]={0};
+        VkShaderModuleCreateInfo esm={.sType=VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,.codeSize=sizeof(eg_vert_spv),.pCode=eg_vert_spv};
+        result=vkCreateShaderModule(s->device,&esm,NULL,&esp_modules[0]);
+        if(result!=VK_SUCCESS) goto fail;
+        esm.codeSize=sizeof(eg_frag_spv);esm.pCode=eg_frag_spv;
+        result=vkCreateShaderModule(s->device,&esm,NULL,&esp_modules[1]);
+        if(result!=VK_SUCCESS) {vkDestroyShaderModule(s->device,esp_modules[0],NULL);goto fail;}
+        VkPipelineShaderStageCreateInfo esp_stages[2]={
+            {.sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,.stage=VK_SHADER_STAGE_VERTEX_BIT,.module=esp_modules[0],.pName="main"},
+            {.sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,.stage=VK_SHADER_STAGE_FRAGMENT_BIT,.module=esp_modules[1],.pName="main"}};
+        VkVertexInputBindingDescription esp_binding={.binding=0,.stride=12,.inputRate=VK_VERTEX_INPUT_RATE_VERTEX};
+        VkVertexInputAttributeDescription esp_attrs[2]={
+            {.location=0,.binding=0,.format=VK_FORMAT_R32G32_SFLOAT,.offset=0},
+            {.location=1,.binding=0,.format=VK_FORMAT_R8G8B8A8_UNORM,.offset=8}};
+        VkPipelineVertexInputStateCreateInfo esp_vi={.sType=VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount=1,.pVertexBindingDescriptions=&esp_binding,
+            .vertexAttributeDescriptionCount=2,.pVertexAttributeDescriptions=esp_attrs};
+        VkPipelineInputAssemblyStateCreateInfo esp_ia={.sType=VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,.topology=VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST};
+        VkPipelineColorBlendAttachmentState esp_blend={.blendEnable=VK_TRUE,
+            .srcColorBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA,.dstColorBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,.colorBlendOp=VK_BLEND_OP_ADD,
+            .srcAlphaBlendFactor=VK_BLEND_FACTOR_ONE,.dstAlphaBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,.alphaBlendOp=VK_BLEND_OP_ADD,.colorWriteMask=15};
+        VkPipelineColorBlendStateCreateInfo esp_bs={.sType=VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,.attachmentCount=1,.pAttachments=&esp_blend};
+        VkGraphicsPipelineCreateInfo esp_gp={.sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,.stageCount=2,.pStages=esp_stages,.pVertexInputState=&esp_vi,
+            .pInputAssemblyState=&esp_ia,.pViewportState=&vs,.pRasterizationState=&rs,.pMultisampleState=&ms,.pColorBlendState=&esp_bs,.layout=s->esp_layout,.renderPass=s->pass};
+        result=vkCreateGraphicsPipelines(s->device,0,1,&esp_gp,NULL,&s->esp_pipeline);
+        vkDestroyShaderModule(s->device,esp_modules[0],NULL);vkDestroyShaderModule(s->device,esp_modules[1],NULL);
+        if(result!=VK_SUCCESS) {vp_report("esp pipeline",result);goto fail;}
+    }
     VkCommandPoolCreateInfo cp={.sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,.flags=VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,.queueFamilyIndex=family};
     VP_TRY(vkCreateCommandPool(s->device,&cp,NULL,&s->pool));
     for(uint32_t i=0;i<s->count;i++) {
@@ -284,6 +328,16 @@ static int vp_initialize(VpSwap *s,uint32_t family,uint32_t width,uint32_t heigh
         VP_TRY(vkAllocateMemory(s->device,&ma,NULL,&f->buffer_memory));
         VP_TRY(vkBindBufferMemory(s->device,f->buffer,f->buffer_memory,0));
         VP_TRY(vkMapMemory(s->device,f->buffer_memory,0,VK_WHOLE_SIZE,0,&f->mapped));
+        /* ESP vertex buffer (host-visible for per-frame writes) */
+        VkBufferCreateInfo esp_buf={.sType=VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,.size=EG_VB_SIZE,.usage=VK_BUFFER_USAGE_VERTEX_BUFFER_BIT};
+        VP_TRY(vkCreateBuffer(s->device,&esp_buf,NULL,&f->esp_vb));
+        vkGetBufferMemoryRequirements(s->device,f->esp_vb,&req);
+        mt=vp_memory(req.memoryTypeBits,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if(mt==UINT32_MAX) goto fail;
+        ma.allocationSize=req.size;ma.memoryTypeIndex=mt;
+        VP_TRY(vkAllocateMemory(s->device,&ma,NULL,&f->esp_vb_memory));
+        VP_TRY(vkBindBufferMemory(s->device,f->esp_vb,f->esp_vb_memory,0));
+        VP_TRY(vkMapMemory(s->device,f->esp_vb_memory,0,VK_WHOLE_SIZE,0,&f->esp_vb_mapped));
         VkDescriptorSetAllocateInfo da={.sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,.descriptorPool=s->descriptors,.descriptorSetCount=1,.pSetLayouts=&s->descriptor_layout};
         VP_TRY(vkAllocateDescriptorSets(s->device,&da,&f->descriptor));
         VkDescriptorImageInfo di={s->sampler,f->texture_view,VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
@@ -384,13 +438,46 @@ static VkResult vp_present(VkQueue queue,const VkPresentInfoKHR *info) {
     vkCmdBindPipeline(f->command,VK_PIPELINE_BIND_POINT_GRAPHICS,s->pipeline);
     vkCmdBindDescriptorSets(f->command,VK_PIPELINE_BIND_POINT_GRAPHICS,s->layout,0,1,&f->descriptor,0,NULL);
     vkCmdDraw(f->command,3,1,0,0);
+    /* Draw ESP geometry with fresh camera data, accounting for surface rotation */
+    if(s->esp_pipeline && f->esp_vb_mapped) {
+        int rot=s->transform==VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR?1:
+            s->transform==VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR?2:
+            s->transform==VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR?3:0;
+        if(!rot && ((s->extent.width>s->extent.height)!=(s->tw>s->th))) rot=atomic_load(&vp_rotation);
+        float lw,lh;
+        if(rot==1||rot==3) { lw=(float)s->extent.height; lh=(float)s->extent.width; }
+        else { lw=(float)s->extent.width; lh=(float)s->extent.height; }
+        GvFrame render_view={0};
+        gv_present_view(queue,info,&render_view);
+        if((render_view.width>render_view.height)!=(lw>lh)) render_view.screen_rotation=rot;
+        int esp_verts=eg_draw((EgVert*)f->esp_vb_mapped,lw,lh,&render_view);
+        if(esp_verts>0) {
+            if(rot) {
+                EgVert *vb=(EgVert*)f->esp_vb_mapped;
+                for(int vi=0;vi<esp_verts;vi++) {
+                    float x=vb[vi].x, y=vb[vi].y;
+                    if(rot==1)      { vb[vi].x=lh-y; vb[vi].y=x; }
+                    else if(rot==2) { vb[vi].x=lw-x; vb[vi].y=lh-y; }
+                    else            { vb[vi].x=y;     vb[vi].y=lw-x; }
+                }
+            }
+            float pc[2]={(float)s->extent.width,(float)s->extent.height};
+            vkCmdBindPipeline(f->command,VK_PIPELINE_BIND_POINT_GRAPHICS,s->esp_pipeline);
+            vkCmdPushConstants(f->command,s->esp_layout,VK_SHADER_STAGE_VERTEX_BIT,0,8,pc);
+            VkDeviceSize zero=0;
+            vkCmdBindVertexBuffers(f->command,0,1,&f->esp_vb,&zero);
+            vkCmdDraw(f->command,(uint32_t)esp_verts,1,0,0);
+        }
+    }
     vkCmdEndRenderPass(f->command);
     if(vkEndCommandBuffer(f->command)!=VK_SUCCESS) goto skip;
     VkPipelineStageFlags waits[32];for(uint32_t i=0;i<info->waitSemaphoreCount;i++) waits[i]=VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     VkSubmitInfo submit={.sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,.waitSemaphoreCount=info->waitSemaphoreCount,.pWaitSemaphores=info->pWaitSemaphores,
         .pWaitDstStageMask=waits,.commandBufferCount=1,.pCommandBuffers=&f->command,.signalSemaphoreCount=1,.pSignalSemaphores=&f->done};
     if(vkResetFences(s->device,1,&f->fence)!=VK_SUCCESS) goto skip;
+    gv_internal_submit++;
     result=vkQueueSubmit(queue,1,&submit,f->fence);
+    gv_internal_submit--;
     if(result!=VK_SUCCESS) {vp_report("submit",result);s->failed=1;atomic_store(&vp_active,0);goto skip;}
     f->initialized=1;f->generation=generation;
     VkPresentInfoKHR present=*info;present.waitSemaphoreCount=1;present.pWaitSemaphores=&f->done;

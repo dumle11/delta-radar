@@ -38,6 +38,10 @@ static void _vk_set(VkCmdBuf_ cmd,VkPipe_ p) {}
 static void _diag(const char *msg) {}
 static int _ih_patch(void *p,void *hook,void **orig,uint8_t *slot) { return 0; }
 #include "chams_reloc.h"
+static void gv_cmd_reset(void *cmd) {}
+static void gv_cmd_free(void *cmd) {}
+static void gv_begin_pass(void *cmd,const void *info) {}
+static void gv_log(void) {}
 #include "chams_replay.h"
 static VkResult begin(VkCommandBuffer cmd,const VkCommandBufferBeginInfo *info) { return VK_SUCCESS; }
 static void beginpass(VkCommandBuffer cmd,const VkRenderPassBeginInfo *info,VkSubpassContents contents) { ended=0; }

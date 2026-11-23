@@ -1,5 +1,15 @@
 # Delta Radar — Handoff (2026-11-23)
 
+## Actor names — 2026-11-23 (latest)
+
+Actor labels now scale with projected actor height (12–24px), with centered bold
+text and a dark outline. Distance labels scale too. The first8px minimum was too
+small on the device and was raised after user feedback. Current build is installed
+and the outlined/scaled labels were observed in the range; user readability
+feedback is pending. See [the label checkpoint](docs/name-scale-2026-11-23/checkpoint.md)
+for the matching installed hash and verification limits. This change preserves
+current rendering work in the shared workspace.
+
 ## Chams follow-up — 2026-11-23 (latest checkpoint)
 
 Read [the chams checkpoint](docs/chams-2026-11-23/checkpoint.md) before the older
