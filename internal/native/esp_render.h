@@ -1,307 +1,800 @@
-/* GL ESP rendering — included by delta_radar_lib.c */
+/* ESP config + Vulkan chams — included by delta_radar_lib.c
+ * Config atomics shared between overlay (esp_overlay.h) and chams hooks.
+ * ESP rendering handled by the overlay's own GL surface.
+ * Chams uses inline hooks on the Vulkan ICD (Adreno). */
+#ifndef INTERNAL_ESP_RENDER_H
+#define INTERNAL_ESP_RENDER_H
 
-typedef void *EGLDisplay_;
-typedef void *EGLSurface_;
-typedef unsigned int EGLBoolean_;
-typedef unsigned int GLenum_;
-typedef unsigned int GLuint_;
-typedef int GLint_;
-typedef int GLsizei_;
-typedef float GLfloat_;
-typedef char GLchar_;
-typedef unsigned char GLboolean_;
+/* Config atomics — scanner thread writes, render thread reads */
+#define ER_ET_COUNT 5
+static _Atomic int _er_feat[ER_ET_COUNT];
+static _Atomic int _er_rdist[ER_ET_COUNT];
+static _Atomic int _er_palette[ER_ET_COUNT][2];
+static _Atomic int _er_esp_on;
+static _Atomic int _er_snap_origin;
+static _Atomic int _er_chams_enabled;
+static _Atomic unsigned _er_chams_vis;
+static _Atomic unsigned _er_chams_inv;
 
-typedef EGLBoolean_ (*PFN_esb)(EGLDisplay_,EGLSurface_);
-typedef GLuint_ (*PFN_gcs)(GLenum_);
-typedef void (*PFN_gss)(GLuint_,GLsizei_,const GLchar_**,const GLint_*);
-typedef void (*PFN_gcsh)(GLuint_);
-typedef void (*PFN_ggsi)(GLuint_,GLenum_,GLint_*);
-typedef GLuint_ (*PFN_gcp)(void);
-typedef void (*PFN_gas2)(GLuint_,GLuint_);
-typedef void (*PFN_glp2)(GLuint_);
-typedef void (*PFN_ggpi)(GLuint_,GLenum_,GLint_*);
-typedef void (*PFN_gup)(GLuint_);
-typedef GLint_ (*PFN_ggal)(GLuint_,const GLchar_*);
-typedef GLint_ (*PFN_ggul)(GLuint_,const GLchar_*);
-typedef void (*PFN_gu2f)(GLint_,GLfloat_,GLfloat_);
-typedef void (*PFN_gu4f)(GLint_,GLfloat_,GLfloat_,GLfloat_,GLfloat_);
-typedef void (*PFN_gvap)(GLuint_,GLint_,GLenum_,GLboolean_,GLsizei_,const void*);
-typedef void (*PFN_geva)(GLuint_);
-typedef void (*PFN_gdva)(GLuint_);
-typedef void (*PFN_gda)(GLenum_,GLint_,GLsizei_);
-typedef void (*PFN_gen)(GLenum_);
-typedef void (*PFN_gdi)(GLenum_);
-typedef GLboolean_ (*PFN_gie)(GLenum_);
-typedef void (*PFN_gbf)(GLenum_,GLenum_);
-typedef void (*PFN_ggi)(GLenum_,GLint_*);
-typedef void (*PFN_glw2)(GLfloat_);
-typedef void (*PFN_gdsh)(GLuint_);
-typedef void (*PFN_gbb)(GLenum_,GLuint_);
-
-static PFN_esb  _o_esb;
-static PFN_gcs  _f_cs;  static PFN_gss  _f_ss;  static PFN_gcsh _f_csh;
-static PFN_ggsi _f_gsi; static PFN_gcp  _f_cp;  static PFN_gas2 _f_as2;
-static PFN_glp2 _f_lp2; static PFN_ggpi _f_gpi; static PFN_gup  _f_up;
-static PFN_ggal _f_gal; static PFN_ggul _f_gul;
-static PFN_gu2f _f_u2;  static PFN_gu4f _f_u4;  static PFN_gvap _f_vap;
-static PFN_geva _f_ea;  static PFN_gdva _f_dva;  static PFN_gda  _f_da;
-static PFN_gen  _f_en;  static PFN_gdi  _f_di;   static PFN_gie  _f_ie;
-static PFN_gbf  _f_bf;  static PFN_ggi  _f_gi;   static PFN_glw2 _f_lw2;
-static PFN_gdsh _f_dsh; static PFN_gbb  _f_bb;
-
-static GLuint_ _ep;
-static GLint_  _ea_p, _eu_s, _eu_c;
-static int _eok;
+#define EF_ENABLED  1
+#define EF_BOXES    2
+#define EF_SKELETON 4
+#define EF_NAMES    8
+#define EF_HEALTH   16
+#define EF_DISTANCE 32
+#define EF_SNAPLINES 64
 
 __attribute__((noinline))
 static void *_gsym(const unsigned char *enc, int len) {
-    char buf[32];
+    char buf[48];
     volatile unsigned char k = 0x55;
-    for (int i = 0; i < len && i < 31; i++) buf[i] = enc[i] ^ k;
+    for (int i = 0; i < len && i < 47; i++) buf[i] = enc[i] ^ k;
     buf[len] = 0;
     return dlsym(RTLD_DEFAULT, buf);
 }
 
-static int _esp_init(void) {
-    static const unsigned char _s0[]={0x32,0x39,0x16,0x27,0x30,0x34,0x21,0x30,0x06,0x3d,0x34,0x31,0x30,0x27};
-    static const unsigned char _s1[]={0x32,0x39,0x06,0x3d,0x34,0x31,0x30,0x27,0x06,0x3a,0x20,0x27,0x36,0x30};
-    static const unsigned char _s2[]={0x32,0x39,0x16,0x3a,0x38,0x25,0x3c,0x39,0x30,0x06,0x3d,0x34,0x31,0x30,0x27};
-    static const unsigned char _s3[]={0x32,0x39,0x12,0x30,0x21,0x06,0x3d,0x34,0x31,0x30,0x27,0x3c,0x23};
-    static const unsigned char _s4[]={0x32,0x39,0x16,0x27,0x30,0x34,0x21,0x30,0x05,0x27,0x3a,0x32,0x27,0x34,0x38};
-    static const unsigned char _s5[]={0x32,0x39,0x14,0x21,0x21,0x34,0x36,0x3d,0x06,0x3d,0x34,0x31,0x30,0x27};
-    static const unsigned char _s6[]={0x32,0x39,0x19,0x3c,0x3b,0x3e,0x05,0x27,0x3a,0x32,0x27,0x34,0x38};
-    static const unsigned char _s7[]={0x32,0x39,0x12,0x30,0x21,0x05,0x27,0x3a,0x32,0x27,0x34,0x38,0x3c,0x23};
-    static const unsigned char _s8[]={0x32,0x39,0x00,0x26,0x30,0x05,0x27,0x3a,0x32,0x27,0x34,0x38};
-    static const unsigned char _s9[]={0x32,0x39,0x12,0x30,0x21,0x14,0x21,0x21,0x27,0x3c,0x37,0x19,0x3a,0x36,0x34,0x21,0x3c,0x3a,0x3b};
-    static const unsigned char _sA[]={0x32,0x39,0x12,0x30,0x21,0x00,0x3b,0x3c,0x33,0x3a,0x27,0x38,0x19,0x3a,0x36,0x34,0x21,0x3c,0x3a,0x3b};
-    static const unsigned char _sB[]={0x32,0x39,0x00,0x3b,0x3c,0x33,0x3a,0x27,0x38,0x67,0x33};
-    static const unsigned char _sC[]={0x32,0x39,0x00,0x3b,0x3c,0x33,0x3a,0x27,0x38,0x61,0x33};
-    static const unsigned char _sD[]={0x32,0x39,0x03,0x30,0x27,0x21,0x30,0x2d,0x14,0x21,0x21,0x27,0x3c,0x37,0x05,0x3a,0x3c,0x3b,0x21,0x30,0x27};
-    static const unsigned char _sE[]={0x32,0x39,0x10,0x3b,0x34,0x37,0x39,0x30,0x03,0x30,0x27,0x21,0x30,0x2d,0x14,0x21,0x21,0x27,0x3c,0x37,0x14,0x27,0x27,0x34,0x2c};
-    static const unsigned char _sF[]={0x32,0x39,0x11,0x3c,0x26,0x34,0x37,0x39,0x30,0x03,0x30,0x27,0x21,0x30,0x2d,0x14,0x21,0x21,0x27,0x3c,0x37,0x14,0x27,0x27,0x34,0x2c};
-    static const unsigned char _sG[]={0x32,0x39,0x11,0x27,0x34,0x22,0x14,0x27,0x27,0x34,0x2c,0x26};
-    static const unsigned char _sH[]={0x32,0x39,0x10,0x3b,0x34,0x37,0x39,0x30};
-    static const unsigned char _sI[]={0x32,0x39,0x11,0x3c,0x26,0x34,0x37,0x39,0x30};
-    static const unsigned char _sJ[]={0x32,0x39,0x1c,0x26,0x10,0x3b,0x34,0x37,0x39,0x30,0x31};
-    static const unsigned char _sK[]={0x32,0x39,0x17,0x39,0x30,0x3b,0x31,0x13,0x20,0x3b,0x36};
-    static const unsigned char _sL[]={0x32,0x39,0x12,0x30,0x21,0x1c,0x3b,0x21,0x30,0x32,0x30,0x27,0x23};
-    static const unsigned char _sM[]={0x32,0x39,0x19,0x3c,0x3b,0x30,0x02,0x3c,0x31,0x21,0x3d};
-    static const unsigned char _sN[]={0x32,0x39,0x11,0x30,0x39,0x30,0x21,0x30,0x06,0x3d,0x34,0x31,0x30,0x27};
-    static const unsigned char _sO[]={0x32,0x39,0x17,0x3c,0x3b,0x31,0x17,0x20,0x33,0x33,0x30,0x27};
-    _f_cs  = (PFN_gcs)_gsym(_s0,14);
-    _f_ss  = (PFN_gss)_gsym(_s1,14);
-    _f_csh = (PFN_gcsh)_gsym(_s2,15);
-    _f_gsi = (PFN_ggsi)_gsym(_s3,13);
-    _f_cp  = (PFN_gcp)_gsym(_s4,15);
-    _f_as2 = (PFN_gas2)_gsym(_s5,14);
-    _f_lp2 = (PFN_glp2)_gsym(_s6,13);
-    _f_gpi = (PFN_ggpi)_gsym(_s7,14);
-    _f_up  = (PFN_gup)_gsym(_s8,12);
-    _f_gal = (PFN_ggal)_gsym(_s9,19);
-    _f_gul = (PFN_ggul)_gsym(_sA,20);
-    _f_u2  = (PFN_gu2f)_gsym(_sB,11);
-    _f_u4  = (PFN_gu4f)_gsym(_sC,11);
-    _f_vap = (PFN_gvap)_gsym(_sD,21);
-    _f_ea  = (PFN_geva)_gsym(_sE,25);
-    _f_dva = (PFN_gdva)_gsym(_sF,26);
-    _f_da  = (PFN_gda)_gsym(_sG,12);
-    _f_en  = (PFN_gen)_gsym(_sH,8);
-    _f_di  = (PFN_gdi)_gsym(_sI,9);
-    _f_ie  = (PFN_gie)_gsym(_sJ,11);
-    _f_bf  = (PFN_gbf)_gsym(_sK,11);
-    _f_gi  = (PFN_ggi)_gsym(_sL,13);
-    _f_lw2 = (PFN_glw2)_gsym(_sM,11);
-    _f_dsh = (PFN_gdsh)_gsym(_sN,14);
-    _f_bb  = (PFN_gbb)_gsym(_sO,12);
-    if (!_f_cs||!_f_ss||!_f_csh||!_f_cp||!_f_up||!_f_da||!_f_vap) return 0;
+/* ---- Vulkan chams via ICD inline hooks ---- */
+#if defined(__ANDROID__) && defined(__aarch64__)
 
-    const char *vs = "attribute vec2 p;uniform vec2 s;"
-        "void main(){gl_Position=vec4(p.x/s.x*2.0-1.0,1.0-p.y/s.y*2.0,0.0,1.0);}";
-    const char *fs = "precision mediump float;uniform vec4 c;"
-        "void main(){gl_FragColor=c;}";
-    GLuint_ v = _f_cs(0x8B31); _f_ss(v,1,&vs,NULL); _f_csh(v);
-    GLint_ ok = 0; _f_gsi(v,0x8B81,&ok);
-    if (!ok) { _f_dsh(v); _diag("e1: vf"); return 0; }
-    GLuint_ f = _f_cs(0x8B30); _f_ss(f,1,&fs,NULL); _f_csh(f);
-    _f_gsi(f,0x8B81,&ok);
-    if (!ok) { _f_dsh(v); _f_dsh(f); _diag("e1: ff"); return 0; }
-    _ep = _f_cp(); _f_as2(_ep,v); _f_as2(_ep,f); _f_lp2(_ep);
-    _f_gpi(_ep,0x8B82,&ok); _f_dsh(v); _f_dsh(f);
-    if (!ok) { _diag("e1: lf"); return 0; }
-    _ea_p = _f_gal(_ep,"p");
-    _eu_s = _f_gul(_ep,"s");
-    _eu_c = _f_gul(_ep,"c");
-    _diag("e1: ok");
-    return 1;
+typedef void *VkDev_;
+typedef void *VkCmdBuf_;
+typedef void *VkPipe_;
+typedef void *VkPipeCache_;
+
+typedef struct {
+    uint32_t sType;
+    const void *pNext;
+    uint32_t flags, depthTestEnable, depthWriteEnable, depthCompareOp;
+    uint32_t depthBoundsTestEnable, stencilTestEnable;
+    uint32_t stencilFront[7], stencilBack[7];
+    float minDepthBounds, maxDepthBounds;
+} VkDSSCI_;
+
+typedef struct {
+    uint32_t sType; const void *pNext;
+    uint32_t flags, stage;
+    void *module; const char *pName; const void *pSpec;
+} VkPSSCI_;
+
+typedef struct {
+    uint32_t sType; const void *pNext; uint32_t flags;
+    uint32_t depthClampEnable, rasterizerDiscardEnable, polygonMode, cullMode, frontFace;
+    uint32_t depthBiasEnable; float depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor;
+    float lineWidth;
+} VkRSCI_;
+
+typedef struct {
+    uint32_t sType;
+    const void *pNext;
+    uint32_t flags, stageCount;
+    const VkPSSCI_ *pStages;
+    const void *pVertexInputState, *pInputAssemblyState;
+    const void *pTessellationState, *pViewportState;
+    const VkRSCI_ *pRasterizationState;
+    const void *pMultisampleState;
+    const VkDSSCI_ *pDepthStencilState;
+    const void *pColorBlendState, *pDynamicState;
+    void *layout, *renderPass;
+    uint32_t subpass;
+    void *basePipelineHandle;
+    int32_t basePipelineIndex;
+} VkGPCI_;
+
+typedef struct {
+    uint32_t binding; uint32_t stride; uint32_t inputRate;
+} VkVIBD_;
+
+typedef struct {
+    uint32_t location; uint32_t binding; uint32_t format; uint32_t offset;
+} VkVIAD_;
+
+typedef struct {
+    uint32_t sType; const void *pNext;
+    uint32_t flags;
+    uint32_t bindingCount; const VkVIBD_ *pBindings;
+    uint32_t attribCount; const VkVIAD_ *pAttribs;
+} VkVISCI_;
+
+typedef struct {
+    uint32_t blendEnable;
+    uint32_t srcColorBlendFactor, dstColorBlendFactor, colorBlendOp;
+    uint32_t srcAlphaBlendFactor, dstAlphaBlendFactor, alphaBlendOp;
+    uint32_t colorWriteMask;
+} VkCBAS_;
+
+typedef struct {
+    uint32_t sType; const void *pNext;
+    uint32_t flags, logicOpEnable, logicOp, attachmentCount;
+    const VkCBAS_ *pAttachments;
+    float blendConstants[4];
+} VkCBSCI_;
+
+typedef struct {
+    uint32_t sType; const void *pNext;
+    uint32_t flags, dynamicStateCount;
+    const uint32_t *pDynamicStates;
+} VkDynSCI_;
+
+typedef void (*PFN_vkDI)(VkCmdBuf_, uint32_t, uint32_t, uint32_t, int32_t, uint32_t);
+typedef void (*PFN_vkBP)(VkCmdBuf_, uint32_t, VkPipe_);
+typedef int  (*PFN_vkCGP)(VkDev_, VkPipeCache_, uint32_t, const VkGPCI_*, const void*, VkPipe_*);
+typedef int  (*PFN_vkCSM)(VkDev_, const void*, const void*, void**);
+typedef void (*PFN_vkSV)(VkCmdBuf_, uint32_t, uint32_t, const void*);
+
+static PFN_vkDI  _o_vk_di;
+static PFN_vkBP  _o_vk_bp;
+static PFN_vkCGP _o_vk_cgp;
+static PFN_vkCSM _vk_csm;
+static PFN_vkSV  _o_vk_sv;
+static VkDev_    _vk_dev;
+static void     *_vk_frag_vis; /* shader module for visible color */
+static void     *_vk_frag_inv; /* shader module for invisible color */
+static volatile float _vk_vp_depth_range = 1.0f;
+
+/* SPIR-V template: fragment shader that discards if gl_FragCoord.z > threshold
+ * (filters first-person weapon in reverse-Z), then outputs vec4(R,G,B,1).
+ * Patchable: R at word 61, G at word 65, B at word 69, threshold at word 77. */
+#define SPV_COLOR_WORDS 123
+#define SPV_OFF_R 61
+#define SPV_OFF_G 65
+#define SPV_OFF_B 69
+#define SPV_OFF_DEPTH 77
+static const uint32_t _spv_color_tpl[SPV_COLOR_WORDS] = {
+    /* header */
+    0x07230203, 0x00010000, 0x00000000, 0x00000017, 0x00000000,
+    /* OpCapability Shader */
+    0x00020011, 0x00000001,
+    /* OpMemoryModel Logical GLSL450 */
+    0x0003000E, 0x00000000, 0x00000001,
+    /* OpEntryPoint Fragment %1 "main" %7 %F */
+    0x0007000F, 0x00000004, 0x00000001, 0x6E69616D, 0x00000000, 0x00000007, 0x0000000F,
+    /* OpExecutionMode %1 OriginUpperLeft */
+    0x00030010, 0x00000001, 0x00000007,
+    /* OpDecorate %7 Location 0 */
+    0x00040047, 0x00000007, 0x0000001E, 0x00000000,
+    /* OpDecorate %F BuiltIn FragCoord */
+    0x00040047, 0x0000000F, 0x0000000B, 0x0000000F,
+    /* types */
+    0x00020013, 0x00000002, /* void */
+    0x00030021, 0x00000003, 0x00000002, /* func void() */
+    0x00030016, 0x00000004, 0x00000020, /* float32 */
+    0x00040017, 0x00000005, 0x00000004, 0x00000004, /* vec4 */
+    0x00040020, 0x00000006, 0x00000003, 0x00000005, /* ptr Output vec4 */
+    0x0004003B, 0x00000006, 0x00000007, 0x00000003, /* %7 output var */
+    0x00040020, 0x0000000E, 0x00000001, 0x00000005, /* ptr Input vec4 */
+    0x0004003B, 0x0000000E, 0x0000000F, 0x00000001, /* %F FragCoord var */
+    0x00020014, 0x00000010, /* bool */
+    /* constants (patchable) */
+    0x0004002B, 0x00000004, 0x00000008, 0x3F800000, /* R  — patch [61] */
+    0x0004002B, 0x00000004, 0x00000009, 0x3F800000, /* G  — patch [65] */
+    0x0004002B, 0x00000004, 0x0000000A, 0x3F800000, /* B  — patch [69] */
+    0x0004002B, 0x00000004, 0x0000000B, 0x3F800000, /* alpha = 1.0 */
+    0x0004002B, 0x00000004, 0x00000011, 0x3E19999A, /* threshold — patch [77] default 0.15 */
+    /* composite color */
+    0x0007002C, 0x00000005, 0x0000000C, 0x00000008, 0x00000009, 0x0000000A, 0x0000000B,
+    /* function main */
+    0x00050036, 0x00000002, 0x00000001, 0x00000000, 0x00000003,
+    0x000200F8, 0x0000000D, /* label entry */
+    /* load FragCoord, extract .z */
+    0x0004003D, 0x00000005, 0x00000012, 0x0000000F, /* %12 = load FragCoord */
+    0x00050051, 0x00000004, 0x00000013, 0x00000012, 0x00000002, /* %13 = .z */
+    /* if (z > threshold) discard */
+    0x000500BA, 0x00000010, 0x00000014, 0x00000013, 0x00000011, /* %14 = z > thresh */
+    0x000300F7, 0x00000016, 0x00000000, /* selection merge %16 */
+    0x000400FA, 0x00000014, 0x00000015, 0x00000016, /* branch %14 → kill : merge */
+    0x000200F8, 0x00000015, /* label kill */
+    0x000100FC,             /* OpKill */
+    0x000200F8, 0x00000016, /* label merge */
+    /* output color */
+    0x0003003E, 0x00000007, 0x0000000C,
+    0x000100FD, /* return */
+    0x00010038  /* function end */
+};
+
+static volatile float _vk_depth_thresh = 0.015f;
+
+static void *_vk_make_color_shader(VkDev_ dev, float r, float g, float b) {
+    if (!_vk_csm) return NULL;
+    uint32_t spv[SPV_COLOR_WORDS];
+    memcpy(spv, _spv_color_tpl, sizeof(spv));
+    uint32_t ri, gi, bi, ti;
+    float thresh = _vk_depth_thresh;
+    memcpy(&ri, &r, 4); memcpy(&gi, &g, 4); memcpy(&bi, &b, 4); memcpy(&ti, &thresh, 4);
+    spv[SPV_OFF_R] = ri; spv[SPV_OFF_G] = gi; spv[SPV_OFF_B] = bi; spv[SPV_OFF_DEPTH] = ti;
+    struct { uint32_t sType; const void *pNext; uint32_t flags;
+             uint32_t _p; uint64_t codeSize; const uint32_t *pCode; } smci;
+    memset(&smci, 0, sizeof(smci));
+    smci.sType = 16;
+    smci.codeSize = sizeof(spv);
+    smci.pCode = spv;
+    void *mod = NULL;
+    if (_vk_csm(dev, &smci, NULL, &mod) == 0 && mod) return mod;
+    return NULL;
 }
 
-static int _w2s(float wx, float wy, float wz, float *ox, float *oy, int sw, int sh) {
-    float cx = _rcam[0], cy = _rcam[1], cz = _rcam[2];
-    float yr = _rcam[3] * 3.14159265f / 180.0f;
-    float pr = _rcam[4] * 3.14159265f / 180.0f;
-    float fov = _rcam[5];
-    if (fov < 5 || fov > 180) fov = 80;
-    float dx = wx - cx, dy = wy - cy, dz = wz - cz;
-    float cosy = cosf(yr), siny = sinf(yr), cosp = cosf(pr), sinp = sinf(pr);
-    float fd = dx * (cosp * cosy) + dy * (cosp * siny) + dz * sinp;
-    if (fd <= 0.5f) return 0;
-    float rd = dx * siny + dy * (-cosy);
-    float ud = dx * (-sinp * cosy) + dy * (-sinp * siny) + dz * cosp;
-    float thf = tanf(fov * 3.14159265f / 360.0f);
-    float asp = (float)sw / (float)sh;
-    *ox = (0.5f + 0.5f * rd / (fd * thf * asp)) * sw;
-    *oy = (0.5f - 0.5f * ud / (fd * thf)) * sh;
-    return (*ox >= -200 && *ox <= sw + 200 && *oy >= -200 && *oy <= sh + 200);
+/* Two-clone hash map: orig → occluded + visible (reverse-Z depth tests). */
+#define VK_PM_BITS 11
+#define VK_PM_CAP  (1 << VK_PM_BITS)
+#define VK_PM_MASK (VK_PM_CAP - 1)
+static struct { VkPipe_ orig, inv, vis; uint8_t nattr; uint8_t stride; } _vk_pm[VK_PM_CAP];
+static volatile int _vk_pm_n;
+
+static void _vk_pm_lookup(VkPipe_ orig, VkPipe_ *inv, VkPipe_ *vis, uint8_t *nattr, uint8_t *stride) {
+    *inv = NULL; *vis = NULL; *nattr = 0; *stride = 0;
+    if (!orig) return;
+    uint32_t h = ((uintptr_t)orig >> 4) & VK_PM_MASK;
+    for (int i = 0; i < 32; i++) {
+        uint32_t idx = (h + i) & VK_PM_MASK;
+        if (_vk_pm[idx].orig == orig) { *inv = _vk_pm[idx].inv; *vis = _vk_pm[idx].vis; *nattr = _vk_pm[idx].nattr; *stride = _vk_pm[idx].stride; return; }
+        if (!_vk_pm[idx].orig) return;
+    }
 }
 
-static void _esp_lines(float *v, int n, float r, float g, float b, float a, int sw, int sh) {
-    _f_u2(_eu_s, (float)sw, (float)sh);
-    _f_u4(_eu_c, r, g, b, a);
-    _f_vap((GLuint_)_ea_p, 2, 0x1406, 0, 0, v);
-    _f_ea((GLuint_)_ea_p);
-    _f_da(0x0001, 0, n);
-    _f_dva((GLuint_)_ea_p);
-}
-
-static void _esp_box(float x1, float y1, float x2, float y2,
-                     float r, float g, float b, float a, int sw, int sh) {
-    float v[16] = {x1,y1,x2,y1, x2,y1,x2,y2, x2,y2,x1,y2, x1,y2,x1,y1};
-    _esp_lines(v, 8, r, g, b, a, sw, sh);
-}
-
-static void _esp_fill(float x1, float y1, float x2, float y2,
-                      float r, float g, float b, float a, int sw, int sh) {
-    float v[8] = {x1, y1, x1, y2, x2, y1, x2, y2};
-    _f_u2(_eu_s, (float)sw, (float)sh);
-    _f_u4(_eu_c, r, g, b, a);
-    _f_vap((GLuint_)_ea_p, 2, 0x1406, 0, 0, v);
-    _f_ea((GLuint_)_ea_p);
-    _f_da(0x0005, 0, 4);
-    _f_dva((GLuint_)_ea_p);
-}
-
-static EGLBoolean_ _hook_esb(EGLDisplay_ dpy, EGLSurface_ sfc) {
-    if (!_eok) _eok = _esp_init() ? 1 : -1;
-    if (_eok > 0 && atomic_load(&_rcam_ok) && num_entities > 0) {
-        GLint_ vp[4]; _f_gi(0x0BA2, vp);
-        int sw = vp[2], sh = vp[3];
-        if (sw > 100 && sh > 100) {
-            GLint_ pp = 0; _f_gi(0x8B8D, &pp);
-            GLboolean_ wb = _f_ie(0x0BE2), wd = _f_ie(0x0B71);
-            GLboolean_ ws = _f_ie(0x0C11), wc = _f_ie(0x0B44);
-            _f_di(0x0B71); _f_di(0x0C11); _f_di(0x0B44);
-            _f_en(0x0BE2); _f_bf(0x0302, 0x0303);
-            if (_f_bb) _f_bb(0x8889, 0);
-            _f_up(_ep);
-            if (_f_lw2) _f_lw2(2.0f);
-
-            int self_team = 1, ne = num_entities;
-            if (ne > 512) ne = 512;
-            for (int i = 0; i < ne; i++)
-                if (entities[i].id[0] == 's' && entities[i].id[1] == 'e')
-                    { self_team = entities[i].team; break; }
-
-            for (int i = 0; i < ne; i++) {
-                Entity *e = &entities[i];
-                if (e->id[0] == 's' && e->id[1] == 'e') continue;
-                if (e->dead) continue;
-                if (e->x == 0 && e->y == 0 && e->z == 0) continue;
-                float sx, sy, stx, sty;
-                if (!_w2s(e->x, e->y, e->z, &sx, &sy, sw, sh)) continue;
-                if (!_w2s(e->x, e->y, e->z + 1.8f, &stx, &sty, sw, sh)) continue;
-                float bh = fabsf(sy - sty);
-                if (bh < 10) bh = 10;
-                if (bh > sh * 0.8f) bh = sh * 0.8f;
-                float bw = bh * 0.4f;
-                float cr, cg, cb;
-                if (e->team == self_team && e->team > 0) { cr = 0; cg = 1; cb = 0; }
-                else if (e->team > 0) { cr = 1; cg = 0.2f; cb = 0.2f; }
-                else { cr = 1; cg = 1; cb = 0; }
-                _esp_box(sx - bw / 2, sty, sx + bw / 2, sy,
-                         cr, cg, cb, 0.85f, sw, sh);
-                if (e->health_known && e->max_health > 0) {
-                    float hp = e->health / e->max_health;
-                    if (hp < 0) hp = 0; if (hp > 1) hp = 1;
-                    float bl = sx - bw / 2, br = sx + bw / 2, bt = sty - 5;
-                    _esp_fill(bl, bt, br, bt + 3, 0, 0, 0, 0.6f, sw, sh);
-                    float hcr, hcg;
-                    if (hp < 0.5f) { hcr = 1; hcg = hp * 2; }
-                    else { hcr = (1 - hp) * 2; hcg = 1; }
-                    _esp_fill(bl, bt, bl + (br - bl) * hp, bt + 3,
-                              hcr, hcg, 0, 0.9f, sw, sh);
-                }
-            }
-            _f_up(pp);
-            if (!wb) _f_di(0x0BE2);
-            if (wd)  _f_en(0x0B71);
-            if (ws)  _f_en(0x0C11);
-            if (wc)  _f_en(0x0B44);
+static void _vk_pm_add(VkPipe_ orig, VkPipe_ inv, VkPipe_ vis, uint8_t nattr, uint8_t stride) {
+    uint32_t h = ((uintptr_t)orig >> 4) & VK_PM_MASK;
+    for (int i = 0; i < 32; i++) {
+        uint32_t idx = (h + i) & VK_PM_MASK;
+        if (!_vk_pm[idx].orig) {
+            _vk_pm[idx].orig = orig;
+            _vk_pm[idx].inv = inv;
+            _vk_pm[idx].vis = vis;
+            _vk_pm[idx].nattr = nattr;
+            _vk_pm[idx].stride = stride;
+            _vk_pm_n++;
+            return;
+        }
+        if (_vk_pm[idx].orig == orig) {
+            _vk_pm[idx].inv = inv;
+            _vk_pm[idx].vis = vis;
+            _vk_pm[idx].nattr = nattr;
+            _vk_pm[idx].stride = stride;
+            return;
         }
     }
-    return _o_esb(dpy, sfc);
 }
 
-static void _install_esp_hook(void) {
-    if (_o_esb) return;
-    char elib[12];
-    { static const unsigned char el[] = {0x39,0x3c,0x37,0x10,0x12,0x19,0x7b,0x26,0x3a};
-      volatile unsigned char k = 0x55;
-      for (int i = 0; i < 9; i++) elib[i] = el[i] ^ k; elib[9] = 0; }
-    char ename[16];
-    { static const unsigned char en[] = {0x30,0x32,0x39,0x06,0x22,0x34,0x25,0x17,0x20,0x33,0x33,0x30,0x27,0x26};
-      volatile unsigned char k = 0x55;
-      for (int i = 0; i < 14; i++) ename[i] = en[i] ^ k; ename[14] = 0; }
-    void *egl = dlopen(elib, RTLD_NOLOAD | RTLD_NOW);
-    if (!egl) { _diag("e0: nl"); return; }
-    PFN_esb real = (PFN_esb)dlsym(egl, ename);
-    dlclose(egl);
-    if (!real) { _diag("e0: nf"); return; }
-    FILE *em = fopen("/proc/self/maps", "r");
-    if (!em) return;
-    char eline[512]; int efound = 0; long eps = sysconf(_SC_PAGESIZE);
-    while (fgets(eline, sizeof(eline), em) && !efound) {
-        uintptr_t rs, re; char eperms[8] = {0};
-        if (sscanf(eline, "%lx-%lx %4s", &rs, &re, eperms) != 3) continue;
-        if (rs < ue4_base || rs >= ue4_end) continue;
-        if (eperms[1] != 'w') continue;
-        for (uintptr_t p = rs; p + 8 <= re; p += 8) {
-            if (*(uintptr_t *)p == (uintptr_t)real) {
-                uintptr_t pg = p & ~(eps - 1);
-                if (syscall(__NR_mprotect, (void *)pg, (size_t)eps,
-                            PROT_READ | PROT_WRITE) == 0) {
-                    _o_esb = real;
-                    *(volatile uintptr_t *)p = (uintptr_t)_hook_esb;
-                    syscall(__NR_mprotect, (void *)pg, (size_t)eps, PROT_READ);
-                    efound = 1;
-                }
+static volatile int _vk_shdr_fb;
+
+/* Per-command-buffer pipeline + viewport tracking (render thread only) */
+#define VK_CB_CAP 16
+static struct { VkCmdBuf_ cmd; VkPipe_ pipe; float dr; } _vk_cb[VK_CB_CAP];
+
+static VkPipe_ _vk_cur(VkCmdBuf_ cmd) {
+    for (int i = 0; i < VK_CB_CAP; i++)
+        if (_vk_cb[i].cmd == cmd) return _vk_cb[i].pipe;
+    return NULL;
+}
+
+static void _vk_set(VkCmdBuf_ cmd, VkPipe_ pipe) {
+    for (int i = 0; i < VK_CB_CAP; i++) {
+        if (_vk_cb[i].cmd == cmd || !_vk_cb[i].cmd) {
+            _vk_cb[i].cmd = cmd;
+            _vk_cb[i].pipe = pipe;
+            return;
+        }
+    }
+    _vk_cb[0].cmd = cmd;
+    _vk_cb[0].pipe = pipe;
+}
+
+static void _vk_set_dr(VkCmdBuf_ cmd, float dr) {
+    for (int i = 0; i < VK_CB_CAP; i++) {
+        if (_vk_cb[i].cmd == cmd || !_vk_cb[i].cmd) {
+            _vk_cb[i].cmd = cmd;
+            _vk_cb[i].dr = dr;
+            return;
+        }
+    }
+    _vk_cb[0].dr = dr;
+}
+
+static float _vk_get_dr(VkCmdBuf_ cmd) {
+    for (int i = 0; i < VK_CB_CAP; i++)
+        if (_vk_cb[i].cmd == cmd) return _vk_cb[i].dr;
+    return 1.0f;
+}
+
+static void _vk_ensure_shaders(VkDev_ dev, float vr, float vg, float vb,
+                                float ir, float ig, float ib) {
+    if (_vk_frag_vis && _vk_frag_inv) return;
+    if (!_vk_csm) return;
+    if (!_vk_frag_vis) {
+        _vk_frag_vis = _vk_make_color_shader(dev, vr, vg, vb);
+        char db[96]; snprintf(db,sizeof(db),"v0: vis_shdr r=%.3f g=%.3f b=%.3f p=%p",vr,vg,vb,_vk_frag_vis);
+        _diag(db);
+    }
+    if (!_vk_frag_inv) {
+        _vk_frag_inv = _vk_make_color_shader(dev, ir, ig, ib);
+        char db[96]; snprintf(db,sizeof(db),"v0: inv_shdr r=%.3f g=%.3f b=%.3f p=%p",ir,ig,ib,_vk_frag_inv);
+        _diag(db);
+    }
+}
+
+static VkPipe_ _vk_make_clone(VkDev_ dev, VkPipeCache_ cache,
+    const VkGPCI_ *src, const void *alloc, int behind_wall,
+    void *frag_mod) {
+    VkGPCI_ ci;
+    memcpy(&ci, src, sizeof(ci));
+
+    VkDSSCI_ cds;
+    memcpy(&cds, src->pDepthStencilState, sizeof(cds));
+    cds.stencilTestEnable = 0;
+    cds.depthTestEnable = 1;
+    cds.depthBoundsTestEnable = 0;
+    VkRSCI_ crs;
+    memcpy(&crs, src->pRasterizationState, sizeof(crs));
+    crs.depthBiasEnable = 0;
+    if (behind_wall) {
+        cds.depthCompareOp = 1; /* VK_COMPARE_OP_LESS — passes where behind geometry (reverse-Z) */
+        cds.depthWriteEnable = 0;
+    } else {
+        cds.depthCompareOp = 6; /* GREATER_OR_EQUAL in reverse-Z */
+        /* Visible clone must cover the red pass at the front surface. */
+        cds.depthWriteEnable = 0;
+    }
+    ci.pDepthStencilState = &cds;
+    ci.pRasterizationState = &crs;
+    ci.basePipelineHandle = NULL;
+    ci.basePipelineIndex = -1;
+
+    /* Replace fragment shader with solid-color output */
+    VkPSSCI_ stages[8];
+    int replaced = 0;
+    if (frag_mod && src->stageCount <= 8) {
+        memcpy(stages, src->pStages, src->stageCount * sizeof(VkPSSCI_));
+        for (uint32_t s = 0; s < src->stageCount; s++) {
+            if (stages[s].stage == 0x10) { /* VK_SHADER_STAGE_FRAGMENT_BIT */
+                stages[s].module = frag_mod;
+                stages[s].pName = "main";
+                stages[s].pSpec = NULL;
+                replaced = 1;
                 break;
             }
         }
+        if (replaced) ci.pStages = stages;
     }
-    fclose(em);
-    if (!efound) {
-        em = fopen("/proc/self/maps", "r");
-        if (!em) return;
-        while (fgets(eline, sizeof(eline), em) && !efound) {
-            uintptr_t rs, re; char eperms[8] = {0};
-            if (sscanf(eline, "%lx-%lx %4s", &rs, &re, eperms) != 3) continue;
-            if (eperms[1] != 'w' || eperms[0] != 'r') continue;
-            if (re - rs > 0x200000) continue;
-            for (uintptr_t p = rs; p + 8 <= re; p += 8) {
-                if (*(uintptr_t *)p == (uintptr_t)real) {
-                    uintptr_t pg = p & ~(eps - 1);
-                    if (syscall(__NR_mprotect, (void *)pg, (size_t)eps,
-                                PROT_READ | PROT_WRITE) == 0) {
-                        _o_esb = real;
-                        *(volatile uintptr_t *)p = (uintptr_t)_hook_esb;
-                        syscall(__NR_mprotect, (void *)pg, (size_t)eps, PROT_READ);
-                        efound = 1;
-                    }
+
+    /* Color blend: src * ONE + dst * ZERO (shader outputs exact color) */
+    VkCBSCI_ ccbs;
+    VkCBAS_ catt[8];
+    const VkCBSCI_ *cbs = (const VkCBSCI_ *)src->pColorBlendState;
+    uint32_t ac = 1;
+    if (cbs) {
+        memcpy(&ccbs, cbs, sizeof(ccbs));
+        ac = cbs->attachmentCount;
+        if (ac > 8) ac = 8;
+        if (ac > 0 && cbs->pAttachments)
+            memcpy(catt, cbs->pAttachments, ac * sizeof(VkCBAS_));
+    } else {
+        memset(&ccbs, 0, sizeof(ccbs));
+        ccbs.sType = 26;
+        memset(catt, 0, sizeof(VkCBAS_));
+        catt[0].colorWriteMask = 0xF;
+    }
+    for (uint32_t a = 0; a < ac; a++) {
+        catt[a].colorWriteMask = a == 0 ? 0xF : 0;
+        catt[a].blendEnable = 0;
+        catt[a].srcColorBlendFactor = 1;  /* VK_BLEND_FACTOR_ONE */
+        catt[a].dstColorBlendFactor = 0;  /* VK_BLEND_FACTOR_ZERO */
+        catt[a].colorBlendOp = 0;
+        catt[a].srcAlphaBlendFactor = 1;  /* VK_BLEND_FACTOR_ONE */
+        catt[a].dstAlphaBlendFactor = 0;
+        catt[a].alphaBlendOp = 0;
+    }
+    ccbs.logicOpEnable = 0;
+    ccbs.attachmentCount = ac;
+    ccbs.pAttachments = catt;
+    ci.pColorBlendState = (const void *)&ccbs;
+
+    /* (depth bias no longer used — no dynamic state stripping needed) */
+
+    VkPipe_ cp = NULL;
+    int rc = _o_vk_cgp(dev, cache, 1, &ci, alloc, &cp);
+    if ((rc != 0 || !cp) && replaced) {
+        _vk_shdr_fb++;
+        static int fb_logged;
+        if (!fb_logged) {
+            const char *orig_name = "?";
+            uint32_t orig_stage_flags = 0;
+            for (uint32_t s = 0; s < src->stageCount; s++) {
+                if (src->pStages[s].stage == 0x10) {
+                    orig_name = src->pStages[s].pName ? src->pStages[s].pName : "null";
+                    orig_stage_flags = src->pStages[s].flags;
                     break;
                 }
             }
+            char db[96]; snprintf(db,sizeof(db),"v0: shdr fail rc=%d ac=%u name=%.20s fl=%u",
+                rc, ac, orig_name, orig_stage_flags);
+            _diag(db); fb_logged=1;
         }
-        fclose(em);
+        /* Retry without shader replacement */
+        ci.pStages = src->pStages;
+        cp = NULL;
+        rc = _o_vk_cgp(dev, cache, 1, &ci, alloc, &cp);
     }
-    { char db[32]; snprintf(db, sizeof(db), "e0: h=%d", efound); _diag(db); }
+    if (rc != 0 || !cp) return NULL;
+    return cp;
 }
+
+static int _hook_vk_cgp(VkDev_ dev, VkPipeCache_ cache, uint32_t cnt,
+    const VkGPCI_ *infos, const void *alloc, VkPipe_ *pipes) {
+    if (!_vk_dev) _vk_dev = dev;
+    unsigned cv = atomic_load(&_er_chams_vis);
+    unsigned cci = atomic_load(&_er_chams_inv);
+    float vr = cv ? ((cv>>16)&0xFF)/255.0f : 0.0f;
+    float vg = cv ? ((cv>>8)&0xFF)/255.0f : 1.0f;
+    float vb = cv ? (cv&0xFF)/255.0f : 0.0f;
+    float ir = cci ? ((cci>>16)&0xFF)/255.0f : 1.0f;
+    float ig = cci ? ((cci>>8)&0xFF)/255.0f : 0.0f;
+    float ib = cci ? (cci&0xFF)/255.0f : 0.0f;
+    /* Scale down to avoid HDR bloom washing colors to white */
+    const float bloom_scale = 0.5f;
+    vr *= bloom_scale; vg *= bloom_scale; vb *= bloom_scale;
+    ir *= bloom_scale; ig *= bloom_scale; ib *= bloom_scale;
+    _vk_ensure_shaders(dev, vr, vg, vb, ir, ig, ib);
+    int r = _o_vk_cgp(dev, cache, cnt, infos, alloc, pipes);
+    if (r != 0) return r;
+    static int _shdr_ok, _shdr_fail, _attr_skip, _fp_skip, _pipe_logged, _depth_yes, _depth_no;
+    for (uint32_t i = 0; i < cnt; i++) {
+        const VkDSSCI_ *ds = infos[i].pDepthStencilState;
+        if (!ds || !ds->depthTestEnable) { _depth_no++; continue; }
+        _depth_yes++;
+        if (infos[i].stageCount < 2 || infos[i].stageCount > 8) continue;
+        const VkVISCI_ *vis = (const VkVISCI_ *)infos[i].pVertexInputState;
+        uint32_t ac = vis ? vis->attribCount : 0;
+        uint32_t bc = vis ? vis->bindingCount : 0;
+        uint32_t max_stride = 0;
+        if (vis && vis->pBindings) {
+            for (uint32_t b = 0; b < bc; b++)
+                if (vis->pBindings[b].stride > max_stride)
+                    max_stride = vis->pBindings[b].stride;
+        }
+        int has_bone_idx = 0, has_bone_wgt = 0;
+        if (vis && vis->pAttribs) {
+            for (uint32_t a2 = 0; a2 < ac; a2++) {
+                uint32_t fmt = vis->pAttribs[a2].format;
+                if (fmt == 41) has_bone_idx = 1;
+                if (fmt == 37) has_bone_wgt = 1;
+            }
+        }
+        int has_bone_fmt = has_bone_idx && has_bone_wgt;
+        const VkCBSCI_ *cbs_info = (const VkCBSCI_ *)infos[i].pColorBlendState;
+        uint32_t n_attach = cbs_info ? cbs_info->attachmentCount : 0;
+        if (_pipe_logged < 20 && has_bone_fmt) {
+            char db[96]; snprintf(db,sizeof(db),"v0: skel a=%u b=%u s=%u att=%u cop=%u dw=%u",
+                ac,bc,max_stride,n_attach,
+                ds->depthCompareOp, ds->depthWriteEnable);
+            _diag(db); _pipe_logged++;
+        }
+        if (!has_bone_fmt) { _attr_skip++; continue; }
+        if (n_attach < 1) { _attr_skip++; continue; }
+        if (ac <= 5) { _fp_skip++; continue; }
+
+        VkPipe_ cinv = _vk_make_clone(dev, cache, &infos[i], alloc,
+            1, _vk_frag_inv);
+        VkPipe_ cvis = _vk_make_clone(dev, cache, &infos[i], alloc,
+            0, _vk_frag_vis);
+        if (cinv && cvis) {
+            _vk_pm_add(pipes[i], cinv, cvis, (uint8_t)ac, (uint8_t)(max_stride & 0xFF));
+            _shdr_ok++;
+        } else {
+            _shdr_fail++;
+        }
+    }
+    static int logged; static int64_t next_log;
+    if (!logged || ef_now() >= next_log) {
+        char db[160]; snprintf(db,sizeof(db),"v0: cgp cnt=%u cl=%d ok=%d fail=%d fb=%d skip=%d fp=%d fv=%d fi=%d dy=%d dn=%d",
+            cnt,_vk_pm_n,_shdr_ok,_shdr_fail,_vk_shdr_fb,_attr_skip,_fp_skip,!!_vk_frag_vis,!!_vk_frag_inv,_depth_yes,_depth_no);
+        _diag(db); logged=1; next_log=ef_now()+5000;
+    }
+    return r;
+}
+
+static void cr_pipeline(VkCmdBuf_ cmd, VkPipe_ pipe);
+static int cr_capture(VkCmdBuf_ cmd, VkPipe_ inv, VkPipe_ vis,
+    uint32_t ic, uint32_t inst, uint32_t fi, int32_t vo, uint32_t fInst);
+
+static void _hook_vk_bp(VkCmdBuf_ cmd, uint32_t bp, VkPipe_ pipe) {
+    if (bp == 0) { _vk_set(cmd, pipe); cr_pipeline(cmd,pipe); }
+    _o_vk_bp(cmd, bp, pipe);
+}
+
+static void _hook_vk_sv(VkCmdBuf_ cmd, uint32_t first, uint32_t cnt,
+    const void *vps) {
+    if (cnt > 0 && vps) {
+        const float *vp = (const float *)vps;
+        float range = vp[5] - vp[4]; /* maxDepth - minDepth */
+        _vk_vp_depth_range = range;
+        _vk_set_dr(cmd, range);
+    }
+    _o_vk_sv(cmd, first, cnt, vps);
+}
+
+static void cr_log(void);
+static volatile int _vk_chams_cnt;
+static volatile int _vk_chams_miss;
+static volatile int _vk_fp_skip;
+
+static volatile int _vk_ic_hist[4]; /* 0:<10k 1:10-20k 2:20-50k 3:50k+ */
+static volatile int _vk_na_hist[4]; /* 0:a<=6 1:a=7 2:a=8 3:a>=9 */
+
+static void _hook_vk_di(VkCmdBuf_ cmd, uint32_t ic, uint32_t inst,
+    uint32_t fi, int32_t vo, uint32_t fInst) {
+    static int _vk_logged;
+    if (!_vk_logged) { _diag("v1: draw active"); _vk_logged = 1; }
+    if (atomic_load(&_er_chams_enabled) && inst == 1 && ic > 0) {
+        VkPipe_ cur = _vk_cur(cmd);
+        VkPipe_ cinv, cvis; uint8_t nattr, stride;
+        _vk_pm_lookup(cur, &cinv, &cvis, &nattr, &stride);
+        if (cinv && cvis) {
+            if (ic < 10000) _vk_ic_hist[0]++;
+            else if (ic < 20000) _vk_ic_hist[1]++;
+            else if (ic < 50000) _vk_ic_hist[2]++;
+            else _vk_ic_hist[3]++;
+            if (nattr <= 6) _vk_na_hist[0]++;
+            else if (nattr == 7) _vk_na_hist[1]++;
+            else if (nattr == 8) _vk_na_hist[2]++;
+            else _vk_na_hist[3]++;
+            _vk_chams_cnt++;
+            if (cr_capture(cmd,cinv,cvis,ic,inst,fi,vo,fInst)) {
+                _o_vk_di(cmd,ic,inst,fi,vo,fInst);
+                goto log_check;
+            }
+            /* Red first: a later hidden triangle must not overwrite the
+             * green front surface of the same draw. Neither clone writes depth. */
+            _o_vk_bp(cmd, 0, cinv);
+            _o_vk_di(cmd, ic, inst, fi, vo, fInst);
+            _o_vk_bp(cmd, 0, cur);
+            _o_vk_di(cmd, ic, inst, fi, vo, fInst);
+            _o_vk_bp(cmd, 0, cvis);
+            _o_vk_di(cmd, ic, inst, fi, vo, fInst);
+            /* Restore original pipeline */
+            _o_vk_bp(cmd, 0, cur);
+            goto log_check;
+        } else if (cur) {
+            _vk_chams_miss++;
+        }
+    }
+do_orig:
+    _o_vk_di(cmd, ic, inst, fi, vo, fInst);
+log_check:;
+    static int64_t _vk_di_next;
+    if (ef_now() >= _vk_di_next) {
+        int cc = _vk_chams_cnt, cm = _vk_chams_miss, fs = _vk_fp_skip;
+        _vk_chams_cnt = 0; _vk_chams_miss = 0; _vk_fp_skip = 0;
+        char db[200]; snprintf(db,sizeof(db),"v1: hit=%d miss=%d fs=%d cl=%d en=%d ic=<%d/%d/%d/%d> na=<%d/%d/%d/%d>",
+            cc, cm, fs, _vk_pm_n, atomic_load(&_er_chams_enabled),
+            _vk_ic_hist[0], _vk_ic_hist[1], _vk_ic_hist[2], _vk_ic_hist[3],
+            _vk_na_hist[0], _vk_na_hist[1], _vk_na_hist[2], _vk_na_hist[3]);
+        _diag(db); cr_log(); _vk_di_next = ef_now() + 5000;
+        _vk_ic_hist[0]=0; _vk_ic_hist[1]=0; _vk_ic_hist[2]=0; _vk_ic_hist[3]=0;
+        _vk_na_hist[0]=0; _vk_na_hist[1]=0; _vk_na_hist[2]=0; _vk_na_hist[3]=0;
+    }
+}
+
+#include "chams_reloc.h"
+
+static int _ih_patch(void *target, void *hook, void **trampoline, uint8_t *tramp_slot) {
+    uint32_t relocated[16];
+    unsigned length=cr_trampoline(relocated,(const uint32_t*)target,(uintptr_t)target);
+    if(!length) { _diag("v2: unsupported hook prologue"); return 0; }
+    memcpy(tramp_slot,relocated,length);
+    __builtin___clear_cache((char*)tramp_slot,(char*)tramp_slot+length);
+    long ps = sysconf(_SC_PAGESIZE);
+    uintptr_t page = (uintptr_t)target & ~(ps - 1);
+    uintptr_t end  = ((uintptr_t)target + 16 + ps - 1) & ~(ps - 1);
+    if (syscall(__NR_mprotect, (void *)page, end - page,
+                PROT_READ | PROT_WRITE | PROT_EXEC) != 0) return 0;
+    *trampoline = tramp_slot;
+    uint32_t ldr_x16 = 0x58000050;
+    uint32_t br_x16  = 0xD61F0200;
+    uint8_t *p = (uint8_t *)target;
+    memcpy(p, &ldr_x16, 4);
+    memcpy(p + 4, &br_x16, 4);
+    uint64_t ha = (uint64_t)(uintptr_t)hook;
+    memcpy(p + 8, &ha, 8);
+    __builtin___clear_cache((char *)target, (char *)target + 16);
+    syscall(__NR_mprotect, (void *)page, end - page, PROT_READ | PROT_EXEC);
+    return 1;
+}
+
+__attribute__((noinline))
+static void *_vksym(void *(*lookup)(void*,const char*), void *ctx,
+                    const unsigned char *enc, int len) {
+    char buf[48];
+    volatile unsigned char k = 0x55;
+    for (int i = 0; i < len && i < 47; i++) buf[i] = enc[i] ^ k;
+    buf[len] = 0;
+    return lookup(ctx, buf);
+}
+
+#include "chams_replay.h"
+
+static void _install_esp_hook(void) {
+    if (_o_vk_di) return;
+
+    /* Open Vulkan loader (always visible to app, unlike vendor ICD) */
+    /* "libvulkan.so" XOR 0x55 */
+    char vklib[16];
+    { static const unsigned char vl[] = {0x39,0x3c,0x37,0x23,0x20,0x39,0x3e,0x34,0x3b,0x7b,0x26,0x3a};
+      volatile unsigned char k = 0x55;
+      for (int i = 0; i < 12; i++) vklib[i] = vl[i] ^ k; vklib[12] = 0; }
+
+    void *vk = dlopen(vklib, RTLD_NOLOAD | RTLD_NOW);
+    if (!vk) { _diag("v0: no vk"); return; }
+
+    /* "vkGetInstanceProcAddr" XOR 0x55 */
+    static const unsigned char _n_gipa[] = {
+        0x23,0x3e,0x12,0x30,0x21,0x1c,0x3b,0x26,0x21,0x34,
+        0x3b,0x36,0x30,0x05,0x27,0x3a,0x36,0x14,0x31,0x31,0x27};
+    typedef void *(*PFN_gipa)(void*, const char*);
+    PFN_gipa pGIPA;
+    { char nm[24]; volatile unsigned char k=0x55;
+      for(int i=0;i<21;i++) nm[i]=_n_gipa[i]^k; nm[21]=0;
+      pGIPA = (PFN_gipa)dlsym(vk, nm); }
+    dlclose(vk);
+    if (!pGIPA) { _diag("v0: no gipa"); return; }
+
+    /* "vkCreateInstance" XOR 0x55 */
+    static const unsigned char _n_ci[] = {
+        0x23,0x3e,0x16,0x27,0x30,0x34,0x21,0x30,
+        0x1c,0x3b,0x26,0x21,0x34,0x3b,0x36,0x30};
+    typedef int (*PFN_ci)(const void*, const void*, void**);
+    PFN_ci pCI = (PFN_ci)_vksym((void*(*)(void*,const char*))pGIPA, NULL, _n_ci, 16);
+    if (!pCI) { _diag("v0: no ci"); return; }
+
+    /* Create temporary VkInstance */
+    struct { uint32_t sType; const void *pNext; uint32_t flags;
+             const void *pAppInfo; uint32_t elc; const char*const* el;
+             uint32_t eec; const char*const* ee; } ici;
+    memset(&ici, 0, sizeof(ici));
+    ici.sType = 1; /* VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO */
+    void *inst = NULL;
+    if (pCI(&ici, NULL, &inst) != 0 || !inst) { _diag("v0: ci fail"); return; }
+
+    /* Resolve instance-level functions */
+    /* "vkEnumeratePhysicalDevices" XOR 0x55 */
+    static const unsigned char _n_epd[] = {
+        0x23,0x3e,0x10,0x3b,0x20,0x38,0x30,0x27,0x34,0x21,0x30,
+        0x05,0x3d,0x2c,0x26,0x3c,0x36,0x34,0x39,0x11,0x30,0x23,
+        0x3c,0x36,0x30,0x26};
+    /* "vkCreateDevice" XOR 0x55 */
+    static const unsigned char _n_cd[] = {
+        0x23,0x3e,0x16,0x27,0x30,0x34,0x21,0x30,
+        0x11,0x30,0x23,0x3c,0x36,0x30};
+    /* "vkGetDeviceProcAddr" XOR 0x55 */
+    static const unsigned char _n_gdpa[] = {
+        0x23,0x3e,0x12,0x30,0x21,0x11,0x30,0x23,0x3c,0x36,0x30,
+        0x05,0x27,0x3a,0x36,0x14,0x31,0x31,0x27};
+    /* "vkDestroyDevice" XOR 0x55 */
+    static const unsigned char _n_dd[] = {
+        0x23,0x3e,0x11,0x30,0x26,0x21,0x27,0x3a,0x2c,
+        0x11,0x30,0x23,0x3c,0x36,0x30};
+    /* "vkDestroyInstance" XOR 0x55 */
+    static const unsigned char _n_dii[] = {
+        0x23,0x3e,0x11,0x30,0x26,0x21,0x27,0x3a,0x2c,
+        0x1c,0x3b,0x26,0x21,0x34,0x3b,0x36,0x30};
+
+    typedef int (*PFN_epd)(void*, uint32_t*, void*);
+    typedef int (*PFN_cd)(void*, const void*, const void*, void**);
+    typedef void *(*PFN_gdpa)(void*, const char*);
+    typedef void (*PFN_dd)(void*, const void*);
+    typedef void (*PFN_dii)(void*, const void*);
+
+    PFN_epd pEPD = (PFN_epd)_vksym((void*(*)(void*,const char*))pGIPA, inst, _n_epd, 26);
+    PFN_cd pCD = (PFN_cd)_vksym((void*(*)(void*,const char*))pGIPA, inst, _n_cd, 14);
+    PFN_gdpa pGDPA = (PFN_gdpa)_vksym((void*(*)(void*,const char*))pGIPA, inst, _n_gdpa, 19);
+    PFN_dd pDD = (PFN_dd)_vksym((void*(*)(void*,const char*))pGIPA, inst, _n_dd, 15);
+    PFN_dii pDI = (PFN_dii)_vksym((void*(*)(void*,const char*))pGIPA, inst, _n_dii, 17);
+
+    if (!pEPD || !pCD || !pGDPA || !pDD || !pDI) {
+        char db[48]; snprintf(db,sizeof(db),"v0: fns %d%d%d%d%d",!!pEPD,!!pCD,!!pGDPA,!!pDD,!!pDI);
+        _diag(db); pDI(inst, NULL); return;
+    }
+
+    /* Get physical device */
+    uint32_t pdc = 1;
+    void *phys = NULL;
+    int epd_r = pEPD(inst, &pdc, &phys);
+    if (epd_r < 0 || !phys) { _diag("v0: no phys"); pDI(inst, NULL); return; }
+
+    /* Create temporary VkDevice with 1 queue */
+    float qp = 1.0f;
+    struct { uint32_t sType; const void *pNext; uint32_t flags;
+             uint32_t qfi; uint32_t qc; const float *pqp; } qci;
+    memset(&qci, 0, sizeof(qci));
+    qci.sType = 2; /* VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO */
+    qci.qc = 1; qci.pqp = &qp;
+
+    struct { uint32_t sType; const void *pNext; uint32_t flags;
+             uint32_t qcic; const void *pqci;
+             uint32_t elc; const char*const* el;
+             uint32_t efc; const void *ef; } dci;
+    memset(&dci, 0, sizeof(dci));
+    dci.sType = 3; /* VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO */
+    dci.qcic = 1; dci.pqci = &qci;
+
+    void *dev = NULL;
+    if (pCD(phys, &dci, NULL, &dev) != 0 || !dev) {
+        _diag("v0: cd fail"); pDI(inst, NULL); return; }
+
+    /* Resolve ICD function pointers via vkGetDeviceProcAddr */
+    /* "vkCmdDrawIndexed" XOR 0x55 */
+    static const unsigned char _n_vkdi[] = {
+        0x23,0x3e,0x16,0x38,0x31,0x11,0x27,0x34,
+        0x22,0x1c,0x3b,0x31,0x30,0x2d,0x30,0x31};
+    /* "vkCreateGraphicsPipelines" XOR 0x55 */
+    static const unsigned char _n_vkcgp[] = {
+        0x23,0x3e,0x16,0x27,0x30,0x34,0x21,0x30,0x12,0x27,0x34,0x25,
+        0x3d,0x3c,0x36,0x26,0x05,0x3c,0x25,0x30,0x39,0x3c,0x3b,0x30,0x26};
+    /* "vkCmdBindPipeline" XOR 0x55 */
+    static const unsigned char _n_vkbp[] = {
+        0x23,0x3e,0x16,0x38,0x31,0x17,0x3c,0x3b,0x31,
+        0x05,0x3c,0x25,0x30,0x39,0x3c,0x3b,0x30};
+    /* "vkCreateShaderModule" XOR 0x55 */
+    static const unsigned char _n_vkcsm[] = {
+        0x23,0x3e,0x16,0x27,0x30,0x34,0x21,0x30,0x06,0x3d,0x34,0x31,
+        0x30,0x27,0x18,0x3a,0x31,0x20,0x39,0x30};
+    /* "vkCmdSetViewport" XOR 0x55 */
+    static const unsigned char _n_vksv[] = {
+        0x23,0x3e,0x16,0x38,0x31,0x06,0x30,0x21,
+        0x03,0x3c,0x30,0x22,0x25,0x3a,0x27,0x21};
+
+    void *fn_di = _vksym(pGDPA, dev, _n_vkdi, 16);
+    void *fn_cgp = _vksym(pGDPA, dev, _n_vkcgp, 25);
+    void *fn_bp = _vksym(pGDPA, dev, _n_vkbp, 17);
+    void *fn_csm = _vksym(pGDPA, dev, _n_vkcsm, 20);
+    void *fn_sv = _vksym(pGDPA, dev, _n_vksv, 16);
+
+    if (!fn_di || !fn_cgp || !fn_bp) {
+        char db[48]; snprintf(db,sizeof(db),"v0: icd %d%d%d%d",!!fn_di,!!fn_cgp,!!fn_bp,!!fn_csm);
+        _diag(db); pDD(dev,NULL); pDI(inst,NULL); return;
+    }
+    _vk_csm = (PFN_vkCSM)fn_csm;
+
+    { char db[80]; snprintf(db,sizeof(db),"v0: di=%lx cgp=%lx bp=%lx csm=%d sv=%d",
+        (unsigned long)(uintptr_t)fn_di,(unsigned long)(uintptr_t)fn_cgp,
+        (unsigned long)(uintptr_t)fn_bp,!!fn_csm,!!fn_sv); _diag(db); }
+
+    /* Allocate trampoline page */
+    uint8_t *tp = (uint8_t *)mmap(NULL, 4096,
+        PROT_READ | PROT_WRITE | PROT_EXEC,
+        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (tp == MAP_FAILED) { _diag("v0: mmap"); pDD(dev,NULL); pDI(inst,NULL); return; }
+
+    int di_ok = 0, cgp_ok = 0, bp_ok = 0;
+    void *tramp;
+
+    cgp_ok = _ih_patch(fn_cgp, (void*)_hook_vk_cgp, &tramp, tp);
+    if (cgp_ok) _o_vk_cgp = (PFN_vkCGP)tramp;
+
+    bp_ok = _ih_patch(fn_bp, (void*)_hook_vk_bp, &tramp, tp + 64);
+    if (bp_ok) _o_vk_bp = (PFN_vkBP)tramp;
+
+    di_ok = _ih_patch(fn_di, (void*)_hook_vk_di, &tramp, tp + 128);
+    if (di_ok) _o_vk_di = (PFN_vkDI)tramp;
+
+    /* Journal owns viewport tracking as well as the remaining graphics state. */
+    int sv_ok = cr_install((PFN_vkGetDeviceProcAddr)pGDPA,(VkDevice)dev,tp);
+    pDD(dev,NULL);
+    pDI(inst,NULL);
+
+    if (di_ok || cgp_ok || bp_ok) {
+        syscall(__NR_mprotect, tp, 4096, PROT_READ | PROT_EXEC);
+        { static const unsigned char vn[] = {0x3f,0x3c,0x21,0x74,0x36,0x34,0x36,0x3d,0x30};
+          char name[12]; volatile unsigned char k=0x55;
+          for(int i=0;i<9;i++) name[i]=vn[i]^k; name[9]=0;
+          syscall(__NR_prctl, PR_SET_VMA, PR_SET_VMA_ANON_NAME, tp, (size_t)4096, name); }
+    } else {
+        munmap(tp, 4096);
+    }
+
+    { char db[64]; snprintf(db,sizeof(db),"v0: di=%d cgp=%d bp=%d sv=%d",di_ok,cgp_ok,bp_ok,sv_ok); _diag(db); }
+}
+
+#else
+/* Non-Android/non-AArch64 stub */
+static void _install_esp_hook(void) {}
+#endif
+
+#endif

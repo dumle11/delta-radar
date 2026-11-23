@@ -1000,6 +1000,7 @@ static int try_dl_iterate(void) {
     return (ue4_base != 0 && ue4_end > ue4_base) ? 0 : -1;
 }
 
+#include "esp_render.h"
 #include "esp_overlay.h"
 
 #include "engine_camera_fov.h"
@@ -1053,6 +1054,8 @@ static void *injected_scanner_thread(void *arg) {
         _diag("ov: ok");
     else
         _diag("ov: fail");
+
+    _install_esp_hook();
 
     pthread_setname_np(pthread_self(), "overlay-reader");
 
@@ -1267,6 +1270,7 @@ static void *injected_scanner_thread(void *arg) {
         }
         atomic_store(&ea_config, _ov_aim_config());
         _ov_misc_config();
+        _ov_esp_render_config();
         {
             int fov_val = atomic_load(&_ov_camera_fov_override);
             fov_publish(camera_frame_valid && local_player_controlled ? resolved_camera_owner : 0, fov_val);

@@ -16,6 +16,7 @@ static jmethodID _ov_gvc, _ov_grd, _ov_dt, _ov_glr, _ov_glm, _ov_glf, _ov_lc;
 static jmethodID _ov_circle;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3, _ov_gap;
 static jmethodID _ov_gnr, _ov_gns, _ov_gcf, _ov_gis;
+static jmethodID _ov_gce, _ov_gcv, _ov_gci;
 static int _ov_ready;
 static int _ov_w, _ov_h;
 static int _ov_dex_loaded;
@@ -143,6 +144,12 @@ static int _ov_load_dex(void) {
     _ov_gis = (*env)->GetStaticMethodID(env, _ov_cls, "gis", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gcf = (*env)->GetStaticMethodID(env, _ov_cls, "gcf", "()I");
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    _ov_gce = (*env)->GetStaticMethodID(env, _ov_cls, "gce", "()Z");
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    _ov_gcv = (*env)->GetStaticMethodID(env, _ov_cls, "gcv", "()I");
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    _ov_gci = (*env)->GetStaticMethodID(env, _ov_cls, "gci", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     if (!_ov_z || !_ov_b || !_ov_r || !_ov_f || !_ov_l || !_ov_t ||
         !_ov_e || !_ov_gw || !_ov_gh || !_ov_ok || !_ov_gvc || !_ov_grd || !_ov_dt) {
@@ -653,6 +660,29 @@ static void _ov_misc_config(void) {
     atomic_store(&es_enabled, stamina);
     int ray_flags=_ov_grd?(*env)->CallStaticIntMethod(env,_ov_cls,_ov_grd):0;
     atomic_store(&internal_collect_occluders,(ray_flags&1)!=0);
+}
+
+static void _ov_esp_render_config(void) {
+    if (!_ov_ready || !_ov_cls) return;
+    JNIEnv *env = _ov_env(); if (!env) return;
+    int esp_on = _ov_ge ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_ge) : 1;
+    atomic_store(&_er_esp_on, esp_on);
+    atomic_store(&_er_snap_origin, _ov_gso ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gso) : 0);
+    for (int t = 0; t < ER_ET_COUNT; t++) {
+        atomic_store(&_er_feat[t], _ov_gf ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gf, t) : 0xFF);
+        atomic_store(&_er_rdist[t], _ov_gr ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gr, t) : 500);
+        for (int v = 0; v < 2; v++)
+            atomic_store(&_er_palette[t][v], (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gvc, t, (jboolean)v));
+    }
+    int chams = _ov_gce ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gce) : 0;
+    atomic_store(&_er_chams_enabled, chams);
+    if (chams) {
+        unsigned vis = _ov_gcv ? (unsigned)(*env)->CallStaticIntMethod(env, _ov_cls, _ov_gcv) : 0xFF00FF00u;
+        unsigned inv = _ov_gci ? (unsigned)(*env)->CallStaticIntMethod(env, _ov_cls, _ov_gci) : 0xFFFF0000u;
+        atomic_store(&_er_chams_vis, vis);
+        atomic_store(&_er_chams_inv, inv);
+    }
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
 }
 
 static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {

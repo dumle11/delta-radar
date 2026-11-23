@@ -104,6 +104,11 @@ public class O extends View {
     static volatile boolean infiniteStamina = false;
     static volatile int cameraFov = 0; // 0 = game default, 10-170 = override
 
+    // Chams settings
+    static volatile boolean chamsEnabled = false;
+    static volatile int chamsVisibleColor = 0xFF00FF00;
+    static volatile int chamsInvisibleColor = 0xFFFF0000;
+
     // Loot values are the game's reference unit prices, not live market quotes.
     static volatile int lootRarityMask = 255;
     static volatile int lootMinValue = 0;
@@ -164,6 +169,9 @@ public class O extends View {
                     lootShowContainers = prefs.getBoolean("lootShowContainers", true);
                     cameraFov = prefs.getInt("cameraFov", 0);
                     if(cameraFov!=0) cameraFov=Math.max(10,Math.min(170,cameraFov));
+                    chamsEnabled = prefs.getBoolean("chamsEnabled", false);
+                    chamsVisibleColor = prefs.getInt("chamsVisibleColor", 0xFF00FF00);
+                    chamsInvisibleColor = prefs.getInt("chamsInvisibleColor", 0xFFFF0000);
 
                     wm = (WindowManager) a.getSystemService(Context.WINDOW_SERVICE);
                     sh = a.getResources().getDisplayMetrics().heightPixels;
@@ -363,6 +371,11 @@ public class O extends View {
     static boolean gns() { return noSpread; }
     static boolean gis() { return infiniteStamina; }
     static int gcf() { return cameraFov; }
+
+    /* Chams queries (called from C) */
+    static boolean gce() { return chamsEnabled; }
+    static int gcv() { return chamsVisibleColor; }
+    static int gci() { return chamsInvisibleColor; }
     static int glr() { return lootRarityMask; }
     static int glm() { return lootMinValue; }
     static int glf() { return (lootShowValue ? 1 : 0) | (lootShowContainers ? 2 : 0); }
@@ -396,6 +409,7 @@ public class O extends View {
             .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds)
             .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread).putBoolean("infiniteStamina", infiniteStamina)
             .putInt("cameraFov", cameraFov)
+            .putBoolean("chamsEnabled", chamsEnabled).putInt("chamsVisibleColor", chamsVisibleColor).putInt("chamsInvisibleColor", chamsInvisibleColor)
             .putInt("lootRarityMask", lootRarityMask).putInt("lootMinValue", lootMinValue)
             .putBoolean("lootShowValue", lootShowValue).putBoolean("lootShowContainers", lootShowContainers);
         for (int i = 0; i < ET_COUNT; i++) {
@@ -678,6 +692,40 @@ public class O extends View {
                     public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
                 });
             }
+            section("Chams", chamsEnabled ? "Colored models through walls" : null);
+            toggle("Enable chams", -17, chamsEnabled);
+            if (chamsEnabled) {
+                buildChamsColorPicker("Visible", true);
+                buildChamsColorPicker("Behind walls", false);
+            }
+        }
+
+        void buildChamsColorPicker(String label, final boolean visible) {
+            final int color = visible ? chamsVisibleColor : chamsInvisibleColor;
+            TextView lbl = text(label, 18, INK);
+            lbl.setPadding(12, 8, 12, 0); body.addView(lbl, new LayoutParams(-1, -2));
+            final TextView swatch = text(String.format("#%06X", color & 0xFFFFFF), 17, INK);
+            swatch.setBackground(shape(color, 8));
+            swatch.setTextColor(Color.luminance(color) > 0.4f ? 0xFF101825 : Color.WHITE);
+            swatch.setPadding(12, 6, 12, 6); swatch.setGravity(Gravity.CENTER);
+            body.addView(swatch, new LayoutParams(-1, 38));
+            final SeekBar sr = new SeekBar(getContext()); sr.setMax(255); sr.setProgress((color >> 16) & 0xFF);
+            final SeekBar sg = new SeekBar(getContext()); sg.setMax(255); sg.setProgress((color >> 8) & 0xFF);
+            final SeekBar sb = new SeekBar(getContext()); sb.setMax(255); sb.setProgress(color & 0xFF);
+            for (SeekBar s : new SeekBar[]{sr, sg, sb}) { styleSlider(s); body.addView(s, new LayoutParams(-1, 34)); }
+            SeekBar.OnSeekBarChangeListener cl = new SeekBar.OnSeekBarChangeListener() {
+                public void onProgressChanged(SeekBar bar, int value, boolean user) {
+                    if (!user) return;
+                    int c = 0xFF000000 | (sr.getProgress() << 16) | (sg.getProgress() << 8) | sb.getProgress();
+                    if (visible) chamsVisibleColor = c; else chamsInvisibleColor = c;
+                    swatch.setBackground(shape(c, 8));
+                    swatch.setText(String.format("#%06X", c & 0xFFFFFF));
+                    swatch.setTextColor(Color.luminance(c) > 0.4f ? 0xFF101825 : Color.WHITE);
+                }
+                public void onStartTrackingTouch(SeekBar bar) {}
+                public void onStopTrackingTouch(SeekBar bar) { saveSettings(); }
+            };
+            sr.setOnSeekBarChangeListener(cl); sg.setOnSeekBarChangeListener(cl); sb.setOnSeekBarChangeListener(cl);
         }
 
         void buildSnapOriginPicker() {
@@ -1018,6 +1066,7 @@ public class O extends View {
                         case -12: aim360 = checked; break;
                         case -14: infiniteStamina = checked; break;
                         case -15: lootShowValue = checked; break;
+                        case -17: chamsEnabled = checked; saveSettings(); selectTab(0); return;
                         case -16: lootShowContainers = checked; break;
                         case -13: cameraFov = checked ? 0 : 90; saveSettings(); selectTab(3); break;
                     }

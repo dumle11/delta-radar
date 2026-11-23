@@ -37,12 +37,10 @@ static int render_projection_begin(int width,int height,float camera[6]) {
         !is_any_ptr(viewport) || ev_ptr(viewport)<ue4_base || ev_ptr(viewport)>=ue4_end) return 0;
     uint64_t method=ev_ptr(ev_ptr(local)+0x2c0);
     rp_frame.stage=4;
-    if(method<ue4_base+0x7fc9e60 || method>=ue4_base+0x1bfba790) return 0;
-    /* Runtime method discovery: require its exact captured implementation
-     * before calling through this engine virtual slot. */
     static int method_logged;
     if(!method_logged) {char text[110];snprintf(text,sizeof(text),"projection method: rva=%lx",(unsigned long)(method-ue4_base));_diag(text);method_logged=1;}
-    if(method!=ue4_base+0) return 0;
+    if(method<ue4_base+0x7fc9e60 || method>=ue4_base+0x1bfba790) return 0;
+    if(method!=ue4_base+0x109f1c20) return 0;
     unsigned char output[0x200] __attribute__((aligned(16)))={0};
     typedef uint8_t (*GetProjectionData)(void *,void *,int,void *);
     rp_frame.stage=5;
@@ -71,8 +69,8 @@ static int render_projection_begin(int width,int height,float camera[6]) {
                 }
             }
         }
-        char text[180];snprintf(text,sizeof(text),"projection: viewport=%dx%d rect=%d,%d,%d,%d scale=%.3f,%.3f hfov=%.2f",
-            data.view_rect[2],data.view_rect[3],data.rect[0],data.rect[1],data.rect[2],data.rect[3],data.projection[0],data.projection[5],camera[5]);_diag(text);next_report=ef_now()+5000;
+        char text[200];snprintf(text,sizeof(text),"projection: viewport=%dx%d rect=%d,%d,%d,%d scale=%.3f,%.3f hfov=%.2f near=%.2f",
+            data.view_rect[2],data.view_rect[3],data.rect[0],data.rect[1],data.rect[2],data.rect[3],data.projection[0],data.projection[5],camera[5],data.projection[14]);_diag(text);next_report=ef_now()+5000;
         snprintf(text,sizeof(text),"projection comparison: samples=%d native_max_error_px=%.3f",comparisons,max_error);_diag(text);
     }
     return 1;

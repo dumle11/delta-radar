@@ -1,4 +1,4 @@
-# Delta Radar — Handoff (2026-11-16)
+# Delta Radar — Handoff (2026-11-23)
 
 ## Active loot / tracking / reconnect work
 
@@ -218,14 +218,86 @@ exposed regions, and collision can differ from transparent/masked materials,
 foliage or smoke. Renderer depth/coverage validation would be separate work.
 Long-session and complete session-transition stability remain unverified.
 
+## Vulkan Chams (2026-11-23) — ACTIVE WORK
+
+**Inline hooking** of Vulkan ICD functions (Adreno) for skeletal mesh chams.
+Hooks: `vkCreateGraphicsPipelines`, `vkCmdBindPipeline`, `vkCmdDrawIndexed`,
+`vkCmdSetViewport` — all resolved via XOR-obfuscated `dlsym` lookups.
+
+### What works
+- **Two-color chams**: green (visible) + red (behind wall) on enemy character models
+- **Bloom-scale fix**: colors multiplied by 0.5 before SPIR-V baking to prevent
+  HDR bloom washing output to white. 0.25 was too dark, 0.5 is good.
+- **Behind-wall detection**: visible clone uses GREATER_OR_EQUAL (cop=6, same as
+  original), behind-wall clone uses LESS (cop=1) — passes where character depth
+  is behind geometry in reverse-Z. Draw order: original → visible → behind-wall.
+- **Bone-format filtering**: only clone pipelines with BOTH format 41
+  (R8G8B8A8_UINT bone indices) AND format 37 (R8G8B8A8_UNORM bone weights).
+  Skips depth-only passes (n_attach < 1) and non-character pipelines (ac <= 5).
+- **Stencil disabled** on all clone pipelines (key fix for visibility).
+- **Pipeline cloning**: CGP hook creates vis/inv clones for each matching pipeline.
+  Hash map stores orig → (cinv, cvis, nattr, stride).
+- **Overlay color picker**: UI sends ARGB colors via JNI getters (gcv/gci).
+  Colors extracted, bloom-scaled, baked into per-color SPIR-V fragment shaders.
+
+### What doesn't work / in progress
+- **FP hands/weapon get chams**: The player's own first-person model is painted
+  with chams colors. This is the main visual bug. Approaches tried:
+  - `nattr <= 6` filter: works in training (FP uses a=6), but in real matches
+    enemies also use a=6 pipelines — 90% of draws filtered (too aggressive).
+  - Viewport depth range: game uses full depth range (0-1) for ALL draws
+    including FP. `dr=<0/0/0/1143>` confirmed. Useless for filtering.
+  - **Current approach (testing)**: SPIR-V shader-based `gl_FragCoord.z` discard.
+    In reverse-Z with near=1cm (confirmed from projection[14]=1.0), FP at 30cm
+    has z=0.033, enemies at 2m have z=0.005. Shader kills fragments where
+    z > threshold (0.015 = ~67cm cutoff). Needs in-match verification.
+- **Shaders created once**: `_vk_ensure_shaders` returns early if both shader
+  modules exist. Changing colors in the overlay menu mid-game has no effect
+  until the game is restarted. Need to detect color change → destroy old
+  shader modules → recreate.
+- **Lobby model gets chams**: the operator preview character in the main menu
+  is painted with chams. Should only apply during matches. Could check game
+  state or add a match-only gate.
+
+### Technical details
+- **Reverse-Z**: game uses depthCompareOp=6 (GREATER_OR_EQUAL). Near=1.0 in
+  depth buffer, far=0.0. Near plane = 1.0 cm (from projection matrix [14]).
+- **SPIR-V template**: 123-word shader with patchable R/G/B at word offsets
+  61/65/69 and depth threshold at word 77. Uses FragCoord.z + OpKill for FP
+  filtering. fb=0 (framebuffer attachment 0) consistently.
+- **Pipeline attribute distribution in matches**: att=0 cop=3 are depth-only
+  (skipped). att=1 cop=6 are color passes (cloned). Typical: 8-17 clone
+  pipelines, ~1000-1600 chams draws per 5-second period.
+- **Diagnostic format** (in `/data/data/com.proxima.dfm/cache/d`):
+  ```
+  v0: vis_shdr r=%.3f g=%.3f b=%.3f p=%p
+  v0: inv_shdr r=%.3f g=%.3f b=%.3f p=%p
+  v0: cgp cnt=%u cl=%d ok=%d fail=%d fb=%d skip=%d fp=%d fv=%d fi=%d dy=%d dn=%d
+  v0: skel a=%u b=%u s=%u att=%u cop=%u dw=%u
+  v1: hit=%d miss=%d fs=%d cl=%d en=%d ic=<%d/%d/%d/%d> na=<%d/%d/%d/%d>
+  projection: ... near=%.2f
+  ```
+
+### Key code locations in esp_render.h
+- `_spv_color_tpl[]` — SPIR-V fragment shader template with depth discard
+- `_vk_make_color_shader()` — patches R/G/B/threshold into SPIR-V, creates VkShaderModule
+- `_vk_make_clone()` — clones a VkPipeline with modified depth/stencil state
+- `_hook_vk_cgp()` — CreateGraphicsPipelines hook, filters bone-format, creates clones
+- `_hook_vk_di()` — DrawIndexed hook, applies 3-pass chams (original→vis→inv)
+- `_vk_depth_thresh` — volatile float, discard threshold for FP filtering
+- `_vk_ensure_shaders()` — lazy shader creation, checks if both vis/inv exist
+
+**Projection fix** (2026-11-17): `render_projection.h` method RVA check changed
+from placeholder `ue4_base+0` to `ue4_base+0x109f1c20`. Engine ViewProjection
+matrix now captured (diag: `projection state: ready=1 stage=0`), giving
+pixel-perfect overlay W2S instead of the trig-based approximation.
+
 ## Current status
 
-Game is running stably in Firing Range with full ESP overlay. Memfd-based
-anonymous library loading is confirmed working — library appears as
-`/memfd:jit-cache (deleted)` in `/proc/self/maps`, blending with Android ART
-JIT cache entries. Anti-cheat (`libanogs.so`) no longer detects the library
-in maps. Scanner reads 17 entities with a valid camera. See the visibility fix above for
-the current classifier; earlier visible counts used an unverified classifier.
+Game is running stably with full ESP overlay + Vulkan chams. Memfd-based
+anonymous library loading confirmed working — library appears as
+`/memfd:jit-cache (deleted)` in `/proc/self/maps`. Anti-cheat (`libanogs.so`)
+no longer detects the library. Scanner reads 17 entities with valid camera.
 
 ### Crash fix summary
 
@@ -279,20 +351,21 @@ sample coverage can differ from rendered pixels; see the verified fix above.
 # Build library
 cd internal/native && bash build_lib.sh
 # Verify no identifiable strings leaked
-strings libue4patch.so | grep -iE 'serial|imei|proxima|delta|fingerprint|radar'
-# Deploy to device
+strings libue4patch.so | grep -iE 'serial|imei|proxima|delta|fingerprint|radar|eglSwap|glDraw'
+# Deploy to device (single command — push, copy, clean tmp, clear diag, restart)
 adb push libue4patch.so /data/local/tmp/
-adb shell "su -c 'cp /data/local/tmp/libue4patch.so /data/data/com.proxima.dfm/libue4patch.so \
+adb shell "su -c 'am force-stop com.proxima.dfm \
+  && cp /data/local/tmp/libue4patch.so /data/data/com.proxima.dfm/libue4patch.so \
   && chown u0_a556:u0_a556 /data/data/com.proxima.dfm/libue4patch.so \
+  && chcon u:object_r:app_data_file:s0:c44,c258,c512,c768 /data/data/com.proxima.dfm/libue4patch.so \
   && chmod 755 /data/data/com.proxima.dfm/libue4patch.so \
-  && chcon u:object_r:app_data_file:s0:c44,c258,c512,c768 /data/data/com.proxima.dfm/libue4patch.so'"
-# Clean up tmp so anti-cheat doesn't see it
-adb shell "su -c 'mv /data/local/tmp/libue4patch.so /data/local/.stash/'"
-# Clear diag log, restart game
-adb shell "su -c 'rm -f /data/data/com.proxima.dfm/cache/d'"
-adb shell "am force-stop com.proxima.dfm"
-# Launch from home screen (am start may fail right after boot)
+  && rm /data/local/tmp/libue4patch.so \
+  && rm -f /data/data/com.proxima.dfm/cache/d \
+  && am start -n com.proxima.dfm/com.epicgames.ue4.SplashActivity'"
 ```
+**Important:** Library path is `/data/data/com.proxima.dfm/libue4patch.so` (app root),
+NOT `cache/libue4patch.so`. The Zygisk loader (`loader.cpp`) decodes this path at
+runtime (XOR 0x33). Deploying to `cache/` loads a stale binary.
 
 ### Build Zygisk module
 ```bash
@@ -353,7 +426,9 @@ strings libue4patch.so | grep -iE 'serial|imei|proxima|delta|fingerprint|radar'
 | `internal/zygisk/loader.cpp` | Zygisk module — memfd injection |
 | `internal/zygisk/build.sh` | Builds delta_zygisk.zip |
 | `internal/native/delta_radar_lib.c` | Main injectable library, JNI_OnLoad |
+| `internal/native/esp_render.h` | Inline GL hooks (eglSwapBuffers/glDrawElements), internal ESP + chams |
 | `internal/native/esp_overlay.h` | JNI API, projection, boxes, skeleton, raycast debug |
+| `internal/native/render_projection.h` | Engine ViewProjection matrix capture for pixel-perfect W2S |
 | `internal/native/overlay/O.java` | Overlay menu, frame presentation, preferences |
 | `internal/native/build_lib.sh` | Native arm64 build |
 | `internal/native/overlay/build_overlay.sh` | DEX/header generation |
@@ -403,14 +478,23 @@ Read diag log: `adb shell "su -c 'cat /data/data/com.proxima.dfm/cache/d'"`
 
 ## Remaining work
 
-1. **Visibility follow-up**: engine collision traces are integrated and confirmed
-   in the firing range. Tiny exposed regions, material/depth differences and
-   broader scene/session coverage still need dedicated validation.
-2. **Long-term crash stability**: memfd loading resolved the immediate crash
+1. **FP filtering verification**: depth-discard shader (threshold 0.015, cutoff ~67cm)
+   deployed but not yet verified in-match. If threshold is wrong, adjust
+   `_vk_depth_thresh` — enemies beyond 67cm should have chams, FP at <50cm shouldn't.
+   If the approach fails entirely, alternatives: hook vkCmdBindVertexBuffers to track
+   VB identity (FP mesh vs enemy meshes), or use push constants to get model world
+   position and compare with camera.
+2. **Shader re-creation on color change**: currently shaders are created once and
+   locked. Need to detect when overlay color picker changes, destroy old VkShaderModules,
+   and recreate. The `_vk_frag_vis`/`_vk_frag_inv` pointers need to be nulled and
+   the pipeline map cleared (since clone pipelines reference old shader modules).
+3. **Match-only chams**: lobby operator model gets chams. Could gate on game state
+   (check if MATCH_ACTIVE from scanner), or add a minimum entity count threshold.
+4. **Visibility follow-up**: engine collision traces integrated, confirmed in firing
+   range. Broader scene/session coverage still needs dedicated validation.
+5. **Long-term crash stability**: memfd loading resolved the immediate crash
    but extended play testing is needed.
-3. **Live skeleton verification**: toggle present, getter signature validated,
-   but live skeleton poses on targets not yet confirmed.
-4. **Session transitions**: menu→Loadout→weapon→Modify→Firing Range, exit/
+6. **Session transitions**: menu→Loadout→weapon→Modify→Firing Range, exit/
    re-enter, background/foreground not fully tested.
 
 ## GOT offsets in libanogs.so
