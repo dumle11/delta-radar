@@ -12,6 +12,7 @@ submit=header[header.index('static VkResult gv_submit('):header.index('static vo
 source=r'''
 #include <vulkan/vulkan.h>
 #include <stdint.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +25,8 @@ static unsigned char bytes[512];
 static int64_t ef_now(void){return 1000;}
 static int ev_read(uint64_t address,void*out,size_t size){memcpy(out,(void*)(uintptr_t)address,size);return 1;}
 '''+frame+'\n'+functions+submit+r'''
-static VkResult allocate(VkDevice d,const VkMemoryAllocateInfo *i,const VkAllocationCallbacks *a,VkDeviceMemory *m){*m=(VkDeviceMemory)0x100000;return VK_SUCCESS;}
+static VkDeviceMemory fixture_memory=(VkDeviceMemory)0x100000;
+static VkResult allocate(VkDevice d,const VkMemoryAllocateInfo *i,const VkAllocationCallbacks *a,VkDeviceMemory *m){*m=fixture_memory;return VK_SUCCESS;}
 static void freemem(VkDevice d,VkDeviceMemory m,const VkAllocationCallbacks *a){}
 static VkResult map(VkDeviceMemory m,VkDeviceSize o,VkDeviceSize n,void **p){*p=bytes+o;return VK_SUCCESS;}
 static VkResult unmap(VkDeviceMemory m){return VK_SUCCESS;}
@@ -48,7 +50,27 @@ int main(void){
  gv_update(NULL,1,&write,0,NULL);unsigned slot=gv_hash(0x300000,GV_SET_CAP);assert(gv_sets[slot].valid[0] && gv_sets[slot].buffers[0].offset==32);
  VkCopyDescriptorSet copy={.srcSet=write.dstSet,.srcBinding=0,.dstSet=(VkDescriptorSet)0x400000,.dstBinding=1,.descriptorCount=1};
  gv_update(NULL,0,NULL,1,&copy);slot=gv_hash(0x400000,GV_SET_CAP);assert(gv_sets[slot].valid[1] && gv_sets[slot].types[1]==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
+ // Force the same starting hash for two live allocations, buffers and sets.
+ VkDeviceMemory second_memory=(VkDeviceMemory)((uintptr_t)memory+16);
+ while(gv_hash((uint64_t)second_memory,GV_MEMORY_CAP)!=gv_hash((uint64_t)memory,GV_MEMORY_CAP)) second_memory=(VkDeviceMemory)((uintptr_t)second_memory+16);
+ fixture_memory=second_memory;assert(gv_allocate(NULL,&a,NULL,&second_memory)==VK_SUCCESS);
+ assert(gv_map_impl(second_memory,16,VK_WHOLE_SIZE,&mapped)==VK_SUCCESS);
+ VkBuffer second_buffer=(VkBuffer)((uintptr_t)buffer+16);
+ while(gv_hash((uint64_t)second_buffer,GV_BUFFER_CAP)!=gv_hash((uint64_t)buffer,GV_BUFFER_CAP)) second_buffer=(VkBuffer)((uintptr_t)second_buffer+16);
+ assert(gv_bind(NULL,second_buffer,second_memory,64)==VK_SUCCESS);
+ VkDescriptorSet second_set=(VkDescriptorSet)((uintptr_t)write.dstSet+16);
+ while(gv_hash((uint64_t)second_set,GV_SET_CAP)!=gv_hash((uint64_t)write.dstSet,GV_SET_CAP)) second_set=(VkDescriptorSet)((uintptr_t)second_set+16);
+ VkWriteDescriptorSet second_write=write;second_write.dstSet=second_set;
+ VkDescriptorBufferInfo second_info=info;second_info.buffer=second_buffer;second_write.pBufferInfo=&second_info;
+ gv_update(NULL,1,&second_write,0,NULL);
+ assert(gv_sets[gv_set_slot(write.dstSet,0)].buffers[0].buffer==buffer);
+ assert(gv_sets[gv_set_slot(second_set,0)].buffers[0].buffer==second_buffer);
+ assert(gv_uniform_read(info,16,result,32)&&gv_uniform_read(second_info,16,result,32));
  gv_free_memory(NULL,memory,NULL);assert(!gv_uniform_read(info,16,result,1));
+ assert(gv_uniform_read(second_info,16,result,32)); // Lookup must survive a deleted collision-chain entry.
+ fixture_memory=memory;assert(gv_allocate(NULL,&a,NULL,&memory)==VK_SUCCESS);
+ assert(gv_memory_slot(second_memory,0)>=0 && gv_memory_slot(memory,0)>=0);
+ gv_free_memory(NULL,second_memory,NULL);gv_free_memory(NULL,memory,NULL);
  VkCommandBuffer scene=(VkCommandBuffer)0x500000,post=(VkCommandBuffer)0x600000;gv_cmd_reset(scene);gv_cmd_reset(post);
  slot=gv_cmd_slot(scene,0);gv_commands[slot].view=(GvFrame){.valid=1,.recorded_at=1000,.serial=17};
  VkSemaphore sem[2]={(VkSemaphore)0x700000,(VkSemaphore)0x800000};

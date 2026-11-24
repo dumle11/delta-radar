@@ -534,8 +534,9 @@ static void _hook_vk_di(VkCmdBuf_ cmd, uint32_t ic, uint32_t inst,
     uint32_t fi, int32_t vo, uint32_t fInst) {
     static int _vk_logged;
     if (!_vk_logged) { _diag("v1: draw active"); _vk_logged = 1; }
+    VkPipe_ cur = _vk_cur(cmd);
+    if(inst == 1 && ic > 0 && cur) gv_draw_view((VkCommandBuffer)cmd,(VkPipeline)cur);
     if (atomic_load(&_er_chams_enabled) && inst == 1 && ic > 0) {
-        VkPipe_ cur = _vk_cur(cmd);
         VkPipe_ cinv, cvis; uint8_t nattr, stride;
         _vk_pm_lookup(cur, &cinv, &cvis, &nattr, &stride);
         if (cinv && cvis) {
@@ -548,7 +549,6 @@ static void _hook_vk_di(VkCmdBuf_ cmd, uint32_t ic, uint32_t inst,
             else if (nattr == 8) _vk_na_hist[2]++;
             else _vk_na_hist[3]++;
             _vk_chams_cnt++;
-            gv_draw_view((VkCommandBuffer)cmd,(VkPipeline)cur);
             if (cr_capture(cmd,cinv,cvis,ic,inst,fi,vo,fInst)) {
                 _o_vk_di(cmd,ic,inst,fi,vo,fInst);
                 goto log_check;

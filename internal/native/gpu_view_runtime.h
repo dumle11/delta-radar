@@ -6,15 +6,16 @@
 #define GV_MEMORY_CAP 2048
 #define GV_BUFFER_CAP 8192
 #define GV_SET_CAP 8192
-static struct {VkDeviceMemory handle;VkDeviceSize size,offset,mapped_size;void *pointer;} gv_memory[GV_MEMORY_CAP];
-static struct {VkBuffer handle;VkDeviceMemory memory;VkDeviceSize offset;} gv_buffers[GV_BUFFER_CAP];
-static struct {VkDescriptorSet handle;VkDescriptorBufferInfo buffers[2];VkDescriptorType types[2];int valid[2];} gv_sets[GV_SET_CAP];
+static struct {unsigned used;VkDeviceMemory handle;VkDeviceSize size,offset,mapped_size;void *pointer;} gv_memory[GV_MEMORY_CAP];
+static struct {unsigned used;VkBuffer handle;VkDeviceMemory memory;VkDeviceSize offset;} gv_buffers[GV_BUFFER_CAP];
+static struct {unsigned used;VkDescriptorSet handle;VkDescriptorBufferInfo buffers[2];VkDescriptorType types[2];int valid[2];} gv_sets[GV_SET_CAP];
 static struct {VkCommandBuffer command;GvFrame view;uint32_t width,height;} gv_commands[CR_CB_CAP];
 static struct {VkSemaphore semaphore;GvFrame view;} gv_signals[512];
 static struct {VkQueue queue;GvFrame view;} gv_queues[16];
 static unsigned gv_serial;
 static _Atomic unsigned gv_captured,gv_missing,gv_reads_failed,gv_ubo_writes,gv_maps;
 static _Atomic int gv_stage;
+static unsigned gv_read_rejects[7];
 static _Thread_local int gv_internal_submit;
 static PFN_vkAllocateMemory gv_o_allocate;
 static PFN_vkFreeMemory gv_o_free_memory;
@@ -26,26 +27,45 @@ static PFN_vkBindBufferMemory gv_o_bind;
 static PFN_vkUpdateDescriptorSets gv_o_update;
 static PFN_vkQueueSubmit gv_o_submit;
 static unsigned gv_hash(uint64_t handle,unsigned cap) {handle^=handle>>23;return (unsigned)((handle>>4)^(handle>>13))&(cap-1);}
+/* Linear probing with tombstones preserves colliding live resources. A full
+ * table rejects a new entry instead of evicting an unrelated live allocation. */
+#define GV_LOOKUP(name,table,cap,type) \
+static int name(type handle,int create) { \
+    unsigned start=gv_hash((uint64_t)handle,cap);int retired=-1; \
+    for(unsigned i=0;i<cap;i++) {unsigned slot=(start+i)&(cap-1); \
+        if(table[slot].used==1 && table[slot].handle==handle) return (int)slot; \
+        if(table[slot].used==2 && retired<0) retired=(int)slot; \
+        if(!table[slot].used) {if(!create) return -1;return retired>=0?retired:(int)slot;} \
+    } \
+    return create?retired:-1; \
+}
+GV_LOOKUP(gv_memory_slot,gv_memory,GV_MEMORY_CAP,VkDeviceMemory)
+GV_LOOKUP(gv_buffer_slot,gv_buffers,GV_BUFFER_CAP,VkBuffer)
+GV_LOOKUP(gv_set_slot,gv_sets,GV_SET_CAP,VkDescriptorSet)
+#undef GV_LOOKUP
 static VkResult gv_allocate(VkDevice device,const VkMemoryAllocateInfo *info,const VkAllocationCallbacks *alloc,VkDeviceMemory *memory) {
     VkResult r=gv_o_allocate(device,info,alloc,memory);
     if(r==VK_SUCCESS) {
-        pthread_mutex_lock(&gv_mutex);unsigned slot=gv_hash((uint64_t)*memory,GV_MEMORY_CAP);
-        memset(&gv_memory[slot],0,sizeof(gv_memory[slot]));gv_memory[slot].handle=*memory;gv_memory[slot].size=info->allocationSize;
+        pthread_mutex_lock(&gv_mutex);int slot=gv_memory_slot(*memory,1);
+        if(slot>=0) {
+        memset(&gv_memory[slot],0,sizeof(gv_memory[slot]));gv_memory[slot].handle=*memory;gv_memory[slot].size=info->allocationSize;gv_memory[slot].used=1;}
         pthread_mutex_unlock(&gv_mutex);
     }
     return r;
 }
 static void gv_free_memory(VkDevice device,VkDeviceMemory memory,const VkAllocationCallbacks *alloc) {
-    pthread_mutex_lock(&gv_mutex);unsigned slot=gv_hash((uint64_t)memory,GV_MEMORY_CAP);
-    if(gv_memory[slot].handle==memory) memset(&gv_memory[slot],0,sizeof(gv_memory[slot]));
+    pthread_mutex_lock(&gv_mutex);int slot=gv_memory_slot(memory,0);
+    if(slot>=0) {gv_memory[slot].pointer=NULL;gv_memory[slot].used=2;
+        for(unsigned i=0;i<GV_BUFFER_CAP;i++) if(gv_buffers[i].used==1 && gv_buffers[i].memory==memory) gv_buffers[i].used=2;
+    }
     pthread_mutex_unlock(&gv_mutex);gv_o_free_memory(device,memory,alloc);
 }
 static VkResult gv_map_impl(VkDeviceMemory memory,VkDeviceSize offset,VkDeviceSize size,void **data) {
     VkResult r=gv_o_map_impl(memory,offset,size,data);
     if(r==VK_SUCCESS) {
         atomic_fetch_add(&gv_maps,1);
-        pthread_mutex_lock(&gv_mutex);unsigned slot=gv_hash((uint64_t)memory,GV_MEMORY_CAP);
-        if(gv_memory[slot].handle==memory && offset<=gv_memory[slot].size) {
+        pthread_mutex_lock(&gv_mutex);int slot=gv_memory_slot(memory,0);
+        if(slot>=0 && offset<=gv_memory[slot].size) {
             VkDeviceSize remaining=gv_memory[slot].size-offset;
             if(size==VK_WHOLE_SIZE) size=remaining;
             if(size<=remaining) {gv_memory[slot].offset=offset;gv_memory[slot].mapped_size=size;gv_memory[slot].pointer=*data;}
@@ -55,15 +75,16 @@ static VkResult gv_map_impl(VkDeviceMemory memory,VkDeviceSize offset,VkDeviceSi
     return r;
 }
 static VkResult gv_unmap_impl(VkDeviceMemory memory) {
-    pthread_mutex_lock(&gv_mutex);unsigned slot=gv_hash((uint64_t)memory,GV_MEMORY_CAP);
-    if(gv_memory[slot].handle==memory) gv_memory[slot].pointer=NULL;
+    pthread_mutex_lock(&gv_mutex);int slot=gv_memory_slot(memory,0);
+    if(slot>=0) gv_memory[slot].pointer=NULL;
     pthread_mutex_unlock(&gv_mutex);return gv_o_unmap_impl(memory);
 }
 static VkResult gv_bind(VkDevice device,VkBuffer buffer,VkDeviceMemory memory,VkDeviceSize offset) {
     VkResult r=gv_o_bind(device,buffer,memory,offset);
     if(r==VK_SUCCESS) {
-        pthread_mutex_lock(&gv_mutex);unsigned slot=gv_hash((uint64_t)buffer,GV_BUFFER_CAP);
-        gv_buffers[slot].handle=buffer;gv_buffers[slot].memory=memory;gv_buffers[slot].offset=offset;
+        pthread_mutex_lock(&gv_mutex);int slot=gv_buffer_slot(buffer,1);
+        if(slot>=0) {
+        gv_buffers[slot].handle=buffer;gv_buffers[slot].memory=memory;gv_buffers[slot].offset=offset;gv_buffers[slot].used=1;}
         pthread_mutex_unlock(&gv_mutex);
     }
     return r;
@@ -76,16 +97,16 @@ static void gv_update(VkDevice device,uint32_t count,const VkWriteDescriptorSet 
         if(w->dstBinding>1 || w->dstArrayElement || w->descriptorCount!=1 || !w->pBufferInfo ||
            (w->descriptorType!=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER && w->descriptorType!=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)) continue;
         atomic_fetch_add(&gv_ubo_writes,1);
-        unsigned slot=gv_hash((uint64_t)w->dstSet,GV_SET_CAP);
-        if(gv_sets[slot].handle!=w->dstSet) {memset(&gv_sets[slot],0,sizeof(gv_sets[slot]));gv_sets[slot].handle=w->dstSet;}
+        int slot=gv_set_slot(w->dstSet,1);if(slot<0) continue;
+        if(gv_sets[slot].used!=1 || gv_sets[slot].handle!=w->dstSet) {memset(&gv_sets[slot],0,sizeof(gv_sets[slot]));gv_sets[slot].handle=w->dstSet;gv_sets[slot].used=1;}
         gv_sets[slot].buffers[w->dstBinding]=w->pBufferInfo[0];gv_sets[slot].types[w->dstBinding]=w->descriptorType;gv_sets[slot].valid[w->dstBinding]=1;
     }
     for(uint32_t i=0;i<copies;i++) {
         const VkCopyDescriptorSet *c=&copy[i];
         if(c->descriptorCount!=1 || c->srcBinding>1 || c->dstBinding>1 || c->srcArrayElement || c->dstArrayElement) continue;
-        unsigned src=gv_hash((uint64_t)c->srcSet,GV_SET_CAP),dst=gv_hash((uint64_t)c->dstSet,GV_SET_CAP);
-        if(gv_sets[src].handle!=c->srcSet || !gv_sets[src].valid[c->srcBinding]) continue;
-        if(gv_sets[dst].handle!=c->dstSet) {memset(&gv_sets[dst],0,sizeof(gv_sets[dst]));gv_sets[dst].handle=c->dstSet;}
+        int src=gv_set_slot(c->srcSet,0),dst=gv_set_slot(c->dstSet,1);
+        if(src<0 || dst<0 || !gv_sets[src].valid[c->srcBinding]) continue;
+        if(gv_sets[dst].used!=1 || gv_sets[dst].handle!=c->dstSet) {memset(&gv_sets[dst],0,sizeof(gv_sets[dst]));gv_sets[dst].handle=c->dstSet;gv_sets[dst].used=1;}
         gv_sets[dst].buffers[c->dstBinding]=gv_sets[src].buffers[c->srcBinding];gv_sets[dst].types[c->dstBinding]=gv_sets[src].types[c->srcBinding];gv_sets[dst].valid[c->dstBinding]=1;
     }
     pthread_mutex_unlock(&gv_mutex);
@@ -93,17 +114,21 @@ static void gv_update(VkDevice device,uint32_t count,const VkWriteDescriptorSet 
 /* Called with gv_mutex held, including across the checked copy, so an unmap
  * cannot retire the mapped range while it is being sampled. */
 static int gv_uniform_read(VkDescriptorBufferInfo info,uint32_t dynamic,void *out,size_t size) {
-    unsigned b=gv_hash((uint64_t)info.buffer,GV_BUFFER_CAP);
-    if(gv_buffers[b].handle!=info.buffer || info.offset>UINT64_MAX-dynamic) return 0;
+    int b=gv_buffer_slot(info.buffer,0);
+    if(b<0) {gv_read_rejects[0]++;return 0;}
+    if(info.offset>UINT64_MAX-dynamic) {gv_read_rejects[1]++;return 0;}
     VkDeviceSize offset=info.offset+dynamic;
-    if(info.range!=VK_WHOLE_SIZE && size>info.range) return 0;
-    if(offset>UINT64_MAX-gv_buffers[b].offset) return 0;
+    if(info.range!=VK_WHOLE_SIZE && size>info.range) {gv_read_rejects[1]++;return 0;}
+    if(offset>UINT64_MAX-gv_buffers[b].offset) {gv_read_rejects[1]++;return 0;}
     offset+=gv_buffers[b].offset;
-    VkDeviceMemory memory=gv_buffers[b].memory;unsigned m=gv_hash((uint64_t)memory,GV_MEMORY_CAP);
-    if(gv_memory[m].handle!=memory || !gv_memory[m].pointer || offset<gv_memory[m].offset) return 0;
+    VkDeviceMemory memory=gv_buffers[b].memory;int m=gv_memory_slot(memory,0);
+    if(m<0) {gv_read_rejects[2]++;return 0;}
+    if(!gv_memory[m].pointer) {gv_read_rejects[3]++;return 0;}
+    if(offset<gv_memory[m].offset) {gv_read_rejects[4]++;return 0;}
     VkDeviceSize relative=offset-gv_memory[m].offset;
-    if(relative>gv_memory[m].mapped_size || size>gv_memory[m].mapped_size-relative) return 0;
-    return ev_read((uintptr_t)gv_memory[m].pointer+(uintptr_t)relative,out,size);
+    if(relative>gv_memory[m].mapped_size || size>gv_memory[m].mapped_size-relative) {gv_read_rejects[4]++;return 0;}
+    if(!ev_read((uintptr_t)gv_memory[m].pointer+(uintptr_t)relative,out,size)) {gv_read_rejects[5]++;gv_read_rejects[6]=errno;return 0;}
+    return 1;
 }
 static int gv_cmd_slot(VkCommandBuffer command,int create) {
     int empty=-1;
@@ -144,8 +169,8 @@ static void gv_draw_view(VkCommandBuffer command,VkPipeline pipeline) {
     }
     if(!binding || viewport.width<320 || fabsf(viewport.height)<180) goto done;
     atomic_store(&gv_stage,4);
-    unsigned ds=gv_hash((uint64_t)binding->u.c2.sets[0],GV_SET_CAP);
-    if(gv_sets[ds].handle!=binding->u.c2.sets[0] || !gv_sets[ds].valid[0] || !gv_sets[ds].valid[1]) {atomic_fetch_add(&gv_missing,1);goto done;}
+    int ds=gv_set_slot(binding->u.c2.sets[0],0);
+    if(ds<0 || !gv_sets[ds].valid[0] || !gv_sets[ds].valid[1]) {atomic_fetch_add(&gv_missing,1);goto done;}
     atomic_store(&gv_stage,5);
     uint32_t offsets[2]={0};unsigned dynamic=0;
     for(unsigned b=0;b<2;b++) if(gv_sets[ds].types[b]==VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
@@ -225,9 +250,16 @@ static int gv_present_view(VkQueue queue,const VkPresentInfoKHR *info,GvFrame *v
     pthread_mutex_unlock(&gv_mutex);
     if(!view->valid || ef_now()-view->recorded_at>200) {view->valid=0;return 0;}return 1;
 }
+static void gv_read_log(void);
 static void gv_log(void) {
     char b[140];snprintf(b,sizeof(b),"gpu view: frames=%u missing=%u read_fail=%u writes=%u maps=%u stage=%d",atomic_load(&gv_captured),
-        atomic_load(&gv_missing),atomic_load(&gv_reads_failed),atomic_load(&gv_ubo_writes),atomic_load(&gv_maps),atomic_load(&gv_stage));_diag(b);
+        atomic_load(&gv_missing),atomic_load(&gv_reads_failed),atomic_load(&gv_ubo_writes),atomic_load(&gv_maps),atomic_load(&gv_stage));_diag(b);gv_read_log();
+}
+static void gv_read_log(void) {
+    pthread_mutex_lock(&gv_mutex);
+    char b[200];snprintf(b,sizeof(b),"gpu read rejects: buffer=%u range=%u memory=%u unmapped=%u bounds=%u copy=%u errno=%u",
+        gv_read_rejects[0],gv_read_rejects[1],gv_read_rejects[2],gv_read_rejects[3],gv_read_rejects[4],gv_read_rejects[5],gv_read_rejects[6]);
+    pthread_mutex_unlock(&gv_mutex);_diag(b);
 }
 static int gv_install(PFN_vkGetDeviceProcAddr get,VkDevice device,uint8_t *tp) {
     struct {const char *name;void *hook;void **original;void *target;} hooks[]={

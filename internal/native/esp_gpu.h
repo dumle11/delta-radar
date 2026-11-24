@@ -154,10 +154,9 @@ static void eg_publish(unsigned loot_mask,uint64_t loot_minimum,int loot_flags) 
     pthread_mutex_unlock(&eg_scene_mutex);
 }
 static int eg_draw(EgVert *vb,float sw,float sh,const GvFrame *view) {
-    atomic_store(&eg_active,0);
-    if(!atomic_load(&eg_esp_on) || !view->valid) return 0;
+    if(!atomic_load(&eg_esp_on) || !view->valid) {atomic_store(&eg_active,0);return 0;}
     pthread_mutex_lock(&eg_scene_mutex);
-    if(ef_now()-eg_scene_at>200) {pthread_mutex_unlock(&eg_scene_mutex);return 0;}
+    if(ef_now()-eg_scene_at>200) {atomic_store(&eg_active,0);pthread_mutex_unlock(&eg_scene_mutex);return 0;}
     int n_ents=eg_entity_count;
     atomic_store(&eg_active,1);
     int vn = 0;

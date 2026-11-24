@@ -1,12 +1,45 @@
 # Delta Radar — Handoff (2026-11-23)
 
+## ESP alignment — user-confirmed 2026-11-23
+
+The user confirmed: **“the esp is now tracking correctly”**, after testing camera
+movement around stationary mannequins. Names/font readability was also confirmed:
+**“yes, they are better.”** Preserve both changes.
+
+ESP geometry now uses a matrix copied from the actual skeletal Vulkan draw's
+mapped uniform buffer, carried through command submission and the presentation
+wait semaphore. It uses the captured viewport, including negative height, and
+handles the portrait720×1280 render target's90° display rotation. Entity geometry
+uses an immutable scanner snapshot. Menu/text presentation remains in the game's
+swapchain; there are no separate ESP/menu application-overlay windows.
+
+The earlier exact-view path silently stayed inactive when its short-hook nearby
+allocation failed. `gpu_view_runtime.h` now resolves only the verified Adreno
+map/unmap wrapper register shuffles to their validated underlying implementations,
+using the existing relocator. Shader layouts are reflected rather than assuming
+one packed-uniform offset for all pipelines. Live diagnostics reached3886 captured
+views,0 uniform read failures, and reported `vp=720x-1280 area=720x1280`.
+
+Installed SHA256 (matching local/device):
+`1ec924a75916bdcc4ebe3b8a5688bdb4155e6f19cadef7abd05fb7e944d6898e`.
+NDK build and focused projection/snapshot, mapped-range/submit association, chams,
+presentation and input fixtures passed. Confirmation covers the firing-range
+camera-motion test; animated live-player pose timing and extended sessions are
+not independently quantified. Current changes remain uncommitted.
+
+**Next active report:** aim tracks bots but can stop tracking live players in
+matches. Investigate semantic aim-joint availability, health/visibility eligibility,
+and protected component transforms. ESP-admitted recovered positions already set
+`position_plaintext=1`; do not simply remove protection checks or accept ciphertext.
+The user enters matches; announce intentional stops/restarts before doing them.
+
 ## Actor names — 2026-11-23 (latest)
 
 Actor labels now scale with projected actor height (12–24px), with centered bold
 text and a dark outline. Distance labels scale too. The first8px minimum was too
 small on the device and was raised after user feedback. Current build is installed
 and the outlined/scaled labels were observed in the range; user readability
-feedback is pending. See [the label checkpoint](docs/name-scale-2026-11-23/checkpoint.md)
+feedback was positive. See [the label checkpoint](docs/name-scale-2026-11-23/checkpoint.md)
 for the matching installed hash and verification limits. This change preserves
 current rendering work in the shared workspace.
 

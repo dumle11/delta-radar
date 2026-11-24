@@ -35,8 +35,11 @@ static int ep_bind(uint64_t object,const char *owner,const char *name,uint64_t e
 }
 static int internal_actor_position(uint64_t actor,uint64_t root,float out[3]) {
     ep_stage=1;
-    if(!ev_pe_fn || !ev_native_frame_current() || ev_frame.world.address!=diagnostic_world ||
-        !ev_actor_present(actor) || ev_ptr(actor+0x180)!=root) return 0;
+    if(!ev_pe_fn) {ep_stage=10;return 0;}
+    if(!ev_native_frame_current()) {ep_stage=11;return 0;}
+    if(ev_frame.world.address!=diagnostic_world) {ep_stage=12;return 0;}
+    if(!ev_actor_present(actor)) {ep_stage=13;return 0;}
+    if(ev_ptr(actor+0x180)!=root) {ep_stage=14;return 0;}
     EVObject actor_ref,root_ref;
     ep_stage=2;
     if(!ev_object(actor,&actor_ref) || !ev_object(root,&root_ref) ||
