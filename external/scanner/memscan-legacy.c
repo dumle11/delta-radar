@@ -1321,6 +1321,8 @@ static unsigned position_unverified_rejections, position_world_fallbacks, positi
 static unsigned position_frame_failures;
 #ifdef BUILD_AS_LIBRARY
 static int internal_actor_position(uint64_t actor,uint64_t root,float out[3]);
+static void internal_position_frame_begin(void);
+static int internal_camera_sample(uint64_t controller,float out[7]);
 static unsigned position_native_successes;
 #endif
 static int read_plain_world_position(uint64_t root, float out[3], PositionObservation *observation) {
@@ -2123,6 +2125,9 @@ static int select_advancing_camera_cache(uint64_t camera_manager) {
 }
 
 /* Read entities using the discovered offsets */
+#ifdef BUILD_AS_LIBRARY
+static void internal_entity_joints(Entity *e,uint64_t actor,uint64_t root);
+#endif
 static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
                              int root_off, int pos_off, int use_ctw) {
     (void)use_ctw; /* ComponentToWorld mode is retained for CLI compatibility. */
@@ -2223,6 +2228,11 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
             }
         }
     }
+
+    local_player_controlled = pawn_is_controlled(local_pawn, local_pc);
+#ifdef BUILD_AS_LIBRARY
+    internal_position_frame_begin();
+#endif
 
     /* The rendered camera is not the pawn origin (and changes target while
      * spectating). Read the engine's current camera cache so projection follows
@@ -2332,6 +2342,16 @@ static int read_entities_sdk(uint64_t gworld_addr, int actor_source,
         }
     }
 camera_done:
+#ifdef BUILD_AS_LIBRARY
+    {
+        float native_camera[7];
+        if(internal_camera_sample(local_pc,native_camera)) {
+            camera_x=native_camera[0]/100.0f;camera_y=native_camera[1]/100.0f;camera_z=native_camera[2]/100.0f;
+            camera_pitch=native_camera[3];camera_yaw=native_camera[4];camera_fov=native_camera[6];
+            camera_valid=1;camera_position_plaintext=1;camera_sampled_at_ms=sample_time_ms();
+        } else camera_valid=0; /* Never render ciphertext or an unrelated heuristic cache. */
+    }
+#endif
     camera_frame_valid = camera_valid;
     if (camera_valid) invalid_camera_frames = 0;
     else if (++invalid_camera_frames >= 45) {
@@ -2832,6 +2852,9 @@ camera_done:
 
         /* Resolve this actor's actual animated pose and asset hierarchy. */
         read_entity_bones(e, actor_ptrs[i], root);
+#ifdef BUILD_AS_LIBRARY
+        if(!is_self_pawn) internal_entity_joints(e,actor_ptrs[i],root);
+#endif
 
         /* Identify self: match against local pawn pointer */
         if (is_self_pawn) {

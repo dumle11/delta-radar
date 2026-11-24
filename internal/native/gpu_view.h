@@ -19,6 +19,8 @@ static VkResult gv_create_module(VkDevice device,const VkShaderModuleCreateInfo 
         i+=n;
     }
     if(!vertex) return result;
+    GvProfile profile=gv_profile(info->pCode,count);
+    if(!profile.valid) return result; /* Unsupported shaders cannot exhaust the view cache. */
     pthread_mutex_lock(&gv_mutex);
     int slot=-1;
     for(unsigned i=0;i<GV_MODULES;i++) {
@@ -28,7 +30,7 @@ static VkResult gv_create_module(VkDevice device,const VkShaderModuleCreateInfo 
     if(slot>=0) {
         uint32_t *copy=malloc(info->codeSize);
         if(copy) {memcpy(copy,info->pCode,info->codeSize);free(gv_modules[slot].words);
-            gv_modules[slot].words=copy;gv_modules[slot].module=*module;gv_modules[slot].count=count;gv_modules[slot].profile=gv_profile(copy,count);}
+            gv_modules[slot].words=copy;gv_modules[slot].module=*module;gv_modules[slot].count=count;gv_modules[slot].profile=profile;}
     }
     pthread_mutex_unlock(&gv_mutex);
     return result;
@@ -41,12 +43,13 @@ typedef struct {
     unsigned serial;
     int valid,screen_rotation;
 } GvFrame;
-static struct {VkPipeline pipeline;GvProfile profile;} gv_pipelines[128];
+#define GV_PIPELINES 1024
+static struct {VkPipeline pipeline;GvProfile profile;} gv_pipelines[GV_PIPELINES];
 static void gv_pipeline(VkPipeline pipeline,VkShaderModule module) {
     pthread_mutex_lock(&gv_mutex);
     GvProfile profile={0};
     for(unsigned i=0;i<GV_MODULES;i++) if(gv_modules[i].module==module) {profile=gv_modules[i].profile;break;}
-    if(profile.valid) for(unsigned i=0;i<128;i++) if(!gv_pipelines[i].pipeline || gv_pipelines[i].pipeline==pipeline) {
+    if(profile.valid) for(unsigned i=0;i<GV_PIPELINES;i++) if(!gv_pipelines[i].pipeline || gv_pipelines[i].pipeline==pipeline) {
         gv_pipelines[i].pipeline=pipeline;gv_pipelines[i].profile=profile;break;
     }
     pthread_mutex_unlock(&gv_mutex);

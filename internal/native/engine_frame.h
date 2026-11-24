@@ -27,8 +27,10 @@ static int ev_frame_begin(void) {
     ev_frame.slot=viewport+OFF_VIEWPORT_WORLD;
     uint64_t world=ev_ptr(ev_frame.slot),gi=ev_ptr(world+0x190),local=ev_ptr(ev_ptr(gi+0x38));
     uint64_t pc=ev_ptr(local+0x30),pawn=ev_ptr(pc+0x3f0),camera=ev_ptr(pc+0x408);
-    if(!camera_frame_valid || !local_player_controlled || world!=diagnostic_world ||
-        camera!=resolved_camera_owner || ev_ptr(camera+0x370)!=pc ||
+    /* Possession/registration governs read-only position recovery. Camera POV
+     * decoding must not disable the getters needed to recover that POV. */
+    if(!local_player_controlled || world!=diagnostic_world ||
+        ev_ptr(camera+0x370)!=pc ||
         !ev_object(world,&ev_frame.world) || !ev_object(pc,&ev_frame.controller) ||
         !ev_object(pawn,&ev_frame.pawn) || !ev_object(camera,&ev_frame.camera)) return 0;
     ev_frame.valid=1;

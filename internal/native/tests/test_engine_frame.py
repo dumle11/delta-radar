@@ -30,7 +30,7 @@ int main(void) {
  p(vp+0x80,world);assert(ev_frame_begin());p(pc+0x3f0,0);assert(!ev_native_frame_current()&&!ev_frame_begin());
  p(pc+0x3f0,pawn);assert(ev_frame_begin());arena[7][0x95]=2;assert(!ev_native_frame_current()&&!ev_frame_begin());
  arena[7][0x95]=0;assert(ev_frame_begin());arena[8][0x95]=2;assert(!ev_native_frame_current());
- arena[8][0x95]=0;registered=0;assert(!ev_viewport_registered()&&!ev_frame_begin());registered=1;camera_frame_valid=0;assert(!ev_frame_begin());
+ arena[8][0x95]=0;registered=0;assert(!ev_viewport_registered()&&!ev_frame_begin());registered=1;camera_frame_valid=0;assert(ev_frame_begin()); // Position recovery is independent of protected camera POV bytes.
  camera_frame_valid=1;local_player_controlled=0;assert(!ev_frame_begin());
  puts("PASS: viewport travel, possession loss, actor/camera destruction, unregistered objects and invalid camera");
 }

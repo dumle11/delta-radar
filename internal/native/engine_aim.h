@@ -215,6 +215,22 @@ static int ea_trace_aim_point(void *context,const float *point) {
     ev_pe_fn((void *)(uintptr_t)ev_receiver.address,(void *)(uintptr_t)ev_function.address,&params);
     atomic_fetch_add(&ev_traces,1);return params.result;
 }
+/* Counts only data already in the current scanner snapshot; this makes a
+ * missing actor distinguishable from health/joint/visibility rejection. */
+static void ea_log_candidates(int count) {
+    unsigned totals[2][4]={{0}};
+    unsigned config=atomic_load(&ea_config);int bone=(config>>16)&3;
+    for(int i=0;i<count;i++) {
+        const Entity *e=&entities[i];
+        if(!strcmp(e->id,self_entity_id) || e->kind[0]=='l' || e->dead) continue;
+        unsigned kind=e->kind[0]=='a';totals[kind][0]++;
+        totals[kind][1]+=e->health_known && isfinite(e->health) && e->health>0.01f;
+        float point[3];totals[kind][2]+=aim_entity_point(e,bone,point)!=0;
+        totals[kind][3]+=e->visibility_known && e->visible_from_camera;
+    }
+    char text[200];snprintf(text,sizeof(text),"aim candidates: config=%08x players=%u health=%u joints=%u visible=%u bots=%u health=%u joints=%u visible=%u",
+        config,totals[0][0],totals[0][1],totals[0][2],totals[0][3],totals[1][0],totals[1][1],totals[1][2],totals[1][3]);_diag(text);
+}
 static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
                             float cam_yaw, float cam_pitch, unsigned aim_config,
                             uint64_t world, uint64_t controller, uint64_t pawn) {

@@ -8,7 +8,7 @@ root=Path(__file__).resolve().parents[1]
 header=(root/'gpu_view_runtime.h').read_text()
 frame=(root/'gpu_view.h').read_text();frame=frame[frame.index('typedef struct {'):frame.index('} GvFrame;')+len('} GvFrame;')]
 functions=header[header.index('#define GV_MEMORY_CAP'):header.index('static void gv_draw_view(')]
-submit=header[header.index('static VkResult gv_submit('):header.index('static void gv_log(')]
+submit=header[header.index('static int gv_signal_slot('):header.index('static void gv_log(')]
 source=r'''
 #include <vulkan/vulkan.h>
 #include <stdint.h>
@@ -78,7 +78,14 @@ int main(void){
      {.sType=VK_STRUCTURE_TYPE_SUBMIT_INFO,.commandBufferCount=1,.pCommandBuffers=&post,.signalSemaphoreCount=1,.pSignalSemaphores=&sem[1]}};
  VkQueue queue=(VkQueue)0x900000;assert(gv_submit(queue,2,submits,0)==VK_SUCCESS);
  VkPresentInfoKHR present={.sType=VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,.waitSemaphoreCount=1,.pWaitSemaphores=&sem[1]};GvFrame view;
+ VkSemaphore collision=(VkSemaphore)((uintptr_t)sem[1]+16);
+ while(gv_hash((uint64_t)collision,512)!=gv_hash((uint64_t)sem[1],512)) collision=(VkSemaphore)((uintptr_t)collision+16);
+ VkQueue other_queue=(VkQueue)0x910000;VkSubmitInfo other=submits[0];other.pSignalSemaphores=&collision;
+ assert(gv_submit(other_queue,1,&other,0)==VK_SUCCESS);
  assert(gv_present_view(queue,&present,&view) && view.serial==17);
+ VkPresentInfoKHR other_present=present;other_present.pWaitSemaphores=&collision;
+ assert(gv_present_view(other_queue,&other_present,&view)&&view.serial==17);
+ assert(!gv_present_view(other_queue,&other_present,&view)); // Binary wait consumed its metadata.
  // A subsequent frame with no scene draw cannot inherit the previous frame's camera.
  sem[1]=(VkSemaphore)0xa00000;assert(gv_submit(queue,1,&submits[1],0)==VK_SUCCESS);
  assert(!gv_present_view(queue,&present,&view));

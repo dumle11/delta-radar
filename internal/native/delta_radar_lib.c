@@ -74,6 +74,8 @@ static void _diag(const char *msg) {
 #include "engine_visibility.h"
 #include "engine_weapon.h"
 #include "engine_position.h"
+#include "engine_camera.h"
+#include "engine_joints.h"
 #include "engine_stamina.h"
 #include "engine_loot.h"
 
@@ -1290,6 +1292,8 @@ static void *injected_scanner_thread(void *arg) {
                 (atomic_load(&ea_config)&1)!=0,atomic_load(&ea_ready),atomic_load(&ea_status),
                 (unsigned long)atomic_load(&ea_locked_actor),atomic_load(&ea_corrections));
             _diag(vis_diag);
+            ea_log_candidates(n);
+            snprintf(vis_diag,sizeof(vis_diag),"camera SDK: samples=%u stage=%d cache=%x controlled=%d joints=%u/%u",ec_samples,ec_stage,resolved_camera_cache_off,local_player_controlled,ej_recovered,ej_failed);_diag(vis_diag);
             snprintf(vis_diag,sizeof(vis_diag),"trigger: enabled=%d state=%u hit=%lx queries=%u starts=%u stops=%u callbacks=%u tid=%d reject=%u",
                 (atomic_load(&ea_config) & (1u<<24)) != 0, atomic_load(&et_status),
                 (unsigned long)atomic_load(&et_hit_actor), atomic_load(&et_queries), atomic_load(&ef_starts),

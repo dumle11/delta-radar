@@ -3,6 +3,10 @@
 /* Resample a coherent camera POV immediately before projection, after item
  * work and physics queries. Never substitute controller/body rotation. */
 static int render_camera_snapshot(float out[6],float *roll) {
+#ifdef INTERNAL_ENGINE_CAMERA_H
+    if(ec_snapshot(out,roll)) return 1;
+    return 0; /* Internal path must not override decoded SDK values with raw bytes. */
+#endif
     uint64_t camera=resolved_camera_owner;
     if(!camera_frame_valid || !local_player_controlled || resolved_camera_cache_off<0) return 0;
     EVObject object;

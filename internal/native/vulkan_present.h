@@ -391,6 +391,9 @@ static void vp_destroy_swap(VkDevice device,VkSwapchainKHR swap,const VkAllocati
     vp_o_destroy_swap(device,swap,alloc);
 }
 static VkResult vp_present(VkQueue queue,const VkPresentInfoKHR *info) {
+#ifdef INTERNAL_ENGINE_CAMERA_H
+    ec_note_present();
+#endif
     VpSwap *s=NULL;
     if(info->swapchainCount==1 && info->waitSemaphoreCount<=32)
         for(unsigned i=0;i<VP_SWAPS;i++) if(vp_swaps[i].handle==info->pSwapchains[0]) {s=&vp_swaps[i];break;}

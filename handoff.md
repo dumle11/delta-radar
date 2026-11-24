@@ -1,5 +1,168 @@
 # Delta Radar — Handoff (2026-11-23)
 
+## User confirmation — 2026-11-24
+
+User confirmed **“all good now”** in the live match when asked whether ESP boxes
+and lines stay attached during camera movement, aim tracks opponents, and any
+flicker or missing named players remain. This confirms the reported behavior for
+the tested match on installed build
+`684c4fdc1924c4d9737fddc253665a20022e2f70980b7a641393e72cbaec1fe7`.
+Preserve the camera freshness, position/joint recovery and rendering fixes below.
+No further deployment or restart was performed after this confirmation; the game
+was left running. Longer-session/all-map behavior and independently identified
+human-target coverage are not separately measured. The pending user-feedback
+requests in the historical sections below are superseded by this confirmation.
+
+## Camera freshness correction — 2026-11-24 (latest installed)
+
+User returned to a live match on buildd4100699. Position recovery and named-joint
+fallback ran successfully (`native=1596`, `joints=1547/0` at frame5400), with0 GPU
+uniform read failures. However `camera SDK: samples=0 stage=5` throughout the
+session: all method binding, ownership and finite-output checks passed, then the
+SDK CameraCachePrivate timestamp check rejected every sample. Thus aim/LOS stayed
+disabled. The mock test did not establish that raw timestamp's runtime validity;
+this was an incorrect freshness assumption, now removed.
+
+`engine_camera.h` now uses an atomic timestamp updated by actual game
+`vp_present` entry, expiring after500ms without presentation. A stationary view
+and an unusable/unchanged raw cache timestamp remain valid while game frames are
+presented. Decoded values still require exact native method ABI/exec/owner,
+registered camera/possession and finite output, with lifetime checks between
+calls. `ec_snapshot` provides the scanner's decoded values plus roll to its text
+projection; `render_camera.h` no longer overrides them with raw cache bytes.
+No ProcessEvent calls were added to the Vulkan thread.
+
+Latest local/device SHA256 after announced atomic replacement and restart:
+`684c4fdc1924c4d9737fddc253665a20022e2f70980b7a641393e72cbaec1fe7`
+(303808 bytes). NDK build, camera freshness test (including zero/unchanged raw
+timestamp, ongoing presentation and stopped presentation), FOV and Vulkan
+presentation fixtures pass. This supersedes all installed hashes below.
+
+**Live follow-up on this build:** user reconnected; screenshot
+`/tmp/live-recovery-after.png` shows active gameplay. At frame1700: camera samples482,
+stage0, camera valid1; position native1178 with balanced SDKcalls/returns2356;
+current admission rejections had stabilized at83 (transitional earlier failures),
+native joints1153 recovered/1 failed; GPU captured1227 views,0 uniform read failures.
+Aim acquired named network bots (kind=a) and corrections advanced16→24. This
+confirms the timestamp gate no longer blocks camera/LOS/aim in this match.
+No non-self kind=p target was present in those snapshots, so human-player tracking
+is NOT yet established. Scanner updates took roughly98–120ms in the loot-heavy
+scene; moving-pose latency/scene expiry remains worth measuring if flicker persists.
+
+**Pending:** asked user whether boxes/lines now stay attached during camera motion,
+which opponents aim tracks, and whether any named players remain missing. Do not
+infer flicker resolved or human tracking confirmed from counters alone. Avoid
+another restart before collecting any new failure evidence.
+
+## Live match camera / player recovery — 2026-11-24 (latest)
+
+User reproduced missing humans, inactive aim and camera-motion flicker, then died.
+Saved the diagnostic log locally at `/tmp/render-match-d.txt` before restart.
+Evidence from build849972a2:
+- GPU captured6445 views; uniform read failures remained0. The hash-table defect
+  from the prior session was not recurring in this capture.
+- At frame9800, camera valid1:7 non-self humans admitted,7 known positive health,
+  only1 valid selected semantic aim joint. Native position recovery succeeded228
+  times. At frame10300:6 humans,6 positive health,0 selected semantic joints.
+- After frame10400 camera remained invalid, native position successes stopped at
+  816 with balanced SDKcalls/returns1632; native_stage11 (invalid native frame).
+  Humans disappeared from admitted entities while plaintext bots/loot remained.
+  The camera gate therefore also disabled the getters needed for protected actor
+  positions. This was not solely a health/team filter or GPU-buffer-read issue.
+
+Installed changes:
+- `engine_frame.h`: validate possession/world/controller/pawn/camera registration
+  independently of raw camera POV availability. Initialize this frame before
+  scanning actors, after the scanner resolves control/ownership. Stale world,
+  ownership, destruction and registration gates remain.
+- `engine_camera.h`: exact SDK PlayerCameraManager GetCameraLocation/GetCameraRotation/
+  GetFOVAngle bindings (RVAs1BA55D6C/1BA55DAC/1BA55DEC, return-only sizes12/12/4,
+  return offset0, exact native owner/exec). Recheck native frame/camera identity
+  between dispatches and ownership afterward. Reject nonfinite/out-of-world values
+  and SDK CameraCachePrivate timestamps frozen>500ms. Internal scanner uses these
+  getter results rather than accepting protected raw camera coordinates or an
+  unrelated heuristic cache. No engine calls were added on the Vulkan thread.
+- `engine_joints.h`: when CPU joints are unavailable, query actual asset bone FNames
+  through SceneComponent.GetSocketLocation (RVA1BA7E4C0, size20/return offset8).
+  Require verified actor position, supported SDK skeleton metadata, registered
+  actor/root/mesh/asset, direct root attachment, unchanged hierarchy/links/world
+  before publication, finite points within3m of verified center. Recover semantic
+  joints; recover the17 drawing joints only for the existing supported parent
+  topology. Existing good CPU pose data remains preferred. Health/team/trace gates
+  and semantic target selection remain unchanged.
+- GPU view reflection now admits matching color/depth scenery pipelines as well as
+  skeletal ones. Only profiles matching the existing matrix expression are stored;
+  unsupported shaders cannot fill the shader cache. Pipeline capacity raised1024.
+  ESP can obtain a view without an actor draw when matching scenery is present;
+  unsupported scene passes and secondary command buffers remain limitations.
+
+Latest local/device SHA256 after announced atomic deployment/restart:
+`d4100699a7aa5c303226f27f4254228172da357c28e4275d7e8b2945223553bf`
+(304832 bytes). This supersedes installed hashes below. NDK build, new camera/joint
+fixtures (ABI/identity, nonfinite/frozen values, travel during calls, preservation
+of complete poses), and existing native frame/position, position acceptance, GPU
+view/projection, semantic aim, chams journal, presentation and FOV tests pass.
+The old test_engine_aim extraction fixture is still stale as noted below.
+
+**Live verification pending:** app restarted successfully into loading with active
+compositor; this alone does not verify camera getter compatibility or match fixes.
+User was asked to reply ready in range or match. Check `camera SDK: samples/stage`,
+`joints=recovered/failed`, `aim candidates`, position native/rejected and per-frame
+GPU view captures before claiming the report resolved. No anti-cheat/stealth code
+was changed. Announce intentional stops/restarts; user enters matches.
+
+## Restart regression — 2026-11-24 (current)
+
+User reported restart-dependent ESP misalignment/disappearance, only bots in live
+matches, and aim working only in the lobby. Initial local/device SHA256 both
+matched the previously confirmed build `1ec924a75916bdcc4ebe3b8a5688bdb4155e6f19cadef7abd05fb7e944d6898e`.
+That session had **0 captured GPU views / 387793 uniform read failures**, despite
+active shader, descriptor and mapping hooks. ESP therefore used legacy projection.
+A diagnostic-only restart captured >1600 views with zero read failures in the
+range, establishing session variability; it did not isolate the original read
+failure reason. Range then admitted self +16 mannequins with zero position
+rejections, so it cannot establish why live humans are missing.
+
+Changes now installed:
+- `gpu_view_runtime.h`: memory, buffer and descriptor identities use collision-safe
+  linear probing with tombstones; free removes the allocation's tracked buffer
+  bindings. The former direct-mapped caches silently replaced unrelated live
+  resources on a hash collision. Presentation semaphore metadata also uses exact
+  identity lookup and is consumed at presentation. Full resource tables fail
+  closed rather than evicting live entries. This addresses a demonstrated code
+  defect; the original session's failure was not classified before restarting.
+- `esp_gpu.h`: no transient `eg_active=0` during an otherwise valid GPU draw;
+  disables only when the view/config/snapshot is actually unavailable.
+- `esp_render.h`: view capture no longer depends on chams being enabled or its
+  clone pipelines succeeding. Supported skeletal profile/viewport/range checks
+  remain required. A view without any supported skeletal draw can still fall back;
+  arbitrary scene-shader support has not been established.
+- New `gpu read rejects` diagnostics distinguish missing buffer/memory records,
+  descriptor range, unmapped/range bounds and checked-copy errno failures.
+- `engine_position.h`: stage10=no dispatch,11=invalid current native frame,
+  12=world mismatch,13=destroyed/unreadable actor,14=root-link mismatch; other
+  stages unchanged. `aim candidates` reports config bits and separate admitted
+  human/bot counts, known positive health, valid selected semantic joint and
+  visibility. These are diagnostics, not changes to eligibility or decoding.
+
+Latest installed SHA256 (298560 bytes; local/device match after announced atomic
+replacement and restart):
+`849972a29df987685271a45aa3a0506973bfb20dab1b5b962d59ffadaa0537a4`.
+This supersedes all installed hashes below. NDK build and focused GPU view,
+ESP projection/snapshot, native position/frame, position acceptance, semantic aim,
+chams journal, Vulkan presentation and input tests pass. GPU runtime regression
+now forces colliding allocation/buffer/descriptor/semaphore handles and verifies
+both survive, including removal/reinsertion through tombstones and consumed waits.
+`test_engine_aim.py` remains a stale fixture: extraction fails looking for removed
+`/* Worker-only lookup.`; do not claim that fixture passed.
+
+**Pending:** user was asked to enter a live match and reply ready while humans
+are missing. Capture current counters before any further restart. New build's
+live-match recovery and extended stability have NOT been confirmed. Do not claim
+an encryption/health/joint cause without those counters. Preserve strict rejection
+of protected coordinates. Continue announcing intentional stops/restarts and let
+user enter matches.
+
 ## ESP alignment — user-confirmed 2026-11-23
 
 The user confirmed: **“the esp is now tracking correctly”**, after testing camera

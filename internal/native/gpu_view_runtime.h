@@ -154,7 +154,7 @@ static void gv_draw_view(VkCommandBuffer command,VkPipeline pipeline) {
     if(slot<0 || gv_commands[slot].view.valid) goto done;
     atomic_store(&gv_stage,1);
     GvProfile profile={0};
-    for(unsigned i=0;i<128;i++) if(gv_pipelines[i].pipeline==pipeline) {profile=gv_pipelines[i].profile;break;}
+    for(unsigned i=0;i<GV_PIPELINES;i++) if(gv_pipelines[i].pipeline==pipeline) {profile=gv_pipelines[i].profile;break;}
     if(!profile.valid) goto done;
     atomic_store(&gv_stage,2);
     uint32_t width=gv_commands[slot].width,height=gv_commands[slot].height;
@@ -208,6 +208,16 @@ static void gv_draw_view(VkCommandBuffer command,VkPipeline pipeline) {
 done:
     pthread_mutex_unlock(&gv_mutex);
 }
+/* Semaphore metadata is small and short lived. Search by identity rather
+ * than letting unrelated live signals overwrite a hashed slot. */
+static int gv_signal_slot(VkSemaphore semaphore,int create) {
+    int reusable=-1;
+    for(unsigned i=0;i<512;i++) {
+        if(gv_signals[i].semaphore==semaphore) return (int)i;
+        if(reusable<0 && (!gv_signals[i].semaphore || !gv_signals[i].view.valid || ef_now()-gv_signals[i].view.recorded_at>200)) reusable=(int)i;
+    }
+    return create?reusable:-1;
+}
 static VkResult gv_submit(VkQueue queue,uint32_t count,const VkSubmitInfo *submits,VkFence fence) {
     if(gv_internal_submit) return gv_o_submit(queue,count,submits,fence);
     GvFrame view={0};struct {VkSemaphore semaphore;GvFrame view;} signals[64];unsigned signals_n=0;
@@ -229,8 +239,8 @@ static VkResult gv_submit(VkQueue queue,uint32_t count,const VkSubmitInfo *submi
         pthread_mutex_lock(&gv_mutex);
         if(q>=0) {gv_queues[q].queue=queue;gv_queues[q].view=view;}
         for(unsigned i=0;i<signals_n;i++) {
-            unsigned s=gv_hash((uint64_t)signals[i].semaphore,512);
-            gv_signals[s].semaphore=signals[i].semaphore;gv_signals[s].view=signals[i].view;
+            int s=gv_signal_slot(signals[i].semaphore,1);
+            if(s>=0) {gv_signals[s].semaphore=signals[i].semaphore;gv_signals[s].view=signals[i].view;}
         }
         pthread_mutex_unlock(&gv_mutex);
     }
@@ -239,8 +249,11 @@ static VkResult gv_submit(VkQueue queue,uint32_t count,const VkSubmitInfo *submi
 static int gv_present_view(VkQueue queue,const VkPresentInfoKHR *info,GvFrame *view) {
     memset(view,0,sizeof(*view));pthread_mutex_lock(&gv_mutex);
     for(uint32_t i=0;i<info->waitSemaphoreCount;i++) {
-        unsigned s=gv_hash((uint64_t)info->pWaitSemaphores[i],512);
-        if(gv_signals[s].semaphore==info->pWaitSemaphores[i] && gv_signals[s].view.valid && gv_signals[s].view.serial>view->serial) *view=gv_signals[s].view;
+        int s=gv_signal_slot(info->pWaitSemaphores[i],0);
+        if(s>=0) {
+            if(gv_signals[s].view.valid && gv_signals[s].view.serial>view->serial) *view=gv_signals[s].view;
+            memset(&gv_signals[s],0,sizeof(gv_signals[s]));
+        }
     }
     for(unsigned i=0;i<16;i++) if(gv_queues[i].queue==queue) {
         if(!info->waitSemaphoreCount) *view=gv_queues[i].view;

@@ -475,12 +475,16 @@ static int _hook_vk_cgp(VkDev_ dev, VkPipeCache_ cache, uint32_t cnt,
                 ds->depthCompareOp, ds->depthWriteEnable);
             _diag(db); _pipe_logged++;
         }
+        /* The same validated packed scene-view expression also occurs in
+         * scenery draws. ESP must have a current view when no actor is drawn. */
+        for(uint32_t stage=0;n_attach>0 && stage<infos[i].stageCount;stage++)
+            if(infos[i].pStages[stage].stage==1) gv_pipeline((VkPipeline)pipes[i],(VkShaderModule)infos[i].pStages[stage].module);
         if (!has_bone_fmt) { _attr_skip++; continue; }
         if (n_attach < 1) { _attr_skip++; continue; }
         if (ac <= 5) { _fp_skip++; continue; }
 
         for(uint32_t stage=0;stage<infos[i].stageCount;stage++)
-            if(infos[i].pStages[stage].stage==1) { gv_selected((VkShaderModule)infos[i].pStages[stage].module); gv_pipeline((VkPipeline)pipes[i],(VkShaderModule)infos[i].pStages[stage].module); }
+            if(infos[i].pStages[stage].stage==1) { gv_selected((VkShaderModule)infos[i].pStages[stage].module); }
         VkPipe_ cinv = _vk_make_clone(dev, cache, &infos[i], alloc,
             1, _vk_frag_inv);
         VkPipe_ cvis = _vk_make_clone(dev, cache, &infos[i], alloc,
