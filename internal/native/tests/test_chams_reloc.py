@@ -34,7 +34,18 @@ int main(void) {
     decoded=0;for(unsigned k=0;k<4;k++) decoded|=(uint64_t)((out[k]>>5)&65535)<<(k*16);
     assert(decoded==0x1234);
     uint32_t unsupported[]={0x58000000,0,0,0}; assert(!cr_trampoline(out,unsupported,0x1000));
-    unsupported[0]=0x54000000; assert(!cr_trampoline(out,unsupported,0x1000));
+    /* Captured Adreno 640 viewport external B.LS and stencil internal TBZ. */
+    uint32_t viewport[]={0xf9400408,0x0b010049,0x6b01013f,0x54000389};
+    assert(cr_trampoline(out,viewport,0x74e18)==48);
+    assert(out[3]==0x540000a8);memcpy(&address,&out[6],8);assert(address==0x74e94);
+    uint32_t stencil[]={0xf9400408,0x36000041,0x39210102,0x36080041};
+    assert(cr_trampoline(out,stencil,0x752a8)==48);
+    assert(out[1]==stencil[1] && out[3]==0x370800a1);
+    memcpy(&address,&out[6],8);assert(address==0x752bc);
+    // External backwards CBNZ, retaining 64-bit width and tested register.
+    uint32_t cbnz[]={0xb5ffffe3,0xd503201f,0xd503201f,0xd503201f};
+    assert(cr_trampoline(out,cbnz,0x1000)==48 && out[0]==0xb40000a3);
+    memcpy(&address,&out[3],8);assert(address==0xffc);
     unsupported[0]=0x14000001; assert(!cr_trampoline(out,unsupported,0x1000));
     puts("chams relocation: captured crashing BL, negative offsets, resume address and rejection checks passed");
 }

@@ -2,21 +2,24 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-NDK="/opt/homebrew/share/android-ndk"
-CC="$NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android26-clang++"
-STRIP="$NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-strip"
+NDK="${NDK_HOME:-${ANDROID_NDK_HOME:-/opt/homebrew/share/android-ndk}}"
+HOST=$(ls "$NDK/toolchains/llvm/prebuilt" | head -1)
+CC="$NDK/toolchains/llvm/prebuilt/$HOST/bin/aarch64-linux-android26-clang++"
+STRIP="$NDK/toolchains/llvm/prebuilt/$HOST/bin/llvm-strip"
 
 OUT_DIR="$SCRIPT_DIR/out"
 MOD_DIR="$OUT_DIR/delta_zygisk"
 LIB_DIR="$MOD_DIR/zygisk"
 
-rm -rf "$OUT_DIR"
-mkdir -p "$LIB_DIR"
+rm -rf "$MOD_DIR"
+mkdir -p "$LIB_DIR" "$MOD_DIR/payload"
+NDK_HOME="$NDK" bash "$SCRIPT_DIR/../native/build_lib.sh"
+cp "$SCRIPT_DIR/../native/libue4patch.so" "$MOD_DIR/payload/arm64-v8a.so"
 
 echo "[*] Compiling Zygisk module (arm64-v8a)"
 $CC -std=c++17 -shared -fPIC -O2 \
     -Wall -Wextra \
-    -DANDROID -D__ANDROID_API__=26 \
+    -DANDROID \
     -static-libstdc++ \
     -I"$SCRIPT_DIR" \
     "$SCRIPT_DIR/loader.cpp" \
@@ -31,11 +34,15 @@ echo "[*] Size: $(du -h "$LIB_DIR/arm64-v8a.so" | cut -f1)"
 cat > "$MOD_DIR/module.prop" << 'EOF'
 id=delta_zygisk
 name=Delta Zygisk Loader
-version=v1.0
-versionCode=1
+version=v2.0
+versionCode=2
 author=dme
-description=Loads library into target process via Zygisk
+description=ARM64 internal loader and bundled payload for Android 10-14; Zygisk API 2 (Magisk 24+)
 EOF
+
+touch "$MOD_DIR/skip_mount"
+(cd "$MOD_DIR" && shasum -a 256 zygisk/arm64-v8a.so payload/arm64-v8a.so > SHA256SUMS)
+rm -f "$OUT_DIR/delta_zygisk.zip"
 
 # Package as zip
 cd "$OUT_DIR"

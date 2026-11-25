@@ -1,5 +1,69 @@
 # Delta Radar — Handoff (2026-11-23)
 
+## Android 10–14 Zygisk compatibility — 2026-11-25 (new device)
+
+Built and installed `internal/zygisk/out/delta_zygisk.zip` on OnePlus 7T HD1903,
+serial7492618f, Android12/API31, Adreno640, Magisk30600 with Zygisk Next1.3.2.
+Only this device is attached; Android10 OnePlus5 serial20f9aa6c is absent.
+Do not use the old app UID/SELinux label on this phone.
+
+Replaced the mismatched API5-layout/header-advertising-API2 with unmodified official
+Zygisk API2 (commit99468e1). Loader uses typed nice_name and bundles its payload:
+read module file into anonymous memory before specialization, close descriptors,
+then load via memfd/JNI_OnLoad after specialization. No root-provider/SELinux
+settings were changed. Existing new phone SELinux is permissive, so enforcing
+coverage is not established. Main process only; no system-server payload.
+
+Deployment location changed: `/data/adb/modules/delta_zygisk/payload/arm64-v8a.so`.
+The old app-private libue4patch.so path is no longer read by this module.
+First installed/rebooted, then atomically replaced only the payload and announced
+another game restart for the conditional-branch fix. Current payload345488bytes,
+SHA256 `1db2a7ab2bb069b0310b52b76209856f455c39b2220bec915768025d6cf71e05`.
+ZIP SHA256 `15d15b799639b4efe3fa83539eda91297f5457c87f47e6bcb4561893beb40ead`.
+These supersede the Android10 UI hashes below for this new device only.
+
+GPU paths: preserve legacy exact private map/unmap signatures; add validated
+Adreno640 standard public map + no-op single-RET unmap pair. Never overwrite
+adjacent functions. Backing persists until FreeMemory in this captured driver.
+Add B.cond/CBZ/TBZ relocation with internal-target mapping for new viewport/stencil
+functions. All18 journal hooks, presentation hooks and uniform tracking now ready;
+di/cgp/bp/sv all1. UI composition verified in actual Vulkan swapchain, observed
+720×1600 then896×2000, UI2400×1080, rotation90°. Payload mapped in game process.
+
+Passed host relocation/replay/GPU-view/ESP-GPU/Vulkan-input/presentation tests.
+Expanded GPU fixture covers both driver profiles, ABI forwarding, unknown-pair
+rejection before mutation. Device-executed captured stencil/viewport trampolines
+pass all branch combinations/zero/overflow cases. Exact new module has NOT been
+live-tested on old Android10 phone, Android11/13/14 or new-device live match yet.
+User entered firing range during verification: actual screenshot shows ESP and
+red/green chams; counters exceed2,000 camera captures with missing=0/read_fail=0,
+replay drops=0, native camera/joints ready. No dynamic alignment/long-session
+claim established. Evidence: docs/android-compat-2026-11-25/firing-range.png and
+bounded diagnostics.txt. Game left running in range, PID12268 at verification.
+See [module notes](internal/zygisk/README.md) for build/install/API source and limits.
+
+## Wider menu and configs — 2026-11-25 (before device switch)
+
+Menu expanded to1520×940 with larger text and216px sidebar; eight destinations,
+including Configs. Visuals/Appearance show Enemies/Teammates/NPCs only. Bot players
+use enemy/teammate settings and [BOT] labels, not a separate category. Loot retains
+its own page with interactive illustrative preview, rarity presets/filters,
+range/value controls and container options. Aim FOV radius now sits at the top of
+Aim area; disabling360 immediately restores its usable slider.
+
+Configs provide app-private readable JSON (`files/configs/config-NAME.json`),
+create/load/save/rename/delete, touch keyboard and all-before-apply type validation.
+Menu position is excluded. Editing flow: load, change menu settings, Save changes.
+Name sanitization, containment, duplicates and atomic writes tested.
+
+Before disconnecting old Android10 device: built/deployed338544byte payload SHA
+`8ef588c8103d420d64a6f3b28b28820d3a04c0c03f7bace5f90f0586aa273b88`;
+Android app_process ConfigMenuRegression/MenuLayoutRegression/LootMenuRegression/
+StaminaMenuRegression passed, alongside host ESP/aim/input/presentation fixtures.
+Live menu created ui profile, renamed to ui1 and deleted with confirmation; verified
+file changes and no temporary profiles remain. No live load changed user prefs.
+No Weapon Sway flicker remains a separate outstanding issue; not fixed here.
+
 ## Menu redesign — 2026-11-25 (latest installed)
 
 Reworked the internal Android/Vulkan-composited UI using the user's references:

@@ -14,9 +14,11 @@ static int fov_owned(const FOVSession *s) {
         ev_ptr(s->controller.object.address+0x408)==s->camera.object.address;
 }
 static void fov_release(void) {
-    FOVSession *s=&fov_session; float current;
-    if(s->active && fov_owned(s) && ev_read(s->camera.object.address+0x38c,&current,4) && current==s->applied)
-        ew_write(s->camera.object.address+0x38c,&s->before,4);
+    FOVSession *s=&fov_session;
+    if(s->active && fov_owned(s)) {
+        float zero=0.0f;
+        ew_write(s->camera.object.address+0x38c,&zero,4);
+    }
     memset(s,0,sizeof(*s));
 }
 static void fov_publish(uint64_t camera,int target) {
@@ -57,10 +59,37 @@ static void perspective_publish(uint64_t pawn, int mode) {
     if (mode == 2) {
         uint64_t spring = ev_ptr(comp + 0x168);
         if (is_any_ptr(spring)) {
-            float arm = 0;
-            ev_read(spring + 0x240, &arm, 4);
             float target = 300.0f;
-            if (arm < target - 1.0f) ew_write(spring + 0x240, &target, 4);
+            ew_write(spring + 0x240, &target, 4);
+        }
+        uint64_t mesh = ev_ptr(pawn + 0x3d0);
+        if (is_any_ptr(mesh)) {
+            uint8_t flags = 0;
+            if (ev_read(mesh + 0x19C, &flags, 1) && (flags & 0x40)) {
+                flags &= ~0x40;
+                ew_write(mesh + 0x19C, &flags, 1);
+            }
+        }
+        static int64_t next_dump;
+        if (ef_now() >= next_dump) {
+            next_dump = ef_now() + 5000;
+            uint64_t cam = ev_ptr(pawn + 0x370);
+            if (!is_any_ptr(cam)) cam = ev_ptr(ev_ptr(pawn + 0x3a8) + 0x408);
+            if (is_any_ptr(cam)) {
+                uint8_t buf[16]; char hex[200]; int p;
+                for (int off=0x2DA0; off<=0x2E00; off+=0x10) {
+                    ev_read(cam + off, buf, 16); p=0;
+                    p+=snprintf(hex+p,sizeof(hex)-p,"CM +%04x: ",off);
+                    for(int i=0;i<16;i++) p+=snprintf(hex+p,sizeof(hex)-p,"%02x ",buf[i]);
+                    _diag(hex);
+                }
+                float loc[3]={0}; ev_read(cam+0x2db4,loc,12);
+                float rot[3]={0}; ev_read(cam+0x2dc0,rot,12);
+                float fov=0; ev_read(cam+0x2dcc,&fov,4);
+                char lb[200]; snprintf(lb,sizeof(lb),"CM cache: loc=(%.0f,%.0f,%.0f) rot=(%.1f,%.1f,%.1f) fov=%.1f",
+                    loc[0],loc[1],loc[2],rot[0],rot[1],rot[2],fov);
+                _diag(lb);
+            }
         }
     } else {
         uint64_t spring = ev_ptr(comp + 0x168);
@@ -70,6 +99,14 @@ static void perspective_publish(uint64_t pawn, int mode) {
             if (arm > 50.0f) {
                 float zero = 0.0f;
                 ew_write(spring + 0x240, &zero, 4);
+            }
+        }
+        uint64_t mesh = ev_ptr(pawn + 0x3d0);
+        if (is_any_ptr(mesh)) {
+            uint8_t flags = 0;
+            if (ev_read(mesh + 0x19C, &flags, 1) && !(flags & 0x40)) {
+                flags |= 0x40;
+                ew_write(mesh + 0x19C, &flags, 1);
             }
         }
     }

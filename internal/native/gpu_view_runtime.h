@@ -23,6 +23,7 @@ typedef VkResult (*GvMapMemory)(VkDeviceMemory,VkDeviceSize,VkDeviceSize,void**)
 typedef VkResult (*GvUnmapMemory)(VkDeviceMemory);
 static GvMapMemory gv_o_map_impl;
 static GvUnmapMemory gv_o_unmap_impl;
+static PFN_vkMapMemory gv_o_map_public;
 static PFN_vkBindBufferMemory gv_o_bind;
 static PFN_vkUpdateDescriptorSets gv_o_update;
 static PFN_vkQueueSubmit gv_o_submit;
@@ -62,6 +63,23 @@ static void gv_free_memory(VkDevice device,VkDeviceMemory memory,const VkAllocat
 }
 static VkResult gv_map_impl(VkDeviceMemory memory,VkDeviceSize offset,VkDeviceSize size,void **data) {
     VkResult r=gv_o_map_impl(memory,offset,size,data);
+    if(r==VK_SUCCESS) {
+        atomic_fetch_add(&gv_maps,1);
+        pthread_mutex_lock(&gv_mutex);int slot=gv_memory_slot(memory,0);
+        if(slot>=0 && offset<=gv_memory[slot].size) {
+            VkDeviceSize remaining=gv_memory[slot].size-offset;
+            if(size==VK_WHOLE_SIZE) size=remaining;
+            if(size<=remaining) {gv_memory[slot].offset=offset;gv_memory[slot].mapped_size=size;gv_memory[slot].pointer=*data;}
+        }
+        pthread_mutex_unlock(&gv_mutex);
+    }
+    return r;
+}
+/* Newer Adreno exposes the standard Vulkan ABI, rather than the old private
+ * four-argument tail-call target. Keep these signatures distinct. */
+static VkResult gv_map_public(VkDevice device,VkDeviceMemory memory,VkDeviceSize offset,
+        VkDeviceSize size,VkMemoryMapFlags flags,void **data) {
+    VkResult r=gv_o_map_public(device,memory,offset,size,flags,data);
     if(r==VK_SUCCESS) {
         atomic_fetch_add(&gv_maps,1);
         pthread_mutex_lock(&gv_mutex);int slot=gv_memory_slot(memory,0);
@@ -283,7 +301,17 @@ static int gv_install(PFN_vkGetDeviceProcAddr get,VkDevice device,uint8_t *tp) {
         {"vkBindBufferMemory",(void*)gv_bind,(void**)&gv_o_bind,NULL},
         {"vkUpdateDescriptorSets",(void*)gv_update,(void**)&gv_o_update,NULL},
         {"vkQueueSubmit",(void*)gv_submit,(void**)&gv_o_submit,NULL}};
+    /* Captured Adreno 640 driver: public map has a full body; unmap is a
+     * single RET (backing mappings persist until FreeMemory). Never patch that
+     * four-byte function and overwrite its neighbour. Unknown pairs fail closed. */
+    void *map=(void*)get(device,"vkMapMemory");
+    void *unmap=(void*)get(device,"vkUnmapMemory");
+    const uint32_t map640[]={0xa9bd7bfd,0xa90157f6,0x910003fd,0xa9024ff4};
+    uint32_t unmap_code=0;if(unmap) memcpy(&unmap_code,unmap,4);
+    int public_map=map && unmap_code==0xd65f03c0u && !memcmp(map,map640,sizeof(map640));
+    if(public_map) {hooks[2].hook=(void*)gv_map_public;hooks[2].original=(void**)&gv_o_map_public;}
     for(unsigned i=0;i<7;i++) {
+        if(public_map && i==3) continue;
         hooks[i].target=(void*)get(device,hooks[i].name);
         if(!hooks[i].target) return 0;
         uint32_t instruction;memcpy(&instruction,hooks[i].target,4);
@@ -292,7 +320,7 @@ static int gv_install(PFN_vkGetDeviceProcAddr get,VkDevice device,uint8_t *tp) {
          * only the exact captured register shuffles and validate the callee ABI
          * prologue. This avoids overwriting adjacent functions or relying on a
          * free executable page within a branch's 128 MiB range. */
-        if(i==2) {
+        if(i==2 && !public_map) {
             uint32_t code[13];memcpy(code,hooks[i].target,sizeof(code));
             const uint32_t expected[]={0xb100047f,0xaa0103e0,0x540000a0,0xaa0203e1,0xaa0303e2,0xaa0503e3,
                 0,0xf9407008,0xcb020103,0xaa0203e1,0xaa0303e2,0xaa0503e3,0};
@@ -317,9 +345,9 @@ static int gv_install(PFN_vkGetDeviceProcAddr get,VkDevice device,uint8_t *tp) {
             char b[100];snprintf(b,sizeof(b),"gpu view: hook rejected %s",hooks[i].name);_diag(b);return 0;
         }
     }
-    for(unsigned i=0;i<7;i++) if(!_ih_patch(hooks[i].target,hooks[i].hook,hooks[i].original,tp+2304+i*64)) {
+    for(unsigned i=0;i<7;i++) if(!(public_map && i==3) && !_ih_patch(hooks[i].target,hooks[i].hook,hooks[i].original,tp+2304+i*64)) {
         char b[100];snprintf(b,sizeof(b),"gpu view: hook failed %s",hooks[i].name);_diag(b);return 0;
     }
-    _diag("gpu view: uniform/submit hooks ready");return 1;
+    _diag(public_map ? "gpu view: Adreno 640 public map/persistent backing ready" : "gpu view: legacy Adreno private map/unmap ready");return 1;
 }
 #endif

@@ -233,6 +233,7 @@ public class O extends View {
     static volatile int aimPriority = 0; // 0=crosshair, 1=distance, 2=low hp, 3=looking at us
     static volatile int aimMaxDist = 0; // 0=unlimited, else meters
     static volatile int aimTypePref = 0; // 0=none, 1=enemy, 2=teammate, 3=npc
+    static volatile int aimLockMode = 0; // 0=auto, 1=shoot to lock
 
     // Misc settings
     static volatile boolean noRecoil = false;
@@ -522,6 +523,7 @@ public class O extends View {
     static int gap() { return aimPriority; }
     static int gad() { return aimMaxDist; }
     static int gtp() { return aimTypePref; }
+    static int galm() { return aimLockMode; }
 
     /* Misc queries (called from C) */
     static boolean gnr() { return noRecoil; }
@@ -565,7 +567,7 @@ public class O extends View {
             .putInt("snapOrigin", snapOrigin)
             .putBoolean("aim", aimEnabled).putInt("aimFov", aimFov)
             .putInt("aimStr", aimStrength).putInt("aimBone", aimBone)
-            .putBoolean("autoShoot", autoShoot).putBoolean("autoZoom", autoZoom).putBoolean("showLockBtn", showLockBtn).putBoolean("aim360", aim360).putInt("aimMask", aimTargetMask).putInt("aimPriority", aimPriority).putInt("aimMaxDist", aimMaxDist).putInt("aimTypePref", aimTypePref)
+            .putBoolean("autoShoot", autoShoot).putBoolean("autoZoom", autoZoom).putBoolean("showLockBtn", showLockBtn).putBoolean("aim360", aim360).putInt("aimMask", aimTargetMask).putInt("aimPriority", aimPriority).putInt("aimMaxDist", aimMaxDist).putInt("aimTypePref", aimTypePref).putInt("aimLockMode", aimLockMode)
             .putBoolean("rayDebug", rayDebug).putBoolean("rayViews", rayViews)
             .putBoolean("rayLos", rayLos).putBoolean("rayBounds", rayBounds)
             .putBoolean("noRecoil", noRecoil).putBoolean("noSpread", noSpread).putBoolean("noWeaponSway", noWeaponSway).putBoolean("infiniteStamina", infiniteStamina)
@@ -612,6 +614,7 @@ public class O extends View {
     aimPriority = Math.max(0,Math.min(3,prefs.getInt("aimPriority", 0)));
     aimMaxDist = Math.max(0,Math.min(500,prefs.getInt("aimMaxDist", 0)));
     aimTypePref = Math.max(0,Math.min(3,prefs.getInt("aimTypePref", 0)));
+    aimLockMode = Math.max(0,Math.min(1,prefs.getInt("aimLockMode", 0)));
     noRecoil = prefs.getBoolean("noRecoil", false);
     noSpread = prefs.getBoolean("noSpread", false);
     noWeaponSway = prefs.getBoolean("noWeaponSway", false);
@@ -1400,6 +1403,9 @@ public class O extends View {
             toggle("Enable aim", -2, aimEnabled);
             toggle("Show lock button", -11, showLockBtn);
 
+            section("Lock mode", aimLockMode == 0 ? "Locks automatically on best target" : "Locks when you start shooting, releases on kill");
+            buildLockModePicker();
+
             section("Trigger bot", "Holds fire while a visible, living enemy is under the crosshair. Works with Aim off.");
             toggle("Auto shoot", -3, autoShoot);
             toggle("Auto zoom before shooting", -10, autoZoom);
@@ -1495,6 +1501,23 @@ public class O extends View {
                 row.addView(item, lp);
                 item.setOnClickListener(new OnClickListener() {
                     public void onClick(View v) { aimTypePref = tp; saveSettings(); selectTab(2); }
+                });
+            }
+            body.addView(row, new LayoutParams(-1, 58));
+        }
+
+        void buildLockModePicker() {
+            String[] labels = {"Auto", "Shoot to lock"};
+            LinearLayout row = row();
+            for (int i = 0; i < 2; i++) {
+                final int mode = i;
+                TextView item = text(labels[i], 19, i == aimLockMode ? INK : MUTED);
+                item.setGravity(Gravity.CENTER);
+                item.setBackground(shape(i == aimLockMode ? BG_ACTIVE : BG_CARD, 8));
+                LayoutParams lp = new LayoutParams(0, 52, 1); lp.setMargins(0, 0, 8, 0);
+                row.addView(item, lp);
+                item.setOnClickListener(new OnClickListener() {
+                    public void onClick(View v) { aimLockMode = mode; saveSettings(); selectTab(2); }
                 });
             }
             body.addView(row, new LayoutParams(-1, 58));

@@ -416,7 +416,12 @@ static void ew_log_shot(uint64_t weapon) {
     if (!ew_is_a(source,EW_GPWDCF,0xa08) || !ew_owned_by(source,weapon)) return;
     uint64_t id=ev_ptr(source+0x4b0);
     if (last_source!=source) { last_source=source;last_id=0;logged=0; }
-    if (!id || id==last_id || logged>=256) return;
+    if (!id || id==last_id) return;
+    last_id=id;
+    atomic_store(&ea_shot_this_frame, 1);
+    { struct timespec _ts; clock_gettime(CLOCK_MONOTONIC, &_ts);
+      atomic_store(&ea_last_fire_ms, (int64_t)_ts.tv_sec * 1000 + _ts.tv_nsec / 1000000); }
+    if (logged>=256) return;
     EVArray bullets={0};float rotations[6],view[4],kick[2];
     if (!ev_read(source+0x4d8,&bullets,sizeof(bullets)) || !is_any_ptr(bullets.data) ||
         bullets.count<1 || bullets.count>32 || bullets.capacity<bullets.count || bullets.capacity>128 ||
@@ -424,7 +429,7 @@ static void ew_log_shot(uint64_t weapon) {
         !ev_read(source+0x4fc,view,sizeof(view)) || !ev_read(source+0x514,kick,sizeof(kick)) ||
         ev_ptr(source+0x4b0)!=id) return;
     for (unsigned i=0;i<6;i++) if (!isfinite(rotations[i]) || fabsf(rotations[i])>3600) return;
-    last_id=id;logged++;
+    logged++;
     float control[2]={0},spread[2]={0};
     uint64_t controller=ev_ptr(ev_ptr(weapon+0xa60)+0x3a8);
     ev_read(controller+0x3d8,control,8);
@@ -433,11 +438,13 @@ static void ew_log_shot(uint64_t weapon) {
         (unsigned long)id,rotations[0],rotations[1],rotations[3],rotations[4],control[0],control[1],spread[0],spread[1],kick[0],kick[1]);_diag(line);
 }
 static void ew_update(uint64_t pawn) {
+    atomic_store(&ea_shot_this_frame, 0);
     int nr=atomic_load(&ew_no_recoil), ns=atomic_load(&ew_no_spread), nw=atomic_load(&ew_no_sway);
     if (!nr) { ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); }
     if (!nr && !nw) {ew_restore_group(&ew_sway_group);ew_camera_release();}
     if (!ns) {ew_restore_group(&ew_spread_group);ew_restore_group(&ew_spread_gate_group);}
-    if (!nr && !ns && !nw) return;
+    int need_shot_track = atomic_load(&ea_aim_lock_mode) == 1;
+    if (!nr && !ns && !nw && !need_shot_track) return;
     uint64_t weapon=ew_get_current_weapon(pawn);
     if (!weapon || !ew_bind_serial(weapon)) {
         ew_release();
@@ -448,7 +455,20 @@ static void ew_update(uint64_t pawn) {
         }
         return;
     }
+    {
+        uint64_t source=ew_firing_seen;
+        if (!source || !ew_is_a(source,EW_GPWDCF,0xa08) || !ew_owned_by(source,weapon)) {
+            uint64_t shake=ev_ptr(weapon+WB_OFF_FIRESHAKE_CACHE);
+            if (shake) {
+                uint64_t firing=ev_ptr(shake+0x960);
+                if (!ew_is_a(firing,EW_GPWDCF,0xa08) || !ew_owned_by(firing,weapon))
+                    firing=ew_find_component_in(weapon,EW_GPWDCF,0xa08,0xac8);
+                ew_firing_seen=firing;
+            }
+        }
+    }
     ew_log_shot(weapon);
+    if (!nr && !ns && !nw) return;
     int recoil=nr ? ew_apply_no_recoil(weapon) : 0;
     if(nw && (!nr || !recoil)) ew_apply_no_sway(weapon);
     if(nr || nw) ew_camera_update(pawn,nr,nr||nw);

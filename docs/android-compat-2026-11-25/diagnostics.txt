@@ -1,0 +1,200 @@
+[244.912]   e[9] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B9
+[244.912]   e[10] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B10
+[244.912]   e[11] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B11
+[244.913]   e[12] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B12
+[244.913]   e[13] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B13
+[244.913]   e[14] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B14
+[244.913]   e[15] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B15
+[244.913]   e[16] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B16
+[244.913] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[244.913] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[244.915] frame 3600: render end
+[244.915] projection state: ready=1 stage=0
+[244.915] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=155 w=6f981d0080
+[245.463] aim lock: kind=a team=2 name=B6 mask=5 act=6f656daab0 bone=0 joint=31
+[245.514] target presence: actor=6f656daab0 identity=1 present=1 dead=0 active=1 hp=100.0 alive=1.0 flags=89 finished=0 ps_dead=0 life=1 box=0
+[245.612] aim lock: kind=a team=2 name=B3 mask=5 act=6f5e8baab0 bone=0 joint=31
+[245.942] aim lock: kind=a team=2 name=B5 mask=5 act=6f65790010 bone=0 joint=31
+[246.342] gpu view: captured=3000 missing=0 read_fail=0 mat=23 pre=31 vp=717x-1600 area=720x1600 flags=0
+[246.518] target presence: actor=6f65790010 identity=1 present=1 dead=0 active=1 hp=7.2 alive=1.0 flags=89 finished=0 ps_dead=0 life=1 box=0
+[246.541] frame 3700: read begin
+[246.545] stamina: enabled=0 state=0 stage=4 pawn=6f31f80010 comp=6f300b2380 attr=6fe52717b0 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[246.546] engine LOS: ready=1 batches=2574 traces=799329
+[246.546] aim: enabled=1 ready=1 state=2 target=6f65790010 corrections=1492
+[246.546] aim candidates: config=0f00050b players=0 health=0 joints=0 visible=0 npcs=13 health=13 joints=13 visible=1
+[246.546] camera SDK: samples=2603 stage=0 cache=ffffffff controlled=1 joints=0/0
+[246.546] trigger: enabled=1 state=3 hit=6f65790010 queries=2603 starts=0 stops=0 callbacks=0 tid=12393 reject=0
+[246.546] frame 3700: read end n=17 camera=1 occ=0 visible=1 read_ms=5
+[246.546] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[246.546] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[246.547] frame 3700: render end
+[246.547] projection state: ready=1 stage=0
+[246.547] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=155 w=6f981d0080
+[247.913] esp f3200: 7 drawn of 17 ent (dead=3 type=0 dist=0 w2s=6 box=0) cam=(15,-87,2) fov=96
+[248.208] projection: viewport=2000x896 rect=0,0,2000,896 scale=0.905,2.020 hfov=95.71 near=1.00
+[248.208] projection comparison: samples=0 native_max_error_px=0.000
+[248.217] frame 3800: read begin
+[248.221] stamina: enabled=0 state=0 stage=4 pawn=6f31f80010 comp=6f300b2380 attr=6fe52717b0 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[248.222] loot: tables=2 rows=17344 colors=6 scan=112320/245833 actors=0 named=0
+[248.222] engine LOS: ready=1 batches=2674 traces=829929
+[248.222] aim: enabled=1 ready=1 state=2 target=6f65790010 corrections=1592
+[248.222] aim candidates: config=0f00050b players=0 health=0 joints=0 visible=0 npcs=13 health=13 joints=13 visible=1
+[248.222] camera SDK: samples=2703 stage=0 cache=ffffffff controlled=1 joints=0/0
+[248.222] trigger: enabled=1 state=3 hit=6f65790010 queries=2703 starts=0 stops=0 callbacks=0 tid=12393 reject=0
+[248.222] frame 3800: read end n=17 camera=1 occ=0 visible=1 read_ms=5
+[248.222] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[248.222] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[248.223] frame 3800: render end
+[248.223] projection state: ready=1 stage=0
+[248.223] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=155 w=6f981d0080
+[248.959] v1: hit=9853 miss=25559 fs=0 cl=29 en=1 ic=<8953/900/0/0> na=<9257/596/0/0>
+[248.959] gpu view: frames=3154 missing=0 read_fail=0 writes=1689 maps=100 stage=1
+[248.959] gpu read rejects: buffer=0 range=0 memory=0 unmapped=0 bounds=0 copy=0 errno=0
+[248.959] v2: flush=5629 draws=88453 drops=0 ready=1
+[249.643] cam: 15,-87,2 y=-77.5 p=0.0 f=95.7 n=17
+[249.810] present: composited=3900 skipped=0 tid=12769
+[249.867] frame 3900: read begin
+[249.874] stamina: enabled=0 state=0 stage=4 pawn=6f31f80010 comp=6f300b2380 attr=6fe52717b0 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[249.874] engine LOS: ready=1 batches=2774 traces=860529
+[249.874] aim: enabled=1 ready=1 state=2 target=6f65790010 corrections=1692
+[249.874] aim candidates: config=0f00050b players=0 health=0 joints=0 visible=0 npcs=13 health=13 joints=13 visible=1
+[249.874] camera SDK: samples=2803 stage=0 cache=ffffffff controlled=1 joints=0/0
+[249.874] trigger: enabled=1 state=3 hit=6f65790010 queries=2803 starts=0 stops=0 callbacks=0 tid=12393 reject=0
+[249.874] frame 3900: read end n=17 camera=1 occ=0 visible=1 read_ms=7
+[249.874]   e[0] k=p t=1 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=0 act=1 haxorwat
+[249.875]   e[1] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B1
+[249.875]   e[2] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B2
+[249.875]   e[3] k=a t=2 hp=0/0 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B3
+[249.875]   e[4] k=a t=2 hp=0/0 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B4
+[249.875]   e[5] k=a t=2 hp=7/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B5
+[249.875]   e[6] k=a t=2 hp=0/0 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B6
+[249.875]   e[7] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B7
+[249.875]   e[8] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B8
+[249.875]   e[9] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B9
+[249.875]   e[10] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B10
+[249.875]   e[11] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B11
+[249.875]   e[12] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B12
+[249.875]   e[13] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B13
+[249.875]   e[14] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B14
+[249.875]   e[15] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B15
+[249.875]   e[16] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B16
+[249.875] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[249.875] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[249.876] frame 3900: render end
+[249.876] projection state: ready=1 stage=0
+[249.876] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=155 w=6f981d0080
+[250.147] aim lock: kind=a team=2 name=B4 mask=5 act=6f77ef0010 bone=0 joint=31
+[250.388] aim lock: kind=a team=2 name=B6 mask=5 act=6f656daab0 bone=0 joint=31
+[250.548] aim lock: kind=a team=2 name=B3 mask=5 act=6f5e8baab0 bone=0 joint=31
+[250.549] target presence: actor=6f5e8baab0 identity=1 present=1 dead=0 active=1 hp=100.0 alive=1.0 flags=89 finished=0 ps_dead=0 life=1 box=0
+[251.219] esp f3400: 6 drawn of 17 ent (dead=4 type=0 dist=0 w2s=6 box=0) cam=(15,-87,2) fov=90
+[251.509] frame 4000: read begin
+[251.514] stamina: enabled=0 state=0 stage=4 pawn=6f31f80010 comp=6f300b2380 attr=6fe52717b0 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[251.515] loot: tables=2 rows=17344 colors=6 scan=150720/245833 actors=0 named=0
+[251.515] engine LOS: ready=1 batches=2874 traces=891003
+[251.515] aim: enabled=1 ready=1 state=1 target=0 corrections=1759
+[251.515] aim candidates: config=0f00050b players=0 health=0 joints=0 visible=0 npcs=12 health=12 joints=12 visible=0
+[251.515] camera SDK: samples=2903 stage=0 cache=ffffffff controlled=1 joints=0/0
+[251.515] trigger: enabled=1 state=3 hit=6f6a9052c0 queries=2903 starts=0 stops=0 callbacks=0 tid=12393 reject=0
+[251.515] frame 4000: read end n=17 camera=1 occ=0 visible=0 read_ms=6
+[251.515] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[251.515] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[251.516] frame 4000: render end
+[251.516] projection state: ready=1 stage=0
+[251.516] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=155 w=6f981d0080
+[251.522] gpu view: captured=3300 missing=0 read_fail=0 mat=23 pre=31 vp=717x-1600 area=720x1600 flags=0
+[251.564] target presence: actor=6f5e8baab0 identity=1 present=1 dead=1 active=1 hp=0.0 alive=0.0 flags=89 finished=0 ps_dead=1 life=2 box=0
+[253.172] frame 4100: read begin
+[253.176] stamina: enabled=0 state=0 stage=4 pawn=6f31f80010 comp=6f300b2380 attr=6fe52717b0 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[253.177] engine LOS: ready=1 batches=2974 traces=921003
+[253.177] aim: enabled=1 ready=1 state=1 target=0 corrections=1759
+[253.177] aim candidates: config=0f00050b players=0 health=0 joints=0 visible=0 npcs=12 health=12 joints=12 visible=0
+[253.177] camera SDK: samples=3003 stage=0 cache=ffffffff controlled=1 joints=0/0
+[253.177] trigger: enabled=1 state=3 hit=6fab244300 queries=3003 starts=0 stops=0 callbacks=0 tid=12393 reject=0
+[253.177] frame 4100: read end n=17 camera=1 occ=0 visible=0 read_ms=5
+[253.177] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[253.177] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[253.178] frame 4100: render end
+[253.178] projection state: ready=1 stage=0
+[253.178] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=155 w=6f981d0080
+[253.221] projection: viewport=2000x896 rect=0,0,2000,896 scale=0.996,2.222 hfov=90.26 near=1.00
+[253.221] projection comparison: samples=0 native_max_error_px=0.000
+[253.963] v1: hit=9439 miss=26580 fs=0 cl=29 en=1 ic=<8558/881/0/0> na=<8857/582/0/0>
+[253.963] gpu view: frames=3444 missing=0 read_fail=0 writes=1689 maps=100 stage=1
+[253.963] gpu read rejects: buffer=0 range=0 memory=0 unmapped=0 bounds=0 copy=0 errno=0
+[253.963] v2: flush=6209 draws=97892 drops=0 ready=1
+[254.533] esp f3600: 6 drawn of 17 ent (dead=4 type=0 dist=0 w2s=6 box=0) cam=(15,-87,2) fov=90
+[254.594] cam: 15,-87,2 y=-70.7 p=-2.1 f=90.3 n=17
+[254.779] aim lock: kind=a team=2 name=B5 mask=5 act=6f65790010 bone=0 joint=31
+[254.821] frame 4200: read begin
+[254.825] stamina: enabled=0 state=0 stage=4 pawn=6f31f80010 comp=6f300b2380 attr=6fe52717b0 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[254.826] loot: tables=2 rows=17344 colors=6 scan=189120/245833 actors=0 named=0
+[254.826] engine LOS: ready=1 batches=3074 traces=951027
+[254.826] aim: enabled=1 ready=1 state=2 target=6f65790010 corrections=1763
+[254.826] aim candidates: config=0f00050b players=0 health=0 joints=0 visible=0 npcs=13 health=13 joints=13 visible=1
+[254.826] camera SDK: samples=3103 stage=0 cache=ffffffff controlled=1 joints=0/0
+[254.826] trigger: enabled=1 state=3 hit=6f65790010 queries=3103 starts=0 stops=0 callbacks=0 tid=12393 reject=0
+[254.826] frame 4200: read end n=17 camera=1 occ=0 visible=1 read_ms=5
+[254.826]   e[0] k=p t=1 hp=100/100 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=0 act=1 haxorwat
+[254.826]   e[1] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B1
+[254.826]   e[2] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B2
+[254.826]   e[3] k=a t=2 hp=0/0 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B3
+[254.826]   e[4] k=a t=2 hp=0/0 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B4
+[254.826]   e[5] k=a t=2 hp=100/100 pt=1 vis=1 vk=1 eng=1 blk=0x04 dead=0 act=1 B5
+[254.826]   e[6] k=a t=2 hp=0/0 pt=1 vis=0 vk=0 eng=-1 blk=0x00 dead=1 act=1 B6
+[254.826]   e[7] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B7
+[254.826]   e[8] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B8
+[254.826]   e[9] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B9
+[254.826]   e[10] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B10
+[254.826]   e[11] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B11
+[254.826]   e[12] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B12
+[254.826]   e[13] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B13
+[254.826]   e[14] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B14
+[254.826]   e[15] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B15
+[254.826]   e[16] k=a t=2 hp=100/100 pt=1 vis=0 vk=1 eng=0 blk=0x1F dead=0 act=1 B16
+[254.826] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[254.826] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[254.828] frame 4200: render end
+[254.828] projection state: ready=1 stage=0
+[254.828] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=155 w=6f981d0080
+[254.861] present: composited=4200 skipped=0 tid=12769
+[255.460] aim lock: kind=a team=2 name=B6 mask=5 act=6f656daab0 bone=0 joint=31
+[255.578] aim lock: kind=a team=2 name=B4 mask=5 act=6f77ef0010 bone=0 joint=31
+[255.608] target presence: actor=6f77ef0010 identity=1 present=1 dead=0 active=1 hp=100.0 alive=1.0 flags=89 finished=0 ps_dead=0 life=1 box=0
+[256.327] aim lock: kind=a team=2 name=B3 mask=5 act=6f5e8baab0 bone=0 joint=31
+[256.452] frame 4300: read begin
+[256.456] stamina: enabled=0 state=0 stage=4 pawn=6f31f80010 comp=6f300b2380 attr=6fe52717b0 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[256.457] engine LOS: ready=1 batches=3174 traces=982131
+[256.457] aim: enabled=1 ready=1 state=2 target=6f5e8baab0 corrections=1863
+[256.457] aim candidates: config=0f00050b players=0 health=0 joints=0 visible=0 npcs=13 health=13 joints=13 visible=1
+[256.457] camera SDK: samples=3203 stage=0 cache=ffffffff controlled=1 joints=0/0
+[256.457] trigger: enabled=1 state=3 hit=6f5e8baab0 queries=3203 starts=0 stops=0 callbacks=0 tid=12393 reject=0
+[256.457] frame 4300: read end n=17 camera=1 occ=0 visible=1 read_ms=5
+[256.457] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[256.457] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[256.459] frame 4300: render end
+[256.459] projection state: ready=1 stage=0
+[256.459] loop n=17 posted=-1 sock=-1 fail=2 zero=0 st=5 ac=155 w=6f981d0080
+[256.565] gpu view: captured=3600 missing=0 read_fail=0 mat=23 pre=31 vp=717x-1600 area=720x1600 flags=0
+[256.614] target presence: actor=6f5e8baab0 identity=1 present=1 dead=1 active=1 hp=0.0 alive=0.0 flags=89 finished=0 ps_dead=1 life=2 box=0
+[257.820] esp f3800: 6 drawn of 17 ent (dead=4 type=0 dist=0 w2s=6 box=0) cam=(15,-87,2) fov=90
+[258.112] frame 4400: read begin
+[258.116] stamina: enabled=0 state=0 stage=4 pawn=6f31f80010 comp=6f300b2380 attr=6fe52717b0 value=100.000/100.000 sprint=1.000/1.000 cost=1.000/1.000
+[258.117] loot: tables=2 rows=17344 colors=6 scan=227520/245865 actors=0 named=0
+[258.117] engine LOS: ready=1 batches=3274 traces=1012161
+[258.117] aim: enabled=1 ready=1 state=1 target=0 corrections=1868
+[258.117] aim candidates: config=0f00050b players=0 health=0 joints=0 visible=0 npcs=12 health=12 joints=12 visible=0
+[258.117] camera SDK: samples=3303 stage=0 cache=ffffffff controlled=1 joints=0/0
+[258.117] trigger: enabled=1 state=3 hit=6fe274a180 queries=3303 starts=0 stops=0 callbacks=0 tid=12393 reject=0
+[258.117] frame 4400: read end n=17 camera=1 occ=0 visible=0 read_ms=5
+[258.117] visibility: actors=0 primitive_rej=0 flags_rej=0 bounds_rej=0 size_rej=0 added=0
+[258.117] position: step=0 calls=0 decoded=0 native=0 SDKcalls=0 SDKreturns=0 native_stage=0 world_fallback=0 rejected=0 entities=17
+[258.118] frame 4400: render end
+[258.118] projection state: ready=1 stage=0
+[258.118] loop n=17 posted=-1 sock=-1 fail=0 zero=0 st=5 ac=155 w=6f981d0080
+[258.225] projection: viewport=2000x896 rect=0,0,2000,896 scale=0.996,2.222 hfov=90.26 near=1.00
+[258.225] projection comparison: samples=0 native_max_error_px=0.000
+[258.976] v1: hit=9564 miss=27218 fs=0 cl=29 en=1 ic=<8664/900/0/0> na=<8966/598/0/0>
+[258.976] gpu view: frames=3742 missing=0 read_fail=0 writes=1689 maps=100 stage=1
+[258.976] gpu read rejects: buffer=0 range=0 memory=0 unmapped=0 bounds=0 copy=0 errno=0
+[258.976] v2: flush=6805 draws=107456 drops=0 ready=1

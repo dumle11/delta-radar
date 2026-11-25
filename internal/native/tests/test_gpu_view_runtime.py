@@ -9,6 +9,7 @@ header=(root/'gpu_view_runtime.h').read_text()
 frame=(root/'gpu_view.h').read_text();frame=frame[frame.index('typedef struct {'):frame.index('} GvFrame;')+len('} GvFrame;')]
 functions=header[header.index('#define GV_MEMORY_CAP'):header.index('static void gv_draw_view(')]
 submit=header[header.index('static int gv_signal_slot('):header.index('static void gv_log(')]
+installer=header[header.index('static int gv_install('):header.rindex('#endif')]
 source=r'''
 #include <vulkan/vulkan.h>
 #include <stdint.h>
@@ -19,16 +20,46 @@ source=r'''
 #include <assert.h>
 #include <stdatomic.h>
 #include <pthread.h>
+#include "chams_reloc.h"
 #define CR_CB_CAP 128
 static pthread_mutex_t gv_mutex=PTHREAD_MUTEX_INITIALIZER;
 static unsigned char bytes[512];
 static int64_t ef_now(void){return 1000;}
 static int ev_read(uint64_t address,void*out,size_t size){memcpy(out,(void*)(uintptr_t)address,size);return 1;}
 '''+frame+'\n'+functions+submit+r'''
+static void _diag(const char *s){}
+static unsigned patched;
+static int _ih_patch(void *t,void *h,void **o,uint8_t *slot){patched++;*o=t;return 1;}
+'''+installer+r'''
 static VkDeviceMemory fixture_memory=(VkDeviceMemory)0x100000;
 static VkResult allocate(VkDevice d,const VkMemoryAllocateInfo *i,const VkAllocationCallbacks *a,VkDeviceMemory *m){*m=fixture_memory;return VK_SUCCESS;}
 static void freemem(VkDevice d,VkDeviceMemory m,const VkAllocationCallbacks *a){}
 static VkResult map(VkDeviceMemory m,VkDeviceSize o,VkDeviceSize n,void **p){*p=bytes+o;return VK_SUCCESS;}
+static VkResult map_public_fixture(VkDevice d,VkDeviceMemory m,VkDeviceSize o,VkDeviceSize n,VkMemoryMapFlags f,void **p){
+ assert(d==(VkDevice)0xabc && f==0);*p=bytes+o;return VK_SUCCESS;
+}
+static uint32_t hook_code[7][64];
+static const char *hook_names[]={"vkAllocateMemory","vkFreeMemory","vkMapMemory","vkUnmapMemory","vkBindBufferMemory","vkUpdateDescriptorSets","vkQueueSubmit"};
+static PFN_vkVoidFunction fixture_get(VkDevice d,const char *name){for(unsigned i=0;i<7;i++)if(!strcmp(name,hook_names[i]))return (PFN_vkVoidFunction)hook_code[i];return NULL;}
+static void install_fixture(void){
+ uint8_t tramp[4096];memset(hook_code,0,sizeof(hook_code));
+ const uint32_t plain[]={0xa9bd7bfd,0xa90157f6,0x910003fd,0xa9024ff4};
+ for(unsigned i=0;i<7;i++)memcpy(hook_code[i],plain,16);
+ hook_code[3][0]=0xd65f03c0;patched=0;
+ assert(gv_install(fixture_get,NULL,tramp) && patched==6);
+ // One unknown map instruction must reject the pair before any patch.
+ hook_code[2][1]^=1;patched=0;assert(!gv_install(fixture_get,NULL,tramp) && !patched);
+ const uint32_t map_old[]={0xb100047f,0xaa0103e0,0x540000a0,0xaa0203e1,0xaa0303e2,0xaa0503e3,0,0xf9407008,0xcb020103,0xaa0203e1,0xaa0303e2,0xaa0503e3,0};
+ memcpy(hook_code[2],map_old,sizeof(map_old));
+ const uint32_t map_body[]={0xf81d0ff5,0xa9014ff4,0xa9027bfd,0x910083fd};
+ memcpy(&hook_code[2][32],map_body,16);
+ hook_code[2][6]=0x14000000u|(32-6);hook_code[2][12]=0x14000000u|(32-12);
+ hook_code[3][0]=0xaa0103e0;hook_code[3][1]=0x14000000u|(32-1);
+ const uint32_t unmap_body[]={0xf81e0ff3,0xa9017bfd,0x910043fd,0xb940f808};
+ memcpy(&hook_code[3][32],unmap_body,16);patched=0;
+ assert(gv_install(fixture_get,NULL,tramp) && patched==7);
+ hook_code[3][32]^=1;patched=0;assert(!gv_install(fixture_get,NULL,tramp) && !patched);
+}
 static VkResult unmap(VkDeviceMemory m){return VK_SUCCESS;}
 static VkResult bind(VkDevice d,VkBuffer b,VkDeviceMemory m,VkDeviceSize o){return VK_SUCCESS;}
 static void update(VkDevice d,uint32_t n,const VkWriteDescriptorSet*w,uint32_t nc,const VkCopyDescriptorSet*c){}
@@ -38,6 +69,9 @@ int main(void){
  gv_o_allocate=allocate;gv_o_free_memory=freemem;gv_o_map_impl=map;gv_o_unmap_impl=unmap;gv_o_bind=bind;gv_o_update=update;gv_o_submit=queue_submit;
  VkMemoryAllocateInfo a={.sType=VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,.allocationSize=512};VkDeviceMemory memory;
  assert(gv_allocate(NULL,&a,NULL,&memory)==VK_SUCCESS);void *mapped;
+ gv_o_map_public=map_public_fixture;
+ assert(gv_map_public((VkDevice)0xabc,memory,16,VK_WHOLE_SIZE,0,&mapped)==VK_SUCCESS);
+ assert(gv_memory[gv_memory_slot(memory,0)].mapped_size==a.allocationSize-16);
  assert(gv_map_impl(memory,16,VK_WHOLE_SIZE,&mapped)==VK_SUCCESS);
  VkBuffer buffer=(VkBuffer)0x200000;assert(gv_bind(NULL,buffer,memory,64)==VK_SUCCESS);
  VkDescriptorBufferInfo info={buffer,32,64};memset(bytes,123,sizeof(bytes));bytes[112]=42;
@@ -100,5 +134,5 @@ ndk=Path(os.environ.get('NDK_HOME','/opt/homebrew/share/android-ndk'))
 includes=next((ndk/'toolchains/llvm/prebuilt').glob('*/sysroot/usr/include'))
 with tempfile.TemporaryDirectory() as d:
  c=Path(d)/'test.c';binary=Path(d)/'test';c.write_text(source)
- subprocess.run(['cc','-std=gnu11','-idirafter',str(includes),str(c),'-pthread','-o',str(binary)],check=True)
+ subprocess.run(['cc','-std=gnu11','-I',str(root),'-idirafter',str(includes),str(c),'-pthread','-o',str(binary)],check=True)
  subprocess.run([str(binary)],check=True)

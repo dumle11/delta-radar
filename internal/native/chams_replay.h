@@ -366,7 +366,7 @@ static int cr_install(PFN_vkGetDeviceProcAddr get,VkDevice dev,uint8_t *tp) {
         if(!functions[i]) return 0;
         uint32_t relocated[16];
         if(!cr_trampoline(relocated,(const uint32_t*)functions[i],(uintptr_t)functions[i])) {
-            _diag("v2: journal prologue rejected"); return 0;
+            char db[100];snprintf(db,sizeof(db),"v2: journal prologue rejected %s",hooks[i].name);_diag(db); return 0;
         }
     }
     unsigned installed=0;

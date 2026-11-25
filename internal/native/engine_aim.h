@@ -11,6 +11,9 @@ static _Atomic int ea_autoshoot_active;
 static _Atomic int ea_screen_w, ea_screen_h;
 static _Atomic int ea_max_distance;
 static _Atomic int ea_type_pref;
+static _Atomic int ea_aim_lock_mode;
+static _Atomic int64_t ea_last_fire_ms;
+static _Atomic int ea_shot_this_frame;
 static EVObject ea_controller_obj, ea_target, ea_world_obj, ea_pawn_obj;
 
 static EVObject ea_fire_start_fn, ea_fire_stop_fn;
@@ -323,6 +326,22 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
         ea_pawn_obj.address != pawn) {
         ea_release();
         previous = 0;
+    }
+
+    int lock_mode = atomic_load(&ea_aim_lock_mode);
+    if (lock_mode == 1) {
+        static int dry_frames, need_release;
+        if (atomic_load(&ea_shot_this_frame)) dry_frames = 0;
+        else dry_frames++;
+        int firing = dry_frames <= 4;
+        if (!firing) { need_release = 0; ea_release(); previous = 0; atomic_store(&ea_status, 1); return; }
+        if (need_release) { ea_release(); previous = 0; atomic_store(&ea_status, 1); return; }
+        if (previous) {
+            int prev_alive = 0;
+            for (int i = 0; i < choice_count; i++)
+                if (choices[i].actor == previous && choices[i].eligible) { prev_alive = 1; break; }
+            if (!prev_alive) { need_release = 1; ea_release(); previous = 0; atomic_store(&ea_status, 1); return; }
+        }
     }
 
     int chosen = aim_select(choices, choice_count, previous, (aim_config >> 8) & 255, aim_360);

@@ -15,7 +15,7 @@ static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt, _ov_glr, _ov_glm, _ov_glf, _ov_lc;
 static jmethodID _ov_circle, _ov_ta;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3, _ov_gap;
-static jmethodID _ov_gnr, _ov_gns, _ov_gnw, _ov_gcf, _ov_gis, _ov_gms, _ov_gad, _ov_gtp, _ov_gfp;
+static jmethodID _ov_gnr, _ov_gns, _ov_gnw, _ov_gcf, _ov_gis, _ov_gms, _ov_gad, _ov_gtp, _ov_gfp, _ov_galm;
 static jmethodID _ov_gce, _ov_gcv, _ov_gci, _ov_gcb;
 static int _ov_ready;
 static int _ov_w, _ov_h;
@@ -158,6 +158,7 @@ static int _ov_load_dex(void) {
     _ov_gad = (*env)->GetStaticMethodID(env, _ov_cls, "gad", "()I");
     _ov_gtp = (*env)->GetStaticMethodID(env, _ov_cls, "gtp", "()I");
     _ov_gfp = (*env)->GetStaticMethodID(env, _ov_cls, "gfp", "()Z");
+    _ov_galm = (*env)->GetStaticMethodID(env, _ov_cls, "galm", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gcf = (*env)->GetStaticMethodID(env, _ov_cls, "gcf", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
@@ -739,12 +740,14 @@ static unsigned _ov_aim_config(void) {
     int priority = _ov_gap ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gap) : 0;
     int max_dist = _ov_gad ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gad) : 0;
     int type_pref = _ov_gtp ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gtp) : 0;
+    int lock_mode = _ov_galm ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_galm) : 0;
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return 0; }
     if (fov<5) fov=5; if (fov>45) fov=45;
     if (bone<0 || bone>2) bone=2;
     if (priority<0 || priority>3) priority=0;
     atomic_store(&ea_max_distance, max_dist);
     atomic_store(&ea_type_pref, type_pref);
+    atomic_store(&ea_aim_lock_mode, lock_mode);
     return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u) | (autozoom?1u<<25:0u) | (aimlocked?1u<<26:0u) | (aim360?1u<<27:0u) | ((unsigned)priority<<28);
 }
 static _Atomic int _ov_camera_fov_override;
