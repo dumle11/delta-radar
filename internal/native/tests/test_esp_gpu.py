@@ -54,6 +54,13 @@ int main(void) {
     eg_publish(255,0,3);
     EgVert *a=calloc(EG_MAX_VERTS,sizeof(EgVert)),*b=calloc(EG_MAX_VERTS,sizeof(EgVert));
     int count=eg_draw(a,1280,720,&view);assert(count==42 && atomic_load(&eg_active));
+    // A bot player shares enemy/team styling even when the retired bot slot is disabled.
+    strcpy(e->kind,"a");e->is_player_bot=1;atomic_store(&eg_feat[3],0);eg_publish(255,0,3);
+    assert(eg_draw(b,1280,720,&view)==count && !memcmp(a,b,count*sizeof(EgVert)));
+    e->team=1;atomic_store(&eg_feat[1],1|2|4|16|64);atomic_store(&eg_rdist[1],500);atomic_store(&eg_palette[1][1],0xff44aaff);eg_publish(255,0,3);
+    assert(eg_draw(b,1280,720,&view)==count && b[0].color==eg_argb_to_rgba(0xff44aaff));
+    e->is_player_bot=0;eg_publish(255,0,3);assert(eg_draw(b,1280,720,&view)==0); // World NPC keeps its own disabled category.
+    strcpy(e->kind,"p");e->team=2;eg_publish(255,0,3);
     // Transient scanner clearing/decryption/visibility changes cannot affect a published frame.
     e->dead=1;e->x=NAN;e->visible_from_camera=0;e->visibility_known=0;
     assert(eg_draw(b,1280,720,&view)==count && !memcmp(a,b,count*sizeof(EgVert)));

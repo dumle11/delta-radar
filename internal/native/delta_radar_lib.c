@@ -1003,9 +1003,8 @@ static int try_dl_iterate(void) {
 }
 
 #include "esp_render.h"
-#include "esp_overlay.h"
-
 #include "engine_camera_fov.h"
+#include "esp_overlay.h"
 #include "entity_watch.h"
 
 static void *injected_scanner_thread(void *arg) {
@@ -1276,6 +1275,13 @@ static void *injected_scanner_thread(void *arg) {
         {
             int fov_val = atomic_load(&_ov_camera_fov_override);
             fov_publish(camera_frame_valid && local_player_controlled ? resolved_camera_owner : 0, fov_val);
+            {
+                int persp = atomic_load(&_perspective_mode);
+                static int persp_prev;
+                if (persp || persp_prev)
+                    perspective_publish(atomic_load(&ev_local_pawn), persp);
+                persp_prev = persp;
+            }
         }
         ev_update(n);
         ew_update(atomic_load(&ev_local_pawn));
@@ -1321,6 +1327,14 @@ static void *injected_scanner_thread(void *arg) {
                         entities[ei].dead, entities[ei].actor_address != 0,
                         entities[ei].name);
                     _diag(evbuf);
+                    if (entities[ei].identity_verified) {
+                        char idbuf[200];
+                        snprintf(idbuf, sizeof(idbuf), "    id: oi=%lld hi=%llu nt=%s iv=%d cls=%s",
+                            (long long)entities[ei].operator_id, (unsigned long long)entities[ei].hero_id,
+                            entities[ei].npc_template, entities[ei].identity_verified,
+                            entities[ei].class_name);
+                        _diag(idbuf);
+                    }
                 }
             }
             if (seq <= 5 || seq % 100 == 0) {

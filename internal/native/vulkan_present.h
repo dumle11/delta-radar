@@ -400,10 +400,10 @@ static VkResult vp_present(VkQueue queue,const VkPresentInfoKHR *info) {
     uint32_t family=UINT32_MAX;
     for(uint32_t i=0;i<vp_queue_count;i++) if(vp_queues[i].queue==queue) family=vp_queues[i].family;
     if(!s || s->failed || family==UINT32_MAX || info->pImageIndices[0]>=s->count) goto skip;
-    uint32_t nf=0;vkGetPhysicalDeviceQueueFamilyProperties(vp_physical,&nf,NULL);
-    if(family>=nf || nf>32) goto skip;
-    VkQueueFamilyProperties properties[32];vkGetPhysicalDeviceQueueFamilyProperties(vp_physical,&nf,properties);
-    if(!(properties[family].queueFlags&VK_QUEUE_GRAPHICS_BIT)) goto skip;
+    static uint32_t cached_nf;static VkQueueFamilyProperties cached_props[32];static int cached_valid;
+    if(!cached_valid) {cached_nf=32;vkGetPhysicalDeviceQueueFamilyProperties(vp_physical,&cached_nf,cached_props);cached_valid=1;}
+    if(family>=cached_nf) goto skip;
+    if(!(cached_props[family].queueFlags&VK_QUEUE_GRAPHICS_BIT)) goto skip;
     pthread_mutex_lock(&vp_pixels_mutex);
     uint32_t w=vp_width,h=vp_height;
     pthread_mutex_unlock(&vp_pixels_mutex);
@@ -438,10 +438,7 @@ static VkResult vp_present(VkQueue queue,const VkPresentInfoKHR *info) {
     }
     VkRenderPassBeginInfo rp={.sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,.renderPass=s->pass,.framebuffer=f->framebuffer,.renderArea={{0,0},s->extent}};
     vkCmdBeginRenderPass(f->command,&rp,VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(f->command,VK_PIPELINE_BIND_POINT_GRAPHICS,s->pipeline);
-    vkCmdBindDescriptorSets(f->command,VK_PIPELINE_BIND_POINT_GRAPHICS,s->layout,0,1,&f->descriptor,0,NULL);
-    vkCmdDraw(f->command,3,1,0,0);
-    /* Draw ESP geometry with fresh camera data, accounting for surface rotation */
+    /* Draw ESP geometry first so the bitmap overlay (which contains the menu) renders on top */
     if(s->esp_pipeline && f->esp_vb_mapped) {
         int rot=s->transform==VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR?1:
             s->transform==VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR?2:
@@ -472,6 +469,10 @@ static VkResult vp_present(VkQueue queue,const VkPresentInfoKHR *info) {
             vkCmdDraw(f->command,(uint32_t)esp_verts,1,0,0);
         }
     }
+    /* Bitmap overlay (ESP boxes/text + menu) composited on top */
+    vkCmdBindPipeline(f->command,VK_PIPELINE_BIND_POINT_GRAPHICS,s->pipeline);
+    vkCmdBindDescriptorSets(f->command,VK_PIPELINE_BIND_POINT_GRAPHICS,s->layout,0,1,&f->descriptor,0,NULL);
+    vkCmdDraw(f->command,3,1,0,0);
     vkCmdEndRenderPass(f->command);
     if(vkEndCommandBuffer(f->command)!=VK_SUCCESS) goto skip;
     VkPipelineStageFlags waits[32];for(uint32_t i=0;i<info->waitSemaphoreCount;i++) waits[i]=VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;

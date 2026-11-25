@@ -141,3 +141,14 @@ write failures. These tests cannot establish live match stability or alignment.
 Position/transition regressions: `python3 internal/native/tests/test_position_acceptance.py` and `python3 internal/native/tests/test_engine_frame.py`. These compile production helpers and exercise independently protected coordinates, verified transform fallback, failed decode rejection, viewport travel, possession loss and actor destruction.
 
 `python3 internal/native/tests/test_engine_position.py` tests the production internal SDK getter binding and acceptance checks with synthetic dispatch, including incompatible ABI/exec, stale world, root changes, invalid receiver, nonfinite and disagreeing locations. Live native getter output requires separate match verification.
+
+
+## Menu redesign (2026-11-25)
+
+Compile `overlay/O.java` with `tests/MenuLayoutRegression.java` using the Android
+javac/D8/app_process steps above, replacing the fixture class name. It renders all
+seven real Android pages to `/data/local/tmp/delta-menu-page-N.png`, checks readable
+columns and retained controls, and drives a real distance-slider gesture to ensure
+it updates continuously without rebuilding its page. Stamina/Loot fixtures now
+search inside cards and pass their saved-setting checks. This does not replace
+checking the menu's Vulkan presentation and native input routing in the game.

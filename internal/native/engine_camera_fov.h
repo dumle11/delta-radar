@@ -43,4 +43,35 @@ static void fov_publish(uint64_t camera,int target) {
         }
     }
 }
+
+/* Perspective toggle: camera-only TPP via spring arm offset.
+ * Pawn+0x3B10 → GPCameraModeComponent.
+ *   +0x168 TPPSpringArmComponent → +0x240 TargetArmLength.
+ * Does NOT touch FPP mode flags (causes spawn issues in operations). */
+static _Atomic int _perspective_mode;
+static void perspective_publish(uint64_t pawn, int mode) {
+    if (!pawn || pawn < 0x10000) return;
+    uint64_t comp = ev_ptr(pawn + 0x3B10);
+    if (!is_any_ptr(comp)) return;
+
+    if (mode == 2) {
+        uint64_t spring = ev_ptr(comp + 0x168);
+        if (is_any_ptr(spring)) {
+            float arm = 0;
+            ev_read(spring + 0x240, &arm, 4);
+            float target = 300.0f;
+            if (arm < target - 1.0f) ew_write(spring + 0x240, &target, 4);
+        }
+    } else {
+        uint64_t spring = ev_ptr(comp + 0x168);
+        if (is_any_ptr(spring)) {
+            float arm = 0;
+            ev_read(spring + 0x240, &arm, 4);
+            if (arm > 50.0f) {
+                float zero = 0.0f;
+                ew_write(spring + 0x240, &zero, 4);
+            }
+        }
+    }
+}
 #endif

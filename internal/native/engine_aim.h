@@ -1,5 +1,6 @@
 #ifndef INTERNAL_ENGINE_AIM_H
 #define INTERNAL_ENGINE_AIM_H
+#include "entity_presentation.h"
 #include "aim_target.h"
 /* Direct memory-write aim + direct ProcessEvent autoshoot.
  * No vtable hooks, no mprotect, no game-thread interception. */
@@ -8,6 +9,8 @@ static _Atomic uint64_t ea_locked_actor;
 static _Atomic int ea_ready;
 static _Atomic int ea_autoshoot_active;
 static _Atomic int ea_screen_w, ea_screen_h;
+static _Atomic int ea_max_distance;
+static _Atomic int ea_type_pref;
 static EVObject ea_controller_obj, ea_target, ea_world_obj, ea_pawn_obj;
 
 static EVObject ea_fire_start_fn, ea_fire_stop_fn;
@@ -223,12 +226,12 @@ static void ea_log_candidates(int count) {
     for(int i=0;i<count;i++) {
         const Entity *e=&entities[i];
         if(!strcmp(e->id,self_entity_id) || e->kind[0]=='l' || e->dead) continue;
-        unsigned kind=e->kind[0]=='a';totals[kind][0]++;
+        unsigned kind=actor_display_type(e->kind[0],e->is_player_bot,e->team)==2;totals[kind][0]++;
         totals[kind][1]+=e->health_known && isfinite(e->health) && e->health>0.01f;
         float point[3];totals[kind][2]+=aim_entity_point(e,bone,point)!=0;
         totals[kind][3]+=e->visibility_known && e->visible_from_camera;
     }
-    char text[200];snprintf(text,sizeof(text),"aim candidates: config=%08x players=%u health=%u joints=%u visible=%u bots=%u health=%u joints=%u visible=%u",
+    char text[200];snprintf(text,sizeof(text),"aim candidates: config=%08x players=%u health=%u joints=%u visible=%u npcs=%u health=%u joints=%u visible=%u",
         config,totals[0][0],totals[0][1],totals[0][2],totals[0][3],totals[1][0],totals[1][1],totals[1][2],totals[1][3]);_diag(text);
 }
 static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
@@ -254,14 +257,19 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
     unsigned mask = (aim_config >> 1) & 7;
     int bone = (aim_config >> 16) & 3;
 
+    int max_dist_m = atomic_load(&ea_max_distance);
+    int type_pref = atomic_load(&ea_type_pref);
     for (int i = 0; i < count && choice_count < EV_MAX; i++) {
         Entity *e = &entities[i];
         if (!strcmp(e->id, self_entity_id) || e->dead) continue;
         if (!e->actor_address) continue;
+        if (max_dist_m > 0) {
+            float dx = cam_x - e->x, dy = cam_y - e->y, dz = cam_z - e->z;
+            if (dx*dx + dy*dy + dz*dz > (float)max_dist_m * (float)max_dist_m) continue;
+        }
 
-        int allowed = e->kind[0] == 'a' ? (mask & 4) != 0 :
-            e->kind[0] == 'p' && ((e->team != 1 && (mask & 1) != 0) ||
-                                   (e->team == 1 && (mask & 2) != 0));
+        int category=actor_display_type(e->kind[0],e->is_player_bot,e->team);
+        int allowed=(category==0 && (mask&1)) || (category==1 && (mask&2)) || (category==2 && (mask&4));
         int eligible = allowed && e->health_known && isfinite(e->health) && e->health > 0.01f;
 
         float aim_point[3];
@@ -294,6 +302,13 @@ static void ea_frame_direct(int count, float cam_x, float cam_y, float cam_z,
             score = facing ? dist3d : (1e12f + dist3d);
             break;
         }
+        }
+        if (type_pref) {
+            int is_enemy = category==0;
+            int is_teammate = category==1;
+            int is_npc = category==2;
+            int matches = (type_pref == 1 && is_enemy) || (type_pref == 2 && is_teammate) || (type_pref == 3 && is_npc);
+            if (!matches) score += 1e12f;
         }
         choices[choice_count] = (AimChoice){
             e->actor_address, score, range_dist,

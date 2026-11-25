@@ -10,12 +10,12 @@ static float _ov_cam_roll;
 static JavaVM *_ov_jvm;
 static jclass _ov_cls;
 static jmethodID _ov_z, _ov_b, _ov_r, _ov_f, _ov_l, _ov_t, _ov_e, _ov_gw, _ov_gh, _ov_ok;
-static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx;
+static jmethodID _ov_dg, _ov_de, _ov_df, _ov_ds, _ov_dx, _ov_dl;
 static jmethodID _ov_ge, _ov_gf, _ov_gr, _ov_gso, _ov_gc;
 static jmethodID _ov_gvc, _ov_grd, _ov_dt, _ov_glr, _ov_glm, _ov_glf, _ov_lc;
 static jmethodID _ov_circle, _ov_ta;
 static jmethodID _ov_ga, _ov_gaf, _ov_gas, _ov_gab, _ov_gaa, _ov_gam, _ov_gaz, _ov_gal, _ov_ga3, _ov_gap;
-static jmethodID _ov_gnr, _ov_gns, _ov_gcf, _ov_gis;
+static jmethodID _ov_gnr, _ov_gns, _ov_gnw, _ov_gcf, _ov_gis, _ov_gms, _ov_gad, _ov_gtp, _ov_gfp;
 static jmethodID _ov_gce, _ov_gcv, _ov_gci, _ov_gcb;
 static int _ov_ready;
 static int _ov_w, _ov_h;
@@ -124,6 +124,7 @@ static int _ov_load_dex(void) {
     _ov_df = (*env)->GetStaticMethodID(env, _ov_cls, "df", "(Ljava/lang/String;)V");
     _ov_ds = (*env)->GetStaticMethodID(env, _ov_cls, "ds", "(Ljava/lang/String;)V");
     _ov_dx = (*env)->GetStaticMethodID(env, _ov_cls, "dx", "(Ljava/lang/String;)V");
+    _ov_dl = (*env)->GetStaticMethodID(env, _ov_cls, "dl", "(Ljava/lang/String;)V");
     _ov_gc = (*env)->GetStaticMethodID(env, _ov_cls, "gc", "(I)I");
     _ov_gvc = (*env)->GetStaticMethodID(env, _ov_cls, "gvc", "(IZ)I");
     _ov_dt = (*env)->GetStaticMethodID(env, _ov_cls, "dt", "(Ljava/lang/String;FFI)V");
@@ -151,7 +152,12 @@ static int _ov_load_dex(void) {
     _ov_gnr = (*env)->GetStaticMethodID(env, _ov_cls, "gnr", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gns = (*env)->GetStaticMethodID(env, _ov_cls, "gns", "()Z");
+    _ov_gnw = (*env)->GetStaticMethodID(env, _ov_cls, "gnw", "()Z");
     _ov_gis = (*env)->GetStaticMethodID(env, _ov_cls, "gis", "()Z");
+    _ov_gms = (*env)->GetStaticMethodID(env, _ov_cls, "gms", "()Z");
+    _ov_gad = (*env)->GetStaticMethodID(env, _ov_cls, "gad", "()I");
+    _ov_gtp = (*env)->GetStaticMethodID(env, _ov_cls, "gtp", "()I");
+    _ov_gfp = (*env)->GetStaticMethodID(env, _ov_cls, "gfp", "()Z");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
     _ov_gcf = (*env)->GetStaticMethodID(env, _ov_cls, "gcf", "()I");
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
@@ -444,6 +450,37 @@ static void _ov_update_diag(uint64_t gworld, int n, int ac,
         (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_dx, extra);
         (*env)->DeleteLocalRef(env, extra);
     }
+    if (_ov_dl) {
+        char tbl[8192]; int pos = 0;
+        float cx = _rcam[0], cy = _rcam[1], cz = _rcam[2];
+        pos += snprintf(tbl+pos, sizeof(tbl)-pos,
+            "%-20s %-8s %-24s %-9s %-4s %-6s %-5s %-5s\n"
+            "%-20s %-8s %-24s %-9s %-4s %-6s %-5s %-5s\n",
+            "Name","Type","Class","HP","Tm","Dist","Vis","State",
+            "----","----","-----","--","--","----","---","-----");
+        int ne = num_entities; if (ne > MAX_ACTORS) ne = MAX_ACTORS;
+        int count = 0;
+        for (int i = 0; i < ne && pos < (int)sizeof(tbl) - 200; i++) {
+            Entity *e = &entities[i];
+            if (e->kind[0] == 'l' || !strcmp(e->id, self_entity_id)) continue;
+            const char *type = actor_kind_label(e->kind[0], e->is_player_bot);
+            const char *state = e->dead ? "Dead" : "Alive";
+            const char *vis = e->visible_from_camera ? "Vis" : (e->visibility_known ? "Occ" : "?");
+            char hp[16]; if (e->health_known) snprintf(hp,sizeof(hp),"%d/%d",(int)e->health,(int)e->max_health); else snprintf(hp,sizeof(hp),"-");
+            char nm[22]; int nl = strlen(e->name); if (nl > 20) { memcpy(nm,e->name,17); nm[17]='.'; nm[18]='.'; nm[19]=0; } else { memcpy(nm,e->name,nl+1); }
+            char cls[26]; nl = strlen(e->class_name); if (nl > 24) { memcpy(cls,e->class_name,21); cls[21]='.'; cls[22]='.'; cls[23]=0; } else if (nl > 0) { memcpy(cls,e->class_name,nl+1); } else { cls[0]='-'; cls[1]=0; }
+            float dx2 = e->x - cx, dy2 = e->y - cy, dz2 = e->z - cz;
+            float dist = sqrtf(dx2*dx2 + dy2*dy2 + dz2*dz2);
+            char ds[8]; snprintf(ds, sizeof(ds), "%dm", (int)dist);
+            char tm[5]; snprintf(tm, sizeof(tm), "%d", e->team);
+            pos += snprintf(tbl+pos, sizeof(tbl)-pos, "%-20s %-8s %-24s %-9s %-4s %-6s %-5s %-5s\n",
+                nm, type, cls, hp, tm, ds, vis, state);
+            count++;
+        }
+        if (count == 0) { pos = 0; pos += snprintf(tbl, sizeof(tbl), "No entities in range"); }
+        jstring jtbl = (*env)->NewStringUTF(env, tbl);
+        if (jtbl) { (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_dl, jtbl); (*env)->DeleteLocalRef(env, jtbl); }
+    }
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
 }
 
@@ -464,10 +501,60 @@ static void _ov_update_diag(uint64_t gworld, int n, int ac,
 #define EF_DISTANCE  32
 #define EF_SNAPLINES 64
 
+/* Operator identity resolution: map operator_id to display name and class.
+ * NPC templates are parsed from the npc_template field. */
+typedef struct { int64_t id; const char *name; const char *cls; } _ov_op_entry;
+static const _ov_op_entry _ov_operators[] = {
+    {10001, "Stinger", "Support"},
+    {10002, "Vlinder", "Support"},
+    {10003, "Rover", "Support"},
+    {10004, "Toxik", "Support"},
+    {10005, "Branko", "Support"},
+    {20001, "Luna", "Recon"},
+    {20002, "Raptor", "Recon"},
+    {20003, "Hackclaw", "Recon"},
+    {20004, "Morse", "Recon"},
+    {30001, "D-Wolf", "Assault"},
+    {30002, "Vyron", "Assault"},
+    {30003, "Martelo", "Assault"},
+    {30004, "Tempest", "Assault"},
+    {30005, "Nox", "Assault"},
+    {40001, "Shepherd", "Engineer"},
+    {40002, "Uluru", "Engineer"},
+    {40003, "Sineva", "Engineer"},
+    {40004, "Gizmo", "Engineer"},
+    {40005, "N-Two", "Engineer"},
+    {0, NULL, NULL}
+};
+static void _ov_resolve_identity(const Entity *e, char *out, int size) {
+    out[0] = 0;
+    if (!e->identity_verified) return;
+    if (e->operator_id > 0) {
+        for (int i = 0; _ov_operators[i].name; i++) {
+            if (_ov_operators[i].id == e->operator_id) {
+                snprintf(out, size, "%s", _ov_operators[i].name);
+                return;
+            }
+        }
+        snprintf(out, size, "Op%lld", (long long)e->operator_id);
+        return;
+    }
+    if (e->kind[0] == 'a' && e->npc_template[0]) {
+        const char *t = e->npc_template;
+        /* Skip SOL_ DT_ BT_ AI_ NPC_ prefixes */
+        for (;;) {
+            if (!strncmp(t,"SOL_",4)) { t+=4; continue; }
+            if (!strncmp(t,"DT_",3)) { t+=3; continue; }
+            if (!strncmp(t,"BT_",3)) { t+=3; continue; }
+            if (!strncmp(t,"AI_",3)) { t+=3; continue; }
+            if (!strncmp(t,"NPC_",4)) { t+=4; continue; }
+            break;
+        }
+        if (t[0]) { snprintf(out, size, "%s", t); return; }
+    }
+}
 static int _ov_entity_type(Entity *e) {
-    if (e->kind[0] == 'l') return ET_LOOT;
-    if (e->kind[0] == 'a') return e->is_player_bot ? ET_BOT_PLAYER : ET_NPC;
-    return e->team == 1 ? ET_TEAMMATE : ET_ENEMY;
+    return actor_display_type(e->kind[0],e->is_player_bot,e->team);
 }
 
 /* Debug rendering uses our collected collision bounds, never invokes game code. */
@@ -650,26 +737,34 @@ static unsigned _ov_aim_config(void) {
     int aimlocked = _ov_gal ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gal) : 1;
     int aim360 = _ov_ga3 ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_ga3) : 0;
     int priority = _ov_gap ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gap) : 0;
+    int max_dist = _ov_gad ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gad) : 0;
+    int type_pref = _ov_gtp ? (*env)->CallStaticIntMethod(env,_ov_cls,_ov_gtp) : 0;
     if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); return 0; }
     if (fov<5) fov=5; if (fov>45) fov=45;
     if (bone<0 || bone>2) bone=2;
     if (priority<0 || priority>3) priority=0;
+    atomic_store(&ea_max_distance, max_dist);
+    atomic_store(&ea_type_pref, type_pref);
     return (enabled?1u:0u) | ((unsigned)mask<<1) | ((unsigned)fov<<8) | ((unsigned)bone<<16) | (autoshoot?1u<<24:0u) | (autozoom?1u<<25:0u) | (aimlocked?1u<<26:0u) | (aim360?1u<<27:0u) | ((unsigned)priority<<28);
 }
 static _Atomic int _ov_camera_fov_override;
 
 static void _ov_misc_config(void) {
-    if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); atomic_store(&_ov_camera_fov_override, 0); atomic_store(&es_enabled, 0); return; }
+    if (!_ov_ready || !_ov_cls) { atomic_store(&ew_no_recoil, 0); atomic_store(&ew_no_spread, 0); atomic_store(&ew_no_sway, 0); atomic_store(&_ov_camera_fov_override, 0); atomic_store(&es_enabled, 0); return; }
     JNIEnv *env = _ov_env(); if (!env) return;
     int nr = _ov_gnr ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gnr) : 0;
     int ns = _ov_gns ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gns) : 0;
+    int nw = _ov_gnw ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gnw) : 0;
     int stamina = _ov_gis ? (*env)->CallStaticBooleanMethod(env,_ov_cls,_ov_gis) : 0;
     int cf = _ov_gcf ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gcf) : 0;
-    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); nr = ns = cf = stamina = 0; }
+    int fpp = _ov_gfp ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gfp) : 0;
+    if ((*env)->ExceptionCheck(env)) { (*env)->ExceptionClear(env); nr = ns = nw = cf = stamina = fpp = 0; }
     atomic_store(&ew_no_recoil, nr);
     atomic_store(&ew_no_spread, ns);
+    atomic_store(&ew_no_sway, nw);
     atomic_store(&_ov_camera_fov_override, cf);
     atomic_store(&es_enabled, stamina);
+    atomic_store(&_perspective_mode, fpp ? 2 : 0);
     int ray_flags=_ov_grd?(*env)->CallStaticIntMethod(env,_ov_cls,_ov_grd):0;
     atomic_store(&internal_collect_occluders,(ray_flags&1)!=0);
 }
@@ -701,10 +796,11 @@ static void _ov_esp_render_config(void) {
 static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {
     unsigned config = atomic_load(&ea_config);
     if (config & 1) {
+        int is360 = (config >> 27) & 1;
         float radius = aim_radius_pixels((float)_ov_w, cam[5], (config >> 8) & 255);
         unsigned status = atomic_load(&ea_status);
         int color = status == 2 ? (int)0xFF00FF00 : (int)0xDDFFFFFF;
-        if (radius > 0) (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_circle,
+        if (radius > 0 && !is360) (*env)->CallStaticVoidMethod(env, _ov_cls, _ov_circle,
             _ov_w * 0.5f, _ov_h * 0.5f, radius, color);
         const char *text = status == 2 ? "Aim: locked" :
             status == 3 ? "Aim: unavailable" : "Aim: searching";
@@ -712,10 +808,11 @@ static void _ov_draw_aim(JNIEnv *env, const float cam[6]) {
     }
     if (config & (1u << 24)) {
         unsigned status = atomic_load(&et_status);
-        const char *text = status == 2 ? "Trigger: firing" :
-            status == 3 ? "Trigger: unavailable" : status == 4 ? "Trigger: zooming" : "Trigger: ready";
-        _ov_debug_text(env, text, 20, (float)_ov_h - ((config & 1) ? 56 : 28),
-            status == 2 ? (int)0xFF00FF00 : (int)0xDDFFFFFF);
+        if (status == 2 || status == 4) {
+            const char *text = status == 2 ? "Trigger: firing" : "Trigger: zooming";
+            _ov_debug_text(env, text, 20, (float)_ov_h - ((config & 1) ? 56 : 28),
+                status == 2 ? (int)0xFF00FF00 : (int)0xDDFFFFFF);
+        }
     }
 }
 
@@ -774,6 +871,7 @@ static void _ov_draw_esp(void) {
     }
     int snap_origin = _ov_gso ? (*env)->CallStaticIntMethod(env, _ov_cls, _ov_gso) : 0;
     /* Sync ESP config to Vulkan-native ESP atomics */
+    atomic_store(&eg_menu_shown, _ov_gms ? (*env)->CallStaticBooleanMethod(env, _ov_cls, _ov_gms) : 0);
     atomic_store(&eg_esp_on, esp_on);
     atomic_store(&eg_snap_origin, snap_origin);
     for (int t = 0; t < ET_COUNT && t < 5; t++) {
@@ -912,11 +1010,11 @@ static void _ov_draw_esp(void) {
 
         if (ef & EF_NAMES) {
             char lbl[96];
-            const char *kind_str = e->kind[0] == 'p' ? "PLR" :
-                                   e->kind[0] == 'l' ? "LOOT" :
-                                   e->is_player_bot ? "BOT PLAYER" : "NPC";
-            if (e->name[0])
-                snprintf(lbl, sizeof(lbl), "%s [%s]", e->name, kind_str);
+            const char *kind_str=actor_kind_label(e->kind[0],e->is_player_bot);
+            char identity[64]; _ov_resolve_identity(e, identity, sizeof(identity));
+            const char *display_name = identity[0] ? identity : e->name;
+            if (display_name[0])
+                snprintf(lbl, sizeof(lbl), "%s [%s]", display_name, kind_str);
             else
                 snprintf(lbl, sizeof(lbl), "[%s]", kind_str);
             jstring jlbl = (*env)->NewStringUTF(env, lbl);

@@ -1,12 +1,18 @@
 import android.content.Context;
 import android.os.Looper;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Switch;
 import java.io.File;
 
 /** Tests the real Misc switch and persisted preference without injecting game input. */
 public class StaminaMenuRegression {
     static void check(boolean value, String why) { if (!value) throw new AssertionError(why); }
+    static Switch find(View view,String label) {
+        if(view instanceof Switch && label.equals(((Switch)view).getText().toString()))return (Switch)view;
+        if(view instanceof ViewGroup)for(int i=0;i<((ViewGroup)view).getChildCount();i++){Switch found=find(((ViewGroup)view).getChildAt(i),label);if(found!=null)return found;}
+        return null;
+    }
     public static void main(String[] args) throws Exception {
         if (Looper.myLooper() == null) Looper.prepare();
         Class<?> type = Class.forName("android.app.ActivityThread");
@@ -21,12 +27,7 @@ public class StaminaMenuRegression {
         O.viewWidth = 1920; O.viewHeight = 1080;
         O.MenuPanel panel = new O.MenuPanel(context);
         panel.selectTab(3);
-        Switch stamina = null;
-        for (int i = 0; i < panel.body.getChildCount(); i++) {
-            View child = panel.body.getChildAt(i);
-            if (child instanceof Switch && ((Switch)child).getText().toString().equals("Infinite stamina"))
-                stamina = (Switch)child;
-        }
+        Switch stamina=find(panel,"Infinite stamina");
         check(stamina != null && !stamina.isChecked() && !O.gis(), "Misc switch defaults off");
         stamina.setChecked(true);
         check(O.gis(), "enabled reaches native getter");

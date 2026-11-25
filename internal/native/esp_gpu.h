@@ -2,6 +2,7 @@
  * present render pass using the exact submitted skeletal draw matrix and an immutable scene snapshot. */
 #ifndef INTERNAL_ESP_GPU_H
 #define INTERNAL_ESP_GPU_H
+#include "entity_presentation.h"
 #include <vulkan/vulkan.h>
 #include <math.h>
 #include "loot_filter.h"
@@ -137,6 +138,7 @@ static _Atomic int eg_palette[5][2];
 static _Atomic int eg_snap_origin;
 
 static _Atomic int eg_active;
+static _Atomic int eg_menu_shown;
 static pthread_mutex_t eg_scene_mutex=PTHREAD_MUTEX_INITIALIZER;
 static Entity eg_entities[MAX_ACTORS];
 static int eg_entity_count;
@@ -167,10 +169,7 @@ static int eg_draw(EgVert *vb,float sw,float sh,const GvFrame *view) {
         if (strcmp(e->id, eg_self_id) == 0) continue;
         if (e->dead) continue;
 
-        int etype;
-        if (e->kind[0] == 'l') etype = 4;
-        else if (e->kind[0] == 'a') etype = e->is_player_bot ? 3 : 2;
-        else etype = e->team == 1 ? 1 : 0;
+        int etype=actor_display_type(e->kind[0],e->is_player_bot,e->team);
 
         int ef = atomic_load(&eg_feat[etype]);
         if (!(ef & 1)) continue;

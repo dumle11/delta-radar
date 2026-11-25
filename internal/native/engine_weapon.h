@@ -13,7 +13,7 @@
 #define EW_MAX_FIELDS 96
 #define EW_SPREAD_CAP 0.000001f /* positive: zero is the native unlimited sentinel */
 #define EW_RECOIL_CANCEL -1000.0f /* additive channel clamps negative sums to zero */
-static _Atomic int ew_no_recoil, ew_no_spread;
+static _Atomic int ew_no_recoil, ew_no_spread, ew_no_sway;
 static _Atomic unsigned ew_recoil_zeros, ew_spread_zeros;
 static unsigned ew_diag_seq;
 static int ew_serial_offset = -1;
@@ -232,6 +232,19 @@ static int ew_set(EWGroup *group, uint32_t offset, uint8_t size, uint8_t mask, f
 static int ew_float(EWGroup *group, uint32_t offset) { return ew_set(group,offset,4,0,0); }
 static int ew_flag(EWGroup *group, uint32_t offset, uint8_t mask) { return ew_set(group,offset,1,mask,0); }
 
+static int ew_apply_sway_component(uint64_t sway) {
+    if(!ew_begin(&ew_sway_group,sway,sway,0)) return 0;
+    const unsigned scales[]={0x1cc,0x260,0xf80,0x1350};
+    for(unsigned i=0;i<4;i++) if(!ew_float(&ew_sway_group,scales[i])) {
+        ew_restore_group(&ew_sway_group);return 0;
+    }
+    return 1;
+}
+static int ew_apply_no_sway(uint64_t weapon) {
+    uint64_t sway=ew_find_component(weapon,EW_WFCGS,0x1690);
+    if(!sway) {ew_restore_group(&ew_sway_group);return 0;}
+    return ew_apply_sway_component(sway);
+}
 static int ew_apply_no_recoil(uint64_t weapon) {
     ew_bad_field=0;
     uint64_t shake=ev_ptr(weapon+WB_OFF_FIRESHAKE_CACHE);
@@ -315,14 +328,8 @@ static int ew_apply_no_recoil(uint64_t weapon) {
         ok &= ew_float(&ew_kick_group,0x260);
     } else ew_restore_group(&ew_kick_group);
     uint64_t sway=ew_find_component(weapon,EW_WFCGS,0x1690);
-    if (sway) {
-        ok &= ew_begin(&ew_sway_group,sway,sway,0);
-        /* Native sway scale cache (+0xB9DCE58), scale propagation
-         * (+0xB9D8630), and final operator scales (+0xBA08D0C/+0xBA03150).
-         * Preserve each operator's dirty flags so host setters can refresh it. */
-        const unsigned scales[]={0x1cc,0x260,0xf80,0x1350};
-        for (unsigned i=0;i<4;i++) ok &= ew_float(&ew_sway_group,scales[i]);
-    } else ew_restore_group(&ew_sway_group);
+    if (sway) ok &= ew_apply_sway_component(sway);
+    else ew_restore_group(&ew_sway_group);
     if (!ok) { ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); ew_restore_group(&ew_sway_group); return 0; }
     atomic_fetch_add(&ew_recoil_zeros,1);
     return 1;
@@ -374,7 +381,7 @@ static int ew_apply_no_spread(uint64_t weapon) {
 static void ew_camera_release(void) {
     for(unsigned i=0;i<3;i++) ew_restore_group(&ew_camera_groups[i]);
 }
-static void ew_camera_update(uint64_t pawn) {
+static void ew_camera_update(uint64_t pawn,int recoil,int sway) {
     uint64_t controller=ev_ptr(pawn+0x3a8),manager=ev_ptr(controller+0x408);
     EVArray list={0};
     if (!ew_is_a(manager,EW_PCM,0x4270) || ev_ptr(manager+0x370)!=controller ||
@@ -386,6 +393,7 @@ static void ew_camera_update(uint64_t pawn) {
     ev_decode(n0,_ew_GCMWR,29); ev_decode(n1,_ew_GCMWGS,30); ev_decode(n2,_ew_GCMF,21);
     const char *names[]={n0,n1,n2};
     for(unsigned k=0;k<3;k++) {
+        if(!(k==1?sway:recoil)) {ew_restore_group(&ew_camera_groups[k]);continue;}
         uint64_t found=0;
         for(int i=0;i<list.count;i++) {
             uint64_t modifier=ev_ptr(list.data+(uint64_t)i*8);
@@ -425,10 +433,11 @@ static void ew_log_shot(uint64_t weapon) {
         (unsigned long)id,rotations[0],rotations[1],rotations[3],rotations[4],control[0],control[1],spread[0],spread[1],kick[0],kick[1]);_diag(line);
 }
 static void ew_update(uint64_t pawn) {
-    int nr=atomic_load(&ew_no_recoil), ns=atomic_load(&ew_no_spread);
-    if (!nr) { ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); ew_restore_group(&ew_sway_group); ew_camera_release(); }
+    int nr=atomic_load(&ew_no_recoil), ns=atomic_load(&ew_no_spread), nw=atomic_load(&ew_no_sway);
+    if (!nr) { ew_restore_group(&ew_recoil_group); ew_restore_group(&ew_shake_group); ew_restore_group(&ew_kick_group); }
+    if (!nr && !nw) {ew_restore_group(&ew_sway_group);ew_camera_release();}
     if (!ns) {ew_restore_group(&ew_spread_group);ew_restore_group(&ew_spread_gate_group);}
-    if (!nr && !ns) return;
+    if (!nr && !ns && !nw) return;
     uint64_t weapon=ew_get_current_weapon(pawn);
     if (!weapon || !ew_bind_serial(weapon)) {
         ew_release();
@@ -441,12 +450,13 @@ static void ew_update(uint64_t pawn) {
     }
     ew_log_shot(weapon);
     int recoil=nr ? ew_apply_no_recoil(weapon) : 0;
-    if (nr) ew_camera_update(pawn);
+    if(nw && (!nr || !recoil)) ew_apply_no_sway(weapon);
+    if(nr || nw) ew_camera_update(pawn,nr,nr||nw);
     int spread=ns ? ew_apply_no_spread(weapon) : 0;
     if (ew_diag_seq++%200==0) {
         char line[200];
-        snprintf(line,sizeof(line),"weapon: wpn=%lx recoil=%d spread=%d fields=%d/%d/%d kick=%d sway=%d camera=%d gate=%d applied=%u/%u",
-            (unsigned long)weapon,recoil,spread,ew_recoil_group.count,ew_shake_group.count,ew_spread_group.count,
+        snprintf(line,sizeof(line),"weapon: wpn=%lx recoil=%d spread=%d no_sway=%d fields=%d/%d/%d kick=%d sway=%d camera=%d gate=%d applied=%u/%u",
+            (unsigned long)weapon,recoil,spread,nw,ew_recoil_group.count,ew_shake_group.count,ew_spread_group.count,
             ew_kick_group.count,ew_sway_group.count,
             ew_camera_groups[0].count+ew_camera_groups[1].count+ew_camera_groups[2].count,
             ew_spread_gate_group.count,

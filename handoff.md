@@ -1,5 +1,87 @@
 # Delta Radar — Handoff (2026-11-23)
 
+## Menu redesign — 2026-11-25 (latest installed)
+
+Reworked the internal Android/Vulkan-composited UI using the user's references:
+charcoal/violet palette, sidebar with vector icons, seven destinations (Visuals,
+Chams, Aim assist, Loot, Misc, Appearance, Diagnostics), grouped bordered cards,
+and two independently scrolling columns. Chams now has its own page with RGB
+controls, presets and an illustrative visible/covered model preview. Visuals and
+Appearance have an illustrative preview reflecting the chosen actor's flags/colors.
+Existing settings/getters and the newer aim-distance/type-preference, third-person
+and No Weapon Sway controls are preserved. No separate overlay window was added.
+
+Sliders now have thin tracks and live labels. Render-distance dragging no longer
+rebuilds the page mid-gesture. Pages retain their column scroll positions; nav
+changes fade briefly. The header/brand remains draggable and the floating D/lock
+controls use the same palette. Local layout mutations bump a UI revision so closing
+or moving controls submits fresh pixels even when no new ESP frame arrives.
+Game-provided loot colors now find tagged switches recursively inside cards.
+
+Verification: overlay dex/native build; Android app_process MenuLayoutRegression
+renders all seven pages, checks column widths, drives a continuous distance-slider
+gesture and checks retained sway/perspective bindings. Updated nested-view lookups
+in StaminaMenuRegression and LootMenuRegression; both pass their persistence and
+independent-setting checks. Vulkan input/presentation fixtures and whitespace
+checks pass. Actual game checks cover drag, navigation, independent column scroll,
+close/reopen and retained settings. Screenshots: [in game](docs/menu-ui-2026-11-25/in-game.png),
+[Chams](docs/menu-ui-2026-11-25/chams.png),
+[independent scrolling](docs/menu-ui-2026-11-25/independent-scroll.png).
+No quantitative frame-time or all-device layout guarantee was measured.
+
+Installed SHA256 (320896 bytes, local/device match after announced atomic
+replacement/restart):
+`2af72e49cb29c94b7fbd12dc3b448089ea71e28aba5e1f6e90b3c5137980710a`.
+This supersedes hashes below. Game left running in lobby with Visuals menu open.
+Shared-workspace native/launcher edits from the other LLM were preserved.
+
+**Separate outstanding sway follow-up:** user reported slow movement/snapping with
+No Weapon Sway alone. Prior counters showed recoil/spread0, no_sway1, sway4/camera1.
+The user then requested this UI redesign. Sway suppression still needs follow-up;
+do not claim it was visually fixed by this menu change. Bounded native code captures
+are in /tmp/sway-update.bin/.asm and /tmp/sway-scale.bin/.asm. Native propagation at
+B9D8630 reads260, updates cached operator scales/dirty bits, writes260 atB9D86CC,
+then calls BA08B5C/BA030C4 setters. Getter B9DCE58 returns1CC; rebuild can write1CC
+atB9DD310. A direct scalar-write race is plausible, not yet proven by time-series
+samples. REA Rizin provider unavailable; captures were decoded with local NDK
+llvm-objdump, not retained REA evidence. The game process disappeared during that
+read-only investigation; it was explicitly relaunched. Latest tombstone05 was old
+(2026-11-23), so no fresh crash cause established. Do not modify anti-cheat code.
+
+## No Weapon Sway — 2026-11-24 (latest installed)
+
+Added **Misc → Weapon → No Weapon Sway**, defaultoff, persisted as `noWeaponSway`
+in the existing settings. Java `gnw()` feeds native `ew_no_sway` through the
+existing JNI misc-settings polling path. Rebuilt the embedded overlay dex.
+
+The new option independently suppresses the current owned weapon's typed
+WeaponFuncComponentGunSway scales (+1CC,+260,+F80,+1350) and its registered
+GPCameraModifier_WeaponGunSway channel. Uses existing checked per-instance
+write/restore machinery, preserving opaque animation data and dirty flags.
+When used alone it leaves recoil, firing-camera modifiers and spread unchanged.
+No Recoil retains its previously confirmed sway suppression: turn No Recoil OFF
+for an isolated on/off test of the new option. Shared sway suppression stays
+active while either No Recoil or No Weapon Sway requires it. Disabling both
+restores saved/latest host-recalculated values. Weapon changes, invalid/missing
+weapons and recycled objects follow existing ownership/lifetime restoration.
+
+Built overlay dex and native library. Expanded the production weapon regression
+with standalone sway, unrelated-byte preservation, recoil-toggle interaction,
+host-reconfigured value restoration and switching to an unsupported weapon;
+passes alongside stamina/FOV regressions and whitespace checks. Repaired the
+weapon fixture's omitted production string decoder so the existing camera
+modifier assertions run as intended.
+
+Installed SHA256 (304560 bytes, local/device match after announced atomic
+replacement and restart):
+`f650f7ba419d49ec2124dcc8d616628c4b0347e01a0d28b4e322eef2ad680e0a`.
+This supersedes all installed hashes below. Previous ESP/camera/joint fixes
+remain included. **Live visual verification pending:** user was asked to return
+to firing range, disable No Recoil, compare new toggle off/on, then reply ready
+with No Weapon Sway enabled. Check diagnostics `no_sway=1`, sway field count4,
+and camera sway modifier before claiming live effect verified. User enters range;
+announce any intentional restart beforehand.
+
 ## User confirmation — 2026-11-24
 
 User confirmed **“all good now”** in the live match when asked whether ESP boxes

@@ -6,7 +6,8 @@ import tempfile
 root = Path(__file__).resolve().parents[3]
 source = (root / "internal/native/engine_visibility.h").read_text()
 helpers = source[source.index("typedef struct { uint64_t data;"):source.index("/* Bind the UGPPhysics")]
-# Helpers contain only the read/object-identity layer, not engine dispatch.
+helpers += source[source.index("__attribute__((noinline))"):source.index("static int ev_bind_class(")]
+# Helpers contain the read/object-identity layer and string decoder, not engine dispatch.
 program = r'''
 #include <assert.h>
 #include <math.h>
@@ -120,6 +121,29 @@ int main(void) {
     assert(!memcmp(objects[6],spread_before,sizeof(spread_before)));
     assert(objects[4][0x1e0]==1);
     assert(!memcmp(objects[3],shake_before,sizeof(shake_before)));
+    /* No Weapon Sway works alone; unrelated weapon/camera state is retained. */
+    unsigned char sway_before[0x1690];memcpy(sway_before,objects[11],sizeof(sway_before));
+    atomic_store(&ew_no_sway,1);ew_update((uintptr_t)objects[0]);
+    assert(ew_sway_group.count==4 && getfloat(objects[11]+0x1cc)==0 && getfloat(objects[11]+0x260)==0);
+    assert(objects[14][0x44]==1 && !objects[15][0x44] && objects[16][0x48]==1);
+    assert(!memcmp(objects[5],recoil_before,sizeof(recoil_before)) && !memcmp(objects[6],spread_before,sizeof(spread_before)) && !memcmp(objects[3],shake_before,sizeof(shake_before)));
+    for(unsigned i=0;i<sizeof(sway_before);i++) {
+        int scalar=(i>=0x1cc&&i<0x1d0)||(i>=0x260&&i<0x264)||(i>=0xf80&&i<0xf84)||(i>=0x1350&&i<0x1354);
+        if(!scalar) assert(objects[11][i]==sway_before[i]);
+    }
+    atomic_store(&ew_no_recoil,1);ew_update((uintptr_t)objects[0]);
+    atomic_store(&ew_no_recoil,0);ew_update((uintptr_t)objects[0]);
+    assert(getfloat(objects[11]+0xf80)==0 && !objects[15][0x44]);
+    assert(objects[14][0x44]==1 && objects[16][0x48]==1);
+    putfloat(objects[11]+0x260,0.6f);ew_update((uintptr_t)objects[0]);
+    atomic_store(&ew_no_sway,0);ew_update((uintptr_t)objects[0]);
+    assert(getfloat(objects[11]+0x260)==0.6f && getfloat(objects[11]+0xf80)==1 && objects[15][0x44]==1);
+    putfloat(objects[11]+0x260,1);assert(!memcmp(objects[11],sway_before,sizeof(sway_before)));
+    atomic_store(&ew_no_sway,1);ew_update((uintptr_t)objects[0]);
+    put64(objects[1]+WM_OFF_CURRENT_ACTIVE,(uintptr_t)objects[7]);ew_update((uintptr_t)objects[0]);
+    assert(!ew_sway_group.count && getfloat(objects[11]+0xf80)==1);
+    atomic_store(&ew_no_sway,0);ew_update((uintptr_t)objects[0]);assert(objects[15][0x44]==1);
+    put64(objects[1]+WM_OFF_CURRENT_ACTIVE,(uintptr_t)objects[2]);
     /* A second strategy has no FireShake DFM cache. Its firing-data method
      * must be followed, with its own layout rather than DFM offsets. */
     for(int i=0x48;i<0xb8;i+=4) putfloat(objects[9]+i,1.75f);
@@ -186,4 +210,4 @@ with tempfile.TemporaryDirectory() as directory:
     subprocess.run(["cc", "-std=c11", "-O2", "-I", str(root / "external/scanner"),
                     "-I", str(root / "internal/native"), str(cfile), "-o", str(executable)], check=True)
     subprocess.run([str(executable)], check=True)
-print("PASS: 19-entry weak list, identity/ownership, correct spread/recoil fields, opaque-data preservation, toggle/switch restoration, stale references, checked-write recovery")
+print("PASS: 19-entry weak list, identity/ownership, correct spread/recoil fields, opaque-data preservation, standalone sway and recoil interaction, host rewrite/toggle/switch restoration, stale references, checked-write recovery")

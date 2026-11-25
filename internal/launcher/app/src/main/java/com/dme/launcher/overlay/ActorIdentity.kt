@@ -4,7 +4,16 @@ internal object ActorIdentity {
     // Active ExpertId, not cosmetic HeroId or the pawn's default model.
     // Only UI-verified bindings belong here. Class-kit IDs and cosmetic IDs
     // cannot be assigned operator names from a guessed numbering scheme.
-    private val operators = mapOf(20003L to "Hackclaw")
+    private val operators = mapOf(
+        10001L to "Stinger", 10002L to "Vlinder", 10003L to "Rover",
+        10004L to "Toxik", 10005L to "Branko",
+        20001L to "Luna", 20002L to "Raptor", 20003L to "Hackclaw",
+        20004L to "Morse",
+        30001L to "D-Wolf", 30002L to "Vyron", 30003L to "Martelo",
+        30004L to "Tempest", 30005L to "Nox",
+        40001L to "Shepherd", 40002L to "Uluru", 40003L to "Sineva",
+        40004L to "Gizmo", 40005L to "N-Two"
+    )
 
     fun label(kind: String, verified: Boolean, operatorId: Long, template: String): String {
         if (kind == "l") return ""
